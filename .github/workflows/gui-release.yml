@@ -1,0 +1,173 @@
+# CANopenEditor-Oberflaechen als GitHub-Release veroeffentlichen.
+#
+# Haengt drei Artefakte an das Release:
+#
+#   EDSEditorGUI-win-net481.zip     GUI 1 (klassische WinForms-Oberflaeche).
+#                                   Laeuft auf Windows mit .NET Framework 4.8
+#                                   und unter Linux mit Mono (mono EDSEditor.exe).
+#   EDSEditorGUI2-win-x64.zip       GUI 2 (neue Avalonia-Oberflaeche) fuer
+#                                   Windows, eigenstaendig (keine .NET-Installation
+#                                   noetig, EDSEditorGUI2.exe starten).
+#   EDSEditorGUI2-linux-x64.tar.gz  dito fuer Linux (./EDSEditorGUI2 starten).
+#
+# Ausloeser analog zum CLI-Release (edssharp-release.yml):
+#   1. Aenderung der Marker-Datei GUI_RELEASE_TAG (enthaelt den Tag)
+#   2. manuell per workflow_dispatch
+# Eigene Tags heissen gui-v*, damit sie weder mit Upstream-Versions-Tags
+# (v*.*.*, bedient release.yml) noch mit den CLI-Tags (cli-v*) kollidieren.
+
+name: GUI Release
+
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - "GUI_RELEASE_TAG"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release-Tag (z.B. gui-v4.2.3-protronic.1)"
+        required: true
+        default: "gui-v4.2.3-protronic.1"
+
+permissions:
+  contents: write
+
+jobs:
+  vorpruefung:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      exists: ${{ steps.check.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Release-Tag bestimmen (Input > Marker-Datei)
+        id: tag
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="$(tr -d ' \n' < GUI_RELEASE_TAG)"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Release-Tag: $TAG"
+
+      # Duplikate abfangen wie beim CLI-Release: Existiert das Release schon
+      # (z.B. weil die Marker-Datei per Merge erneut in einem Push auftaucht),
+      # werden Build- und Release-Jobs gruen uebersprungen.
+      - name: Pruefen ob Release bereits existiert
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.tag.outputs.tag }}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release existiert bereits - nichts zu tun."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  gui1-windows:
+    # GUI 1 (WinForms, net481) braucht msbuild und damit einen Windows-Runner.
+    needs: vorpruefung
+    if: needs.vorpruefung.outputs.exists != 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Tag fuer den Versionsstempel setzen (git describe im Build)
+        run: git tag "${{ needs.vorpruefung.outputs.tag }}"
+        continue-on-error: true
+
+      - uses: microsoft/setup-msbuild@v3
+
+      - name: Restore
+        run: dotnet restore EDSEditorGUI/EDSEditorGUI.csproj
+
+      - name: Build (net481)
+        run: msbuild EDSEditorGUI/EDSEditorGUI.csproj /p:BuildNet481=true /p:Configuration=Release
+
+      - name: Artefakt packen
+        run: Compress-Archive -CompressionLevel Optimal -Path "EDSEditorGUI\bin\Release\net481\*" -DestinationPath EDSEditorGUI-win-net481.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gui1
+          path: EDSEditorGUI-win-net481.zip
+
+  gui2:
+    # GUI 2 (Avalonia, net8.0) laesst sich fuer beide Plattformen von Linux aus bauen.
+    needs: vorpruefung
+    if: needs.vorpruefung.outputs.exists != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Tag fuer den Versionsstempel setzen (git describe im Build)
+        run: git tag "${{ needs.vorpruefung.outputs.tag }}" || true
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publish linux-x64 (self-contained)
+        run: >
+          dotnet publish EDSEditorGUI2/EDSEditorGUI2.csproj -c Release
+          -r linux-x64 --self-contained true -p:BuildNet8=true -o out/gui2-linux-x64
+
+      - name: Publish win-x64 (self-contained)
+        run: >
+          dotnet publish EDSEditorGUI2/EDSEditorGUI2.csproj -c Release
+          -r win-x64 --self-contained true -p:BuildNet8=true -o out/gui2-win-x64
+
+      # GUI 2 laedt die Geraeteprofile zur Laufzeit aus <Programmordner>/Profiles;
+      # dotnet publish nimmt sie nicht selbst mit (das CopyProfilesDirectory-Target
+      # im Projekt befuellt nur das Build-, nicht das Publish-Verzeichnis).
+      - name: Profiles beilegen
+        run: |
+          cp -r EDSEditorGUI/Profiles out/gui2-linux-x64/Profiles
+          cp -r EDSEditorGUI/Profiles out/gui2-win-x64/Profiles
+
+      - name: Artefakte packen
+        run: |
+          tar -C out/gui2-linux-x64 -czf EDSEditorGUI2-linux-x64.tar.gz .
+          (cd out/gui2-win-x64 && zip -qr ../../EDSEditorGUI2-win-x64.zip .)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gui2
+          path: |
+            EDSEditorGUI2-linux-x64.tar.gz
+            EDSEditorGUI2-win-x64.zip
+
+  release:
+    needs: [vorpruefung, gui1-windows, gui2]
+    if: needs.vorpruefung.outputs.exists != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.vorpruefung.outputs.tag }}
+        run: |
+          gh release create "$TAG" \
+            EDSEditorGUI-win-net481.zip EDSEditorGUI2-win-x64.zip EDSEditorGUI2-linux-x64.tar.gz \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "${{ github.sha }}" \
+            --title "CANopenEditor GUI $TAG" \
+            --notes "CANopenEditor-Oberflaechen als fertige Pakete.
+
+          EDSEditorGUI-win-net481.zip: GUI 1 (klassische WinForms-Oberflaeche, EDSEditor.exe).
+          Laeuft auf Windows mit .NET Framework 4.8; unter Linux per Mono: mono EDSEditor.exe
+
+          EDSEditorGUI2-win-x64.zip / EDSEditorGUI2-linux-x64.tar.gz: GUI 2 (neue
+          Avalonia-Oberflaeche), eigenstaendig gebaut - keine .NET-Installation noetig.
+          Entpacken und EDSEditorGUI2.exe (Windows) bzw. ./EDSEditorGUI2 (Linux) starten."
