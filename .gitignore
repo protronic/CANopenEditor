@@ -26,3 +26,4 @@ edseditor-Setup.exe
 *.bak
 releases/*
 out-cli/
+/demo/generated/
