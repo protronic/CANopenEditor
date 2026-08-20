@@ -155,17 +155,17 @@ Contributors
                 </a>
             </td>
             <td align="center">
-                <a href="https://github.com/heliochronix">
-                    <img src="https://avatars.githubusercontent.com/u/1733202?v=4" width="100;" alt="heliochronix"/>
-                    <br />
-                    <sub><b>heliochronix</b></sub>
-                </a>
-            </td>
-            <td align="center">
                 <a href="https://github.com/claude">
                     <img src="https://avatars.githubusercontent.com/u/81847?v=4" width="100;" alt="claude"/>
                     <br />
                     <sub><b>claude</b></sub>
+                </a>
+            </td>
+            <td align="center">
+                <a href="https://github.com/heliochronix">
+                    <img src="https://avatars.githubusercontent.com/u/1733202?v=4" width="100;" alt="heliochronix"/>
+                    <br />
+                    <sub><b>heliochronix</b></sub>
                 </a>
             </td>
             <td align="center">
