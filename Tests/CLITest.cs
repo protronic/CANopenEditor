@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using Xunit;
 
 namespace Tests
@@ -25,7 +26,12 @@ namespace Tests
             Process p = new Process();
             p.StartInfo.UseShellExecute = false;
             p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.FileName = "EDSSharp.exe";
+            // Auf Windows heisst der Apphost EDSSharp.exe, auf Linux/macOS EDSSharp;
+            // ausserhalb von Windows wird das Arbeitsverzeichnis zudem nicht
+            // automatisch durchsucht, daher expliziter relativer Pfad.
+            p.StartInfo.FileName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? "EDSSharp.exe"
+                : Path.Combine(".", "EDSSharp");
             p.StartInfo.Arguments = arguments;
             p.Start();
             string output = p.StandardOutput.ReadToEnd();
