@@ -55,37 +55,56 @@ jobs:
           echo "TAG=$TAG" >> "$GITHUB_ENV"
           echo "Release-Tag: $TAG"
 
+      # Duplikate abfangen: Wenn das Release schon existiert (z.B. weil die
+      # Marker-Datei per Merge erneut in einem Push auftaucht), Job gruen
+      # beenden statt bei "gh release create" rot zu werden.
+      - name: Pruefen ob Release bereits existiert
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG existiert bereits - nichts zu tun."
+            echo "RELEASE_EXISTS=true" >> "$GITHUB_ENV"
+          fi
+
       - name: Tag fuer den Versionsstempel setzen (git describe im Build)
+        if: env.RELEASE_EXISTS != 'true'
         run: git tag "$TAG" || true
 
       - uses: actions/setup-dotnet@v4
+        if: env.RELEASE_EXISTS != 'true'
         with:
           dotnet-version: "8.0.x"
 
       - name: Publish linux-x64 (self-contained)
+        if: env.RELEASE_EXISTS != 'true'
         run: >
           dotnet publish EDSSharp/EDSSharp.csproj -c Release -f net8.0
           -p:BuildNet8=true -r linux-x64 --self-contained true
           -p:PublishSingleFile=true -o out/linux-x64
 
       - name: Publish win-x64 (self-contained)
+        if: env.RELEASE_EXISTS != 'true'
         run: >
           dotnet publish EDSSharp/EDSSharp.csproj -c Release -f net8.0
           -p:BuildNet8=true -r win-x64 --self-contained true
           -p:PublishSingleFile=true -o out/win-x64
 
       - name: Publish portable (frameworkabhaengig)
+        if: env.RELEASE_EXISTS != 'true'
         run: >
           dotnet publish EDSSharp/EDSSharp.csproj -c Release -f net8.0
           -p:BuildNet8=true -o out/portable
 
       - name: Artefakte packen
+        if: env.RELEASE_EXISTS != 'true'
         run: |
           tar -C out/linux-x64 -czf EDSSharp-linux-x64.tar.gz EDSSharp
           (cd out/win-x64 && zip -q ../../EDSSharp-win-x64.zip EDSSharp.exe)
           (cd out/portable && zip -qr ../../EDSSharp-portable.zip .)
 
       - name: Release anlegen
+        if: env.RELEASE_EXISTS != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
