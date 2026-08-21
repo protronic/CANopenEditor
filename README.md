@@ -141,17 +141,17 @@ Contributors
 		</tr>
 		<tr>
             <td align="center">
-                <a href="https://github.com/reza0310">
-                    <img src="https://avatars.githubusercontent.com/u/70545529?v=4" width="100;" alt="reza0310"/>
-                    <br />
-                    <sub><b>reza0310</b></sub>
-                </a>
-            </td>
-            <td align="center">
                 <a href="https://github.com/claude">
                     <img src="https://avatars.githubusercontent.com/u/81847?v=4" width="100;" alt="claude"/>
                     <br />
                     <sub><b>claude</b></sub>
+                </a>
+            </td>
+            <td align="center">
+                <a href="https://github.com/reza0310">
+                    <img src="https://avatars.githubusercontent.com/u/70545529?v=4" width="100;" alt="reza0310"/>
+                    <br />
+                    <sub><b>reza0310</b></sub>
                 </a>
             </td>
             <td align="center">
