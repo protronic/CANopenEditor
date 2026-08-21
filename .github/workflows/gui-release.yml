@@ -5,6 +5,8 @@
 #   EDSEditorGUI-win-net481.zip     GUI 1 (klassische WinForms-Oberflaeche).
 #                                   Laeuft auf Windows mit .NET Framework 4.8
 #                                   und unter Linux mit Mono (mono EDSEditor.exe).
+#   EDSEditorGUI-win-net8.zip       GUI 1 als net8.0-windows-Build (win-x64,
+#                                   eigenstaendig, keine .NET-Installation noetig).
 #   EDSEditorGUI2-win-x64.zip       GUI 2 (neue Avalonia-Oberflaeche) fuer
 #                                   Windows, eigenstaendig (keine .NET-Installation
 #                                   noetig, EDSEditorGUI2.exe starten).
@@ -89,13 +91,25 @@ jobs:
       - name: Build (net481)
         run: msbuild EDSEditorGUI/EDSEditorGUI.csproj /p:BuildNet481=true /p:Configuration=Release
 
-      - name: Artefakt packen
-        run: Compress-Archive -CompressionLevel Optimal -Path "EDSEditorGUI\bin\Release\net481\*" -DestinationPath EDSEditorGUI-win-net481.zip
+      # Zusaetzlich GUI 1 als moderner net8.0-windows-Build, eigenstaendig
+      # (bringt die .NET-8-Desktop-Runtime mit, wie die GUI-2-Pakete).
+      - name: Publish net8.0-windows (self-contained, win-x64)
+        run: >
+          dotnet publish EDSEditorGUI/EDSEditorGUI.csproj -c Release
+          -f net8.0-windows -p:BuildNet8=true -r win-x64 --self-contained true
+          -o out/gui1-net8
+
+      - name: Artefakte packen
+        run: |
+          Compress-Archive -CompressionLevel Optimal -Path "EDSEditorGUI\bin\Release\net481\*" -DestinationPath EDSEditorGUI-win-net481.zip
+          Compress-Archive -CompressionLevel Optimal -Path "out\gui1-net8\*" -DestinationPath EDSEditorGUI-win-net8.zip
 
       - uses: actions/upload-artifact@v4
         with:
           name: gui1
-          path: EDSEditorGUI-win-net481.zip
+          path: |
+            EDSEditorGUI-win-net481.zip
+            EDSEditorGUI-win-net8.zip
 
   gui2:
     # GUI 2 (Avalonia, net8.0) laesst sich fuer beide Plattformen von Linux aus bauen.
@@ -159,7 +173,7 @@ jobs:
           TAG: ${{ needs.vorpruefung.outputs.tag }}
         run: |
           gh release create "$TAG" \
-            EDSEditorGUI-win-net481.zip EDSEditorGUI2-win-x64.zip EDSEditorGUI2-linux-x64.tar.gz \
+            EDSEditorGUI-win-net481.zip EDSEditorGUI-win-net8.zip EDSEditorGUI2-win-x64.zip EDSEditorGUI2-linux-x64.tar.gz \
             --repo "$GITHUB_REPOSITORY" \
             --target "${{ github.sha }}" \
             --title "CANopenEditor GUI $TAG" \
@@ -167,6 +181,9 @@ jobs:
 
           EDSEditorGUI-win-net481.zip: GUI 1 (klassische WinForms-Oberflaeche, EDSEditor.exe).
           Laeuft auf Windows mit .NET Framework 4.8; unter Linux per Mono: mono EDSEditor.exe
+
+          EDSEditorGUI-win-net8.zip: GUI 1 als net8.0-windows-Build (win-x64), eigenstaendig -
+          keine .NET-Installation noetig, EDSEditor.exe starten.
 
           EDSEditorGUI2-win-x64.zip / EDSEditorGUI2-linux-x64.tar.gz: GUI 2 (neue
           Avalonia-Oberflaeche), eigenstaendig gebaut - keine .NET-Installation noetig.
