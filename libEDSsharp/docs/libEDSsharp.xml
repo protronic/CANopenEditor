@@ -888,12 +888,26 @@
             <param name="filepath">Output file path</param>
             <param name="edsList">List of EDS objects to export</param>
         </member>
-        <member name="M:libEDSsharp.CouchDBExporter.UploadToCouchDB(System.String,libEDSsharp.EDSsharp)">
+        <member name="M:libEDSsharp.CouchDBExporter.BuildBasicAuthHeader(System.String,System.String,System.String)">
+            <summary>
+            Builds the value of a Basic-Auth Authorization header, or null if no
+            credentials are available. Explicit username/password win; otherwise
+            credentials embedded in the URL (http://user:pass@host) are used,
+            because HttpClient silently ignores the userinfo part of a URL.
+            </summary>
+            <param name="couchDbUrl">CouchDB database URL, possibly containing userinfo</param>
+            <param name="username">Explicit user name (optional)</param>
+            <param name="password">Explicit password (optional)</param>
+            <returns>Header value ("Basic ...") or null</returns>
+        </member>
+        <member name="M:libEDSsharp.CouchDBExporter.UploadToCouchDB(System.String,libEDSsharp.EDSsharp,System.String,System.String)">
             <summary>
             Upload to CouchDB via HTTP PUT
             </summary>
             <param name="couchDbUrl">CouchDB database URL (e.g., http://localhost:5984/canopen)</param>
             <param name="eds">EDS object to export</param>
+            <param name="username">User name for HTTP Basic Auth (optional)</param>
+            <param name="password">Password for HTTP Basic Auth (optional)</param>
             <returns>HTTP response message</returns>
         </member>
         <member name="T:libEDSsharp.DocumentationGenHtml">

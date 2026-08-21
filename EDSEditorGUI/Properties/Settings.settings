@@ -11,5 +11,11 @@
     <Setting Name="CouchDBUrl" Type="System.String" Scope="User">
       <Value Profile="(Default)">http://localhost:5984/canopen</Value>
     </Setting>
+    <Setting Name="CouchDBUser" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="CouchDBPassword" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
   </Settings>
 </SettingsFile>

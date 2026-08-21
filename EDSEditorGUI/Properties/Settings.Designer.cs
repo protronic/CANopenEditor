@@ -58,5 +58,29 @@ namespace ODEditor.Properties {
                 this["CouchDBUrl"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string CouchDBUser {
+            get {
+                return ((string)(this["CouchDBUser"]));
+            }
+            set {
+                this["CouchDBUser"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string CouchDBPassword {
+            get {
+                return ((string)(this["CouchDBPassword"]));
+            }
+            set {
+                this["CouchDBPassword"] = value;
+            }
+        }
     }
 }

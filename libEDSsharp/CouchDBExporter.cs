@@ -100,13 +100,50 @@ namespace libEDSsharp
         }
 
         /// <summary>
+        /// Builds the value of a Basic-Auth Authorization header, or null if no
+        /// credentials are available. Explicit username/password win; otherwise
+        /// credentials embedded in the URL (http://user:pass@host) are used,
+        /// because HttpClient silently ignores the userinfo part of a URL.
+        /// </summary>
+        /// <param name="couchDbUrl">CouchDB database URL, possibly containing userinfo</param>
+        /// <param name="username">Explicit user name (optional)</param>
+        /// <param name="password">Explicit password (optional)</param>
+        /// <returns>Header value ("Basic ...") or null</returns>
+        private static System.Net.Http.Headers.AuthenticationHeaderValue BuildBasicAuthHeader(string couchDbUrl, string username, string password)
+        {
+            string user = username;
+            string pass = password;
+
+            if (string.IsNullOrEmpty(user) &&
+                Uri.TryCreate(couchDbUrl, UriKind.Absolute, out Uri uri) &&
+                !string.IsNullOrEmpty(uri.UserInfo))
+            {
+                string[] parts = uri.UserInfo.Split(new[] { ':' }, 2);
+                user = Uri.UnescapeDataString(parts[0]);
+                pass = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
+            }
+
+            if (string.IsNullOrEmpty(user))
+                return null;
+
+            string token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{user}:{pass ?? ""}"));
+            return new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", token);
+        }
+
+        /// <summary>
         /// Upload to CouchDB via HTTP PUT
         /// </summary>
         /// <param name="couchDbUrl">CouchDB database URL (e.g., http://localhost:5984/canopen)</param>
         /// <param name="eds">EDS object to export</param>
+        /// <param name="username">User name for HTTP Basic Auth (optional)</param>
+        /// <param name="password">Password for HTTP Basic Auth (optional)</param>
         /// <returns>HTTP response message</returns>
-        public async Task<string> UploadToCouchDB(string couchDbUrl, EDSsharp eds)
+        public async Task<string> UploadToCouchDB(string couchDbUrl, EDSsharp eds, string username = null, string password = null)
         {
+            // Credentials go into each request instead of the shared HttpClient,
+            // so parallel uploads against different servers cannot leak them.
+            var authHeader = BuildBasicAuthHeader(couchDbUrl, username, password);
+
             // Create temporary file to get protobuf JSON content
             string tempFile = Path.GetTempFileName();
             try
@@ -130,7 +167,10 @@ namespace libEDSsharp
                 // First, try to get the existing document to get its revision
                 try
                 {
-                    HttpResponseMessage getResponse = await httpClient.GetAsync(documentUrl);
+                    var getRequest = new HttpRequestMessage(HttpMethod.Get, documentUrl);
+                    if (authHeader != null)
+                        getRequest.Headers.Authorization = authHeader;
+                    HttpResponseMessage getResponse = await httpClient.SendAsync(getRequest);
                     if (getResponse.IsSuccessStatusCode)
                     {
                         string existingDoc = await getResponse.Content.ReadAsStringAsync();
@@ -151,7 +191,10 @@ namespace libEDSsharp
                 var content = new StringContent(couchDoc.ToString(), Encoding.UTF8, "application/json");
 
                 // Send PUT request
-                HttpResponseMessage response = await httpClient.PutAsync(documentUrl, content);
+                var putRequest = new HttpRequestMessage(HttpMethod.Put, documentUrl) { Content = content };
+                if (authHeader != null)
+                    putRequest.Headers.Authorization = authHeader;
+                HttpResponseMessage response = await httpClient.SendAsync(putRequest);
                 
                 if (response.IsSuccessStatusCode)
                 {

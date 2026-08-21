@@ -39,6 +39,10 @@
             this.checkBox_structwarning = new System.Windows.Forms.CheckBox();
             this.label_couchdb = new System.Windows.Forms.Label();
             this.textBox_couchdburl = new System.Windows.Forms.TextBox();
+            this.label_couchdbuser = new System.Windows.Forms.Label();
+            this.textBox_couchdbuser = new System.Windows.Forms.TextBox();
+            this.label_couchdbpassword = new System.Windows.Forms.Label();
+            this.textBox_couchdbpassword = new System.Windows.Forms.TextBox();
             this.SuspendLayout();
             // 
             // label1
@@ -144,12 +148,49 @@
             this.textBox_couchdburl.Name = "textBox_couchdburl";
             this.textBox_couchdburl.Size = new System.Drawing.Size(478, 22);
             this.textBox_couchdburl.TabIndex = 10;
-            // 
+            //
+            // label_couchdbuser
+            //
+            this.label_couchdbuser.AutoSize = true;
+            this.label_couchdbuser.Location = new System.Drawing.Point(32, 293);
+            this.label_couchdbuser.Name = "label_couchdbuser";
+            this.label_couchdbuser.Size = new System.Drawing.Size(101, 17);
+            this.label_couchdbuser.TabIndex = 11;
+            this.label_couchdbuser.Text = "CouchDB User";
+            //
+            // textBox_couchdbuser
+            //
+            this.textBox_couchdbuser.Location = new System.Drawing.Point(157, 290);
+            this.textBox_couchdbuser.Name = "textBox_couchdbuser";
+            this.textBox_couchdbuser.Size = new System.Drawing.Size(228, 22);
+            this.textBox_couchdbuser.TabIndex = 12;
+            //
+            // label_couchdbpassword
+            //
+            this.label_couchdbpassword.AutoSize = true;
+            this.label_couchdbpassword.Location = new System.Drawing.Point(32, 321);
+            this.label_couchdbpassword.Name = "label_couchdbpassword";
+            this.label_couchdbpassword.Size = new System.Drawing.Size(133, 17);
+            this.label_couchdbpassword.TabIndex = 13;
+            this.label_couchdbpassword.Text = "CouchDB Password";
+            //
+            // textBox_couchdbpassword
+            //
+            this.textBox_couchdbpassword.Location = new System.Drawing.Point(157, 318);
+            this.textBox_couchdbpassword.Name = "textBox_couchdbpassword";
+            this.textBox_couchdbpassword.Size = new System.Drawing.Size(228, 22);
+            this.textBox_couchdbpassword.TabIndex = 14;
+            this.textBox_couchdbpassword.UseSystemPasswordChar = true;
+            //
             // Preferences
-            // 
+            //
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(800, 450);
+            this.Controls.Add(this.textBox_couchdbpassword);
+            this.Controls.Add(this.label_couchdbpassword);
+            this.Controls.Add(this.textBox_couchdbuser);
+            this.Controls.Add(this.label_couchdbuser);
             this.Controls.Add(this.textBox_couchdburl);
             this.Controls.Add(this.label_couchdb);
             this.Controls.Add(this.checkBox_structwarning);
@@ -181,5 +222,9 @@
         private System.Windows.Forms.CheckBox checkBox_structwarning;
         private System.Windows.Forms.Label label_couchdb;
         private System.Windows.Forms.TextBox textBox_couchdburl;
+        private System.Windows.Forms.Label label_couchdbuser;
+        private System.Windows.Forms.TextBox textBox_couchdbuser;
+        private System.Windows.Forms.Label label_couchdbpassword;
+        private System.Windows.Forms.TextBox textBox_couchdbpassword;
     }
 }
