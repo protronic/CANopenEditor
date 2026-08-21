@@ -110,7 +110,7 @@
     <PackageReference Include="SourceGrid" Version="4.4.0" Condition="'$(TargetFramework)' == 'net481'" />
     <PackageReference Include="SourceGrid-huanlin" Version="6.1.1" Condition="'$(TargetFramework)' == 'net8.0-windows'" />
     <!-- DPAPI fuer die verschluesselte Ablage des CouchDB-Passworts -->
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" Condition="'$(TargetFramework)' == 'net8.0-windows'" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.6" Condition="'$(TargetFramework)' == 'net8.0-windows'" />
     <!-- System.Resources.Extensions für beide Targets -->
     <PackageReference Include="System.Resources.Extensions" Version="10.0.0" />
     <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
