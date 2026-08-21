@@ -311,7 +311,7 @@ namespace ODEditor
                         var exporter = new libEDSsharp.CouchDBExporter();
                         string result = await exporter.UploadToCouchDB(couchDbUrl, dv.eds,
                                                                        Properties.Settings.Default.CouchDBUser,
-                                                                       Properties.Settings.Default.CouchDBPassword);
+                                                                       SettingsCrypto.Unprotect(Properties.Settings.Default.CouchDBPassword));
                         
                         MessageBox.Show($"CouchDB Upload Result:\n\n{result}",
                                       "Upload Complete",
