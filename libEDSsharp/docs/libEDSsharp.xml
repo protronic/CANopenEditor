@@ -702,6 +702,15 @@
             <param name="filepath">filepath, .c and .h will be added to this to make the mulitiple files</param>
             <param name="eds"></param>
         </member>
+        <member name="M:libEDSsharp.CanOpenNodeExporter_V4.export(System.String,libEDSsharp.EDSsharp,System.String)">
+            <summary>
+            export the current data set in the CanOpen Node format V4
+            </summary>
+            <param name="filepath">filepath, .c and .h will be added to this to make the mulitiple files</param>
+            <param name="eds"></param>
+            <param name="odname">prefix for the OD symbols in the generated code
+            (e.g. "OD" for OD_PERSIST_COMM); null uses the file basename</param>
+        </member>
         <member name="M:libEDSsharp.CanOpenNodeExporter_V4.Prepare(libEDSsharp.EDSsharp)">
             <summary>
             Generate ODStorage, ODObjs, ODList, ODDefines and ODCnt entries

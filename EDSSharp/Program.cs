@@ -142,7 +142,18 @@ namespace EDSSharp
 
             Warnings.warning_list.Clear();
 
-            ExporterFactory.getExporter(cnType).export(odBasePath, eds);
+            if (cnType == ExporterFactory.Exporter.CANOPENNODE_V4)
+            {
+                // Symbolpraefix im generierten C/H-Code: standardmaessig "OD" wie
+                // beim GUI-Export nach OD.c/OD.h (die Dateien heissen weiterhin
+                // nach --od); per --odname uebersteuerbar.
+                string odname = argskvp.ContainsKey("--odname") ? argskvp["--odname"] : "OD";
+                new CanOpenNodeExporter_V4().export(odBasePath, eds, odname);
+            }
+            else
+            {
+                ExporterFactory.getExporter(cnType).export(odBasePath, eds);
+            }
             Export(jsonPath, "CanOpenNodeProtobuf(json)");
 
             Console.WriteLine("Successful export");
@@ -286,7 +297,7 @@ namespace EDSSharp
         {
             string name = Path.GetFileNameWithoutExtension(Environment.GetCommandLineArgs()[0]);
             Console.WriteLine($"Usage: {name} --infile FILE1 --outfile FILE2 [--type EXPORTER]");
-            Console.WriteLine($"       {name} --export-project --infile FILE --outdir DIR [--od BASENAME] [--json FILE.json] [--canopennode v4|legacy]");
+            Console.WriteLine($"       {name} --export-project --infile FILE --outdir DIR [--od BASENAME] [--odname PREFIX] [--json FILE.json] [--canopennode v4|legacy]");
             Console.WriteLine("Converts a given XDD or EDS file to many other available types.");
             Console.WriteLine($"Example: {name} --infile project.xdd --outfile map.md --type NetworkPDOReport");
             Console.WriteLine($"Example: {name} --export-project --infile project.xdd --outdir ./out");
@@ -319,7 +330,7 @@ namespace EDSSharp
         static void PrintExportProjectHelpText()
         {
             string name = Path.GetFileNameWithoutExtension(Environment.GetCommandLineArgs()[0]);
-            Console.WriteLine($"Usage: {name} --export-project --infile FILE --outdir DIR [--od BASENAME] [--json FILE.json] [--canopennode v4|legacy]");
+            Console.WriteLine($"Usage: {name} --export-project --infile FILE --outdir DIR [--od BASENAME] [--odname PREFIX] [--json FILE.json] [--canopennode v4|legacy]");
             Console.WriteLine("Exports a project file to CanOpenNode .c/.h and CanOpenNode protobuf JSON.");
             Console.WriteLine($"Example: {name} --export-project --infile project.xdd --outdir ./out");
             Console.WriteLine("");

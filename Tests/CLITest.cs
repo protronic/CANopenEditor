@@ -82,6 +82,17 @@ namespace Tests
             Assert.True(File.Exists("export_out/minimal_project.h"));
             Assert.True(File.Exists("export_out/minimal_project.c"));
             Assert.True(File.Exists("export_out/minimal_project.json"));
+
+            // Symbols use the GUI-style "OD" prefix even though the files are
+            // named after the project; --odname overrides it.
+            Assert.Contains("#define OD_H", File.ReadAllText("export_out/minimal_project.h"));
+        }
+
+        [Fact]
+        public void ExportProjectWithCustomOdName()
+        {
+            RunEDSSharp("--export-project --infile minimal_project.xdd --outdir export_out --odname MYOD");
+            Assert.Contains("#define MYOD_H", File.ReadAllText("export_out/minimal_project.h"));
         }
     }
 }

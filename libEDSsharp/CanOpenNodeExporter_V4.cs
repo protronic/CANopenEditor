@@ -70,9 +70,21 @@ namespace libEDSsharp
         /// <param name="eds"></param>
         public void export(string filepath, EDSsharp eds)
         {
+            export(filepath, eds, null);
+        }
+
+        /// <summary>
+        /// export the current data set in the CanOpen Node format V4
+        /// </summary>
+        /// <param name="filepath">filepath, .c and .h will be added to this to make the mulitiple files</param>
+        /// <param name="eds"></param>
+        /// <param name="odname">prefix for the OD symbols in the generated code
+        /// (e.g. "OD" for OD_PERSIST_COMM); null uses the file basename</param>
+        public void export(string filepath, EDSsharp eds, string odname)
+        {
             string filename = Path.GetFileNameWithoutExtension(filepath);
             string folderpath = Path.GetDirectoryName(filepath);
-            this.odname = filename;
+            this.odname = odname ?? filename;
 
             Prepare(eds);
 

@@ -36,11 +36,14 @@ Export a project to CANopenNode v4 `.c`/`.h` sources plus a protobuf JSON
 document in one call:
 
 ```
-EDSSharp --export-project --infile device.eds --outdir ./out [--od BASENAME] [--json FILE.json] [--canopennode v4|legacy]
+EDSSharp --export-project --infile device.eds --outdir ./out [--od BASENAME] [--odname PREFIX] [--json FILE.json] [--canopennode v4|legacy]
 ```
 
-`--od OD` names the generated sources `OD.c`/`OD.h` with `OD_CNT_*` macros as
-expected by CANopenNode applications.
+`--od BASENAME` only names the generated source files (`BASENAME.c`/`BASENAME.h`).
+The symbols inside always use the `OD_` prefix (`OD_PERSIST_COMM`, `OD_CNT_*`, ...),
+matching what the GUI produces when exporting to `OD.c`/`OD.h` and what
+CANopenNode applications expect. Use `--odname PREFIX` to override the symbol
+prefix, e.g. for linking several object dictionaries into one binary.
 
 EDS custom extensions
 ---------------------
