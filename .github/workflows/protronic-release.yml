@@ -1,38 +1,42 @@
-# CANopenEditor-Oberflaechen als GitHub-Release veroeffentlichen.
+# Komplett-Release: EDSSharp-CLI und beide GUIs in EINEM GitHub-Release.
 #
-# Haengt drei Artefakte an das Release:
+# Ein gemeinsames Release sorgt dafuer, dass die stabilen "latest"-URLs
+# fuer ALLE Artefakte funktionieren, z.B. fuer die CANboss-OD-Generierung:
+#   https://github.com/protronic/CANopenEditor/releases/latest/download/EDSSharp-linux-x64.tar.gz
 #
-#   EDSEditorGUI-win-net481.zip     GUI 1 (klassische WinForms-Oberflaeche).
-#                                   Laeuft auf Windows mit .NET Framework 4.8
-#                                   und unter Linux mit Mono (mono EDSEditor.exe).
-#   EDSEditorGUI-win-net8.zip       GUI 1 als net8.0-windows-Build (win-x64,
-#                                   eigenstaendig, keine .NET-Installation noetig;
-#                                   laeuft auch unter Wine).
-#   EDSEditorGUI2-win-x64.zip       GUI 2 (neue Avalonia-Oberflaeche) fuer
-#                                   Windows, eigenstaendig (keine .NET-Installation
-#                                   noetig, EDSEditorGUI2.exe starten).
+# Haengt sieben Artefakte an das Release:
+#
+#   EDSSharp-linux-x64.tar.gz       CLI, eigenstaendiges Binary (keine .NET-Installation noetig)
+#   EDSSharp-win-x64.zip            dito fuer Windows
+#   EDSSharp-portable.zip           CLI frameworkabhaengig (braucht .NET-8-Runtime, klein)
+#   EDSEditorGUI-win-net481.zip     GUI 1 (WinForms). Windows mit .NET Framework 4.8,
+#                                   unter Linux mit Mono (mono EDSEditor.exe).
+#   EDSEditorGUI-win-net8.zip       GUI 1 als net8.0-windows-Build (win-x64, eigenstaendig,
+#                                   keine .NET-Installation noetig; laeuft auch unter Wine).
+#   EDSEditorGUI2-win-x64.zip       GUI 2 (Avalonia) fuer Windows, eigenstaendig.
 #   EDSEditorGUI2-linux-x64.tar.gz  dito fuer Linux (./EDSEditorGUI2 starten).
 #
-# Ausloeser analog zum CLI-Release (edssharp-release.yml):
-#   1. Aenderung der Marker-Datei GUI_RELEASE_TAG (enthaelt den Tag)
+# Ersetzt die frueheren getrennten Workflows edssharp-release.yml (cli-v*)
+# und gui-release.yml (gui-v*). Ausloeser:
+#   1. Aenderung der Marker-Datei RELEASE_TAG im Repo-Root (enthaelt den Tag)
 #   2. manuell per workflow_dispatch
-# Eigene Tags heissen gui-v*, damit sie weder mit Upstream-Versions-Tags
-# (v*.*.*, bedient release.yml) noch mit den CLI-Tags (cli-v*) kollidieren.
+# Eigene Tags heissen protronic-v*, damit sie nicht mit den Upstream-
+# Versions-Tags (v*.*.*, bedient release.yml) kollidieren.
 
-name: GUI Release
+name: Protronic Release (CLI + GUI)
 
 on:
   push:
     branches:
       - "**"
     paths:
-      - "GUI_RELEASE_TAG"
+      - "RELEASE_TAG"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release-Tag (z.B. gui-v4.2.3-protronic.1)"
+        description: "Release-Tag (z.B. protronic-v4.2.3.5)"
         required: true
-        default: "gui-v4.2.3-protronic.1"
+        default: "protronic-v4.2.3.5"
 
 permissions:
   contents: write
@@ -52,14 +56,14 @@ jobs:
           if [ -n "${{ inputs.tag }}" ]; then
             TAG="${{ inputs.tag }}"
           else
-            TAG="$(tr -d ' \n' < GUI_RELEASE_TAG)"
+            TAG="$(tr -d ' \n' < RELEASE_TAG)"
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Release-Tag: $TAG"
 
-      # Duplikate abfangen wie beim CLI-Release: Existiert das Release schon
-      # (z.B. weil die Marker-Datei per Merge erneut in einem Push auftaucht),
-      # werden Build- und Release-Jobs gruen uebersprungen.
+      # Duplikate abfangen: Existiert das Release schon (z.B. weil die
+      # Marker-Datei per Merge erneut in einem Push auftaucht), werden
+      # Build- und Release-Jobs gruen uebersprungen.
       - name: Pruefen ob Release bereits existiert
         id: check
         env:
@@ -69,6 +73,55 @@ jobs:
             echo "Release existiert bereits - nichts zu tun."
             echo "exists=true" >> "$GITHUB_OUTPUT"
           fi
+
+  cli:
+    # EDSSharp-Kommandozeilen-Konverter (net8.0), von Linux aus fuer beide
+    # Plattformen gebaut.
+    needs: vorpruefung
+    if: needs.vorpruefung.outputs.exists != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Tag fuer den Versionsstempel setzen (git describe im Build)
+        run: git tag "${{ needs.vorpruefung.outputs.tag }}" || true
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publish linux-x64 (self-contained)
+        run: >
+          dotnet publish EDSSharp/EDSSharp.csproj -c Release -f net8.0
+          -p:BuildNet8=true -r linux-x64 --self-contained true
+          -p:PublishSingleFile=true -o out/linux-x64
+
+      - name: Publish win-x64 (self-contained)
+        run: >
+          dotnet publish EDSSharp/EDSSharp.csproj -c Release -f net8.0
+          -p:BuildNet8=true -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -o out/win-x64
+
+      - name: Publish portable (frameworkabhaengig)
+        run: >
+          dotnet publish EDSSharp/EDSSharp.csproj -c Release -f net8.0
+          -p:BuildNet8=true -o out/portable
+
+      - name: Artefakte packen
+        run: |
+          tar -C out/linux-x64 -czf EDSSharp-linux-x64.tar.gz EDSSharp
+          (cd out/win-x64 && zip -q ../../EDSSharp-win-x64.zip EDSSharp.exe)
+          (cd out/portable && zip -qr ../../EDSSharp-portable.zip .)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli
+          path: |
+            EDSSharp-linux-x64.tar.gz
+            EDSSharp-win-x64.zip
+            EDSSharp-portable.zip
 
   gui1-windows:
     # GUI 1 (WinForms, net481) braucht msbuild und damit einen Windows-Runner.
@@ -160,7 +213,7 @@ jobs:
             EDSEditorGUI2-win-x64.zip
 
   release:
-    needs: [vorpruefung, gui1-windows, gui2]
+    needs: [vorpruefung, cli, gui1-windows, gui2]
     if: needs.vorpruefung.outputs.exists != 'true'
     runs-on: ubuntu-latest
     steps:
@@ -174,19 +227,31 @@ jobs:
           TAG: ${{ needs.vorpruefung.outputs.tag }}
         run: |
           gh release create "$TAG" \
-            EDSEditorGUI-win-net481.zip EDSEditorGUI-win-net8.zip EDSEditorGUI2-win-x64.zip EDSEditorGUI2-linux-x64.tar.gz \
+            EDSSharp-linux-x64.tar.gz EDSSharp-win-x64.zip EDSSharp-portable.zip \
+            EDSEditorGUI-win-net481.zip EDSEditorGUI-win-net8.zip \
+            EDSEditorGUI2-win-x64.zip EDSEditorGUI2-linux-x64.tar.gz \
             --repo "$GITHUB_REPOSITORY" \
             --target "${{ github.sha }}" \
-            --title "CANopenEditor GUI $TAG" \
-            --notes "CANopenEditor-Oberflaechen als fertige Pakete.
+            --title "CANopenEditor $TAG" \
+            --notes "CANopenEditor Komplettpaket: EDSSharp-CLI und beide Oberflaechen.
 
-          EDSEditorGUI-win-net481.zip: GUI 1 (klassische WinForms-Oberflaeche, EDSEditor.exe).
-          Laeuft auf Windows mit .NET Framework 4.8; unter Linux per Mono: mono EDSEditor.exe
+          Stabile Download-URLs ueber das juengste Release, z.B. fuer die
+          CANboss-OD-Generierung (tools/get-edssharp.sh):
 
-          EDSEditorGUI-win-net8.zip: GUI 1 als net8.0-windows-Build (win-x64), eigenstaendig -
-          keine .NET-Installation noetig, EDSEditor.exe starten. Laeuft auch unter Wine
-          (wine EDSEditor.exe); die DPAPI-Passwortablage nutzt dort den Wine-Prefix.
+              https://github.com/$GITHUB_REPOSITORY/releases/latest/download/EDSSharp-linux-x64.tar.gz
+
+          EDSSharp-linux-x64.tar.gz / EDSSharp-win-x64.zip: Kommandozeilen-Konverter
+          (EDS/XDD -> CANopenNode-v4-OD, Proto-JSON u.a.), eigenstaendig - keine
+          .NET-Installation noetig. EDSSharp-portable.zip: dito frameworkabhaengig
+          (braucht .NET-8-Runtime).
+
+          EDSEditorGUI-win-net481.zip: GUI 1 (klassische WinForms-Oberflaeche,
+          EDSEditor.exe). Windows mit .NET Framework 4.8; unter Linux per Mono.
+
+          EDSEditorGUI-win-net8.zip: GUI 1 als net8.0-windows-Build (win-x64),
+          eigenstaendig. Laeuft auch unter Wine (wine EDSEditor.exe); die
+          DPAPI-Passwortablage nutzt dort den Wine-Prefix.
 
           EDSEditorGUI2-win-x64.zip / EDSEditorGUI2-linux-x64.tar.gz: GUI 2 (neue
-          Avalonia-Oberflaeche), eigenstaendig gebaut - keine .NET-Installation noetig.
-          Entpacken und EDSEditorGUI2.exe (Windows) bzw. ./EDSEditorGUI2 (Linux) starten."
+          Avalonia-Oberflaeche), eigenstaendig. EDSEditorGUI2.exe (Windows) bzw.
+          ./EDSEditorGUI2 (Linux) starten."
