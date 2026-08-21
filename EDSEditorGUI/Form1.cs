@@ -216,6 +216,63 @@ namespace ODEditor
             }
         }
 
+        private async void exportGitToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            string repoUrl = Properties.Settings.Default.GitRepoUrl;
+            if (string.IsNullOrWhiteSpace(repoUrl))
+            {
+                MessageBox.Show("Git repo URL is not configured.\nPlease set it in Tools > Preferences.",
+                              "Configuration Required",
+                              MessageBoxButtons.OK,
+                              MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Alle im Projekt geoeffneten Geraete einsammeln (ein Tab je Geraet)
+            var devices = new List<KeyValuePair<string, EDSsharp>>();
+            foreach (TabPage page in tabControl1.TabPages)
+            {
+                DeviceView devView = (DeviceView)page.Controls[0];
+                devices.Add(new KeyValuePair<string, EDSsharp>(devView.eds.di.ProductName, devView.eds));
+            }
+
+            if (devices.Count == 0)
+                return;
+
+            if (MessageBox.Show(
+                    $"Export the ODs of {devices.Count} device(s) (one folder each) and push to\n{repoUrl}?",
+                    "Export ODs to Git repository",
+                    MessageBoxButtons.OKCancel,
+                    MessageBoxIcon.Question) != DialogResult.OK)
+                return;
+
+            try
+            {
+                string user = Properties.Settings.Default.GitUser;
+                string token = SettingsCrypto.Unprotect(Properties.Settings.Default.GitToken);
+
+                UseWaitCursor = true;
+                string result = await System.Threading.Tasks.Task.Run(
+                    () => GitOdExporter.ExportAndPush(devices, repoUrl, user, token));
+
+                MessageBox.Show(result,
+                              "Git Export Complete",
+                              MessageBoxButtons.OK,
+                              MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error exporting to Git repository:\n{ex.Message}",
+                              "Git Export Error",
+                              MessageBoxButtons.OK,
+                              MessageBoxIcon.Error);
+            }
+            finally
+            {
+                UseWaitCursor = false;
+            }
+        }
+
         private void exportCanOpenNode(DeviceView dv, string FileName, ExporterFactory.Exporter exporterType)
         {
             bool saveDirty = dv.eds.Dirty; // dispatch update will set it to dirty. Save and restore axtual dirty status
@@ -820,6 +877,7 @@ namespace ODEditor
             documentationToolStripMenuItem.Enabled = enable;
             networkPDOToolStripMenuItem.Enabled = enable;
             exportCouchDBToolStripMenuItem.Enabled = enable;
+            exportGitToolStripMenuItem.Enabled = enable;
             saveExportAllToolStripMenuItem.Enabled = enable;
             exportDeviceFileToolStripMenuItem.Enabled = enable;
             saveAsToolStripMenuItem.Enabled = true;

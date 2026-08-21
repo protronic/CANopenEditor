@@ -37,6 +37,10 @@ namespace ODEditor
             textBox_couchdburl.Text = Properties.Settings.Default.CouchDBUrl ?? "http://localhost:5984/canopen";
             textBox_couchdbuser.Text = Properties.Settings.Default.CouchDBUser ?? "";
             textBox_couchdbpassword.Text = SettingsCrypto.Unprotect(Properties.Settings.Default.CouchDBPassword);
+
+            textBox_gitrepourl.Text = Properties.Settings.Default.GitRepoUrl ?? "";
+            textBox_gituser.Text = Properties.Settings.Default.GitUser ?? "";
+            textBox_gittoken.Text = SettingsCrypto.Unprotect(Properties.Settings.Default.GitToken);
         }
 
         private void button_close_Click(object sender, EventArgs e)
@@ -71,6 +75,9 @@ namespace ODEditor
             Properties.Settings.Default.CouchDBUrl = textBox_couchdburl.Text;
             Properties.Settings.Default.CouchDBUser = textBox_couchdbuser.Text;
             Properties.Settings.Default.CouchDBPassword = SettingsCrypto.Protect(textBox_couchdbpassword.Text);
+            Properties.Settings.Default.GitRepoUrl = textBox_gitrepourl.Text;
+            Properties.Settings.Default.GitUser = textBox_gituser.Text;
+            Properties.Settings.Default.GitToken = SettingsCrypto.Protect(textBox_gittoken.Text);
 
             Properties.Settings.Default.Save();
             this.Close();

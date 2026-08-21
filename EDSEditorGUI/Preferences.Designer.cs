@@ -43,6 +43,12 @@
             this.textBox_couchdbuser = new System.Windows.Forms.TextBox();
             this.label_couchdbpassword = new System.Windows.Forms.Label();
             this.textBox_couchdbpassword = new System.Windows.Forms.TextBox();
+            this.label_gitrepourl = new System.Windows.Forms.Label();
+            this.textBox_gitrepourl = new System.Windows.Forms.TextBox();
+            this.label_gituser = new System.Windows.Forms.Label();
+            this.textBox_gituser = new System.Windows.Forms.TextBox();
+            this.label_gittoken = new System.Windows.Forms.Label();
+            this.textBox_gittoken = new System.Windows.Forms.TextBox();
             this.SuspendLayout();
             // 
             // label1
@@ -64,7 +70,7 @@
             // 
             // button_save
             // 
-            this.button_save.Location = new System.Drawing.Point(100, 358);
+            this.button_save.Location = new System.Drawing.Point(100, 440);
             this.button_save.Name = "button_save";
             this.button_save.Size = new System.Drawing.Size(122, 44);
             this.button_save.TabIndex = 2;
@@ -74,7 +80,7 @@
             // 
             // button_close
             // 
-            this.button_close.Location = new System.Drawing.Point(513, 358);
+            this.button_close.Location = new System.Drawing.Point(513, 440);
             this.button_close.Name = "button_close";
             this.button_close.Size = new System.Drawing.Size(122, 44);
             this.button_close.TabIndex = 3;
@@ -182,11 +188,66 @@
             this.textBox_couchdbpassword.TabIndex = 14;
             this.textBox_couchdbpassword.UseSystemPasswordChar = true;
             //
+            // label_gitrepourl
+            //
+            this.label_gitrepourl.AutoSize = true;
+            this.label_gitrepourl.Location = new System.Drawing.Point(32, 349);
+            this.label_gitrepourl.Name = "label_gitrepourl";
+            this.label_gitrepourl.Size = new System.Drawing.Size(95, 17);
+            this.label_gitrepourl.TabIndex = 15;
+            this.label_gitrepourl.Text = "Git Repo URL";
+            //
+            // textBox_gitrepourl
+            //
+            this.textBox_gitrepourl.Location = new System.Drawing.Point(157, 346);
+            this.textBox_gitrepourl.Name = "textBox_gitrepourl";
+            this.textBox_gitrepourl.Size = new System.Drawing.Size(478, 22);
+            this.textBox_gitrepourl.TabIndex = 16;
+            //
+            // label_gituser
+            //
+            this.label_gituser.AutoSize = true;
+            this.label_gituser.Location = new System.Drawing.Point(32, 377);
+            this.label_gituser.Name = "label_gituser";
+            this.label_gituser.Size = new System.Drawing.Size(60, 17);
+            this.label_gituser.TabIndex = 17;
+            this.label_gituser.Text = "Git User";
+            //
+            // textBox_gituser
+            //
+            this.textBox_gituser.Location = new System.Drawing.Point(157, 374);
+            this.textBox_gituser.Name = "textBox_gituser";
+            this.textBox_gituser.Size = new System.Drawing.Size(228, 22);
+            this.textBox_gituser.TabIndex = 18;
+            //
+            // label_gittoken
+            //
+            this.label_gittoken.AutoSize = true;
+            this.label_gittoken.Location = new System.Drawing.Point(32, 405);
+            this.label_gittoken.Name = "label_gittoken";
+            this.label_gittoken.Size = new System.Drawing.Size(115, 17);
+            this.label_gittoken.TabIndex = 19;
+            this.label_gittoken.Text = "Git Token";
+            //
+            // textBox_gittoken
+            //
+            this.textBox_gittoken.Location = new System.Drawing.Point(157, 402);
+            this.textBox_gittoken.Name = "textBox_gittoken";
+            this.textBox_gittoken.Size = new System.Drawing.Size(228, 22);
+            this.textBox_gittoken.TabIndex = 20;
+            this.textBox_gittoken.UseSystemPasswordChar = true;
+            //
             // Preferences
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 450);
+            this.ClientSize = new System.Drawing.Size(800, 520);
+            this.Controls.Add(this.textBox_gittoken);
+            this.Controls.Add(this.label_gittoken);
+            this.Controls.Add(this.textBox_gituser);
+            this.Controls.Add(this.label_gituser);
+            this.Controls.Add(this.textBox_gitrepourl);
+            this.Controls.Add(this.label_gitrepourl);
             this.Controls.Add(this.textBox_couchdbpassword);
             this.Controls.Add(this.label_couchdbpassword);
             this.Controls.Add(this.textBox_couchdbuser);
@@ -226,5 +287,11 @@
         private System.Windows.Forms.TextBox textBox_couchdbuser;
         private System.Windows.Forms.Label label_couchdbpassword;
         private System.Windows.Forms.TextBox textBox_couchdbpassword;
+        private System.Windows.Forms.Label label_gitrepourl;
+        private System.Windows.Forms.TextBox textBox_gitrepourl;
+        private System.Windows.Forms.Label label_gituser;
+        private System.Windows.Forms.TextBox textBox_gituser;
+        private System.Windows.Forms.Label label_gittoken;
+        private System.Windows.Forms.TextBox textBox_gittoken;
     }
 }

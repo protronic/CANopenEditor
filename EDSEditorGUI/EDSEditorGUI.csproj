@@ -111,6 +111,8 @@
     <PackageReference Include="SourceGrid-huanlin" Version="6.1.1" Condition="'$(TargetFramework)' == 'net8.0-windows'" />
     <!-- DPAPI fuer die verschluesselte Ablage des CouchDB-Passworts -->
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.6" Condition="'$(TargetFramework)' == 'net8.0-windows'" />
+    <!-- Git-Push der exportierten ODs ohne installiertes git (laeuft auch unter Wine) -->
+    <PackageReference Include="LibGit2Sharp" Version="0.30.0" />
     <!-- System.Resources.Extensions für beide Targets -->
     <PackageReference Include="System.Resources.Extensions" Version="10.0.0" />
     <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />

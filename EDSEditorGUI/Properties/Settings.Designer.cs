@@ -82,5 +82,38 @@ namespace ODEditor.Properties {
                 this["CouchDBPassword"] = value;
             }
         }
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string GitRepoUrl {
+            get {
+                return ((string)(this["GitRepoUrl"]));
+            }
+            set {
+                this["GitRepoUrl"] = value;
+            }
+        }
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string GitUser {
+            get {
+                return ((string)(this["GitUser"]));
+            }
+            set {
+                this["GitUser"] = value;
+            }
+        }
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string GitToken {
+            get {
+                return ((string)(this["GitToken"]));
+            }
+            set {
+                this["GitToken"] = value;
+            }
+        }
     }
 }

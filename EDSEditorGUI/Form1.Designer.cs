@@ -45,6 +45,7 @@
             this.exportDeviceFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.exportCanOpenNodeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.exportCouchDBToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.exportGitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.saveExportAllToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
             this.closeFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -91,6 +92,7 @@
             this.exportDeviceFileToolStripMenuItem,
             this.exportCanOpenNodeToolStripMenuItem,
             this.exportCouchDBToolStripMenuItem,
+            this.exportGitToolStripMenuItem,
             this.saveExportAllToolStripMenuItem,
             this.toolStripSeparator2,
             this.closeFileToolStripMenuItem,
@@ -201,6 +203,14 @@
             this.exportCouchDBToolStripMenuItem.Size = new System.Drawing.Size(359, 26);
             this.exportCouchDBToolStripMenuItem.Text = "Export to Couch&DB...";
             this.exportCouchDBToolStripMenuItem.Click += new System.EventHandler(this.exportCouchDBToolStripMenuItem_Click);
+            // 
+            // exportGitToolStripMenuItem
+            // 
+            this.exportGitToolStripMenuItem.Enabled = false;
+            this.exportGitToolStripMenuItem.Name = "exportGitToolStripMenuItem";
+            this.exportGitToolStripMenuItem.Size = new System.Drawing.Size(359, 26);
+            this.exportGitToolStripMenuItem.Text = "Export ODs to &Git repository...";
+            this.exportGitToolStripMenuItem.Click += new System.EventHandler(this.exportGitToolStripMenuItem_Click);
             // 
             // saveExportAllToolStripMenuItem
             // 
@@ -363,6 +373,7 @@
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator6;
         private System.Windows.Forms.ToolStripMenuItem exportCanOpenNodeToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem exportCouchDBToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem exportGitToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem reportsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem documentationToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem networkPDOToolStripMenuItem;
