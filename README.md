@@ -132,19 +132,19 @@ Contributors
                 </a>
             </td>
             <td align="center">
-                <a href="https://github.com/simon-fuchs-inmach">
-                    <img src="https://avatars.githubusercontent.com/u/57712038?v=4" width="100;" alt="simon-fuchs-inmach"/>
+                <a href="https://github.com/claude">
+                    <img src="https://avatars.githubusercontent.com/u/81847?v=4" width="100;" alt="claude"/>
                     <br />
-                    <sub><b>simon-fuchs-inmach</b></sub>
+                    <sub><b>claude</b></sub>
                 </a>
             </td>
 		</tr>
 		<tr>
             <td align="center">
-                <a href="https://github.com/claude">
-                    <img src="https://avatars.githubusercontent.com/u/81847?v=4" width="100;" alt="claude"/>
+                <a href="https://github.com/simon-fuchs-inmach">
+                    <img src="https://avatars.githubusercontent.com/u/57712038?v=4" width="100;" alt="simon-fuchs-inmach"/>
                     <br />
-                    <sub><b>claude</b></sub>
+                    <sub><b>simon-fuchs-inmach</b></sub>
                 </a>
             </td>
             <td align="center">
