@@ -6,7 +6,8 @@
 #                                   Laeuft auf Windows mit .NET Framework 4.8
 #                                   und unter Linux mit Mono (mono EDSEditor.exe).
 #   EDSEditorGUI-win-net8.zip       GUI 1 als net8.0-windows-Build (win-x64,
-#                                   eigenstaendig, keine .NET-Installation noetig).
+#                                   eigenstaendig, keine .NET-Installation noetig;
+#                                   laeuft auch unter Wine).
 #   EDSEditorGUI2-win-x64.zip       GUI 2 (neue Avalonia-Oberflaeche) fuer
 #                                   Windows, eigenstaendig (keine .NET-Installation
 #                                   noetig, EDSEditorGUI2.exe starten).
@@ -183,7 +184,8 @@ jobs:
           Laeuft auf Windows mit .NET Framework 4.8; unter Linux per Mono: mono EDSEditor.exe
 
           EDSEditorGUI-win-net8.zip: GUI 1 als net8.0-windows-Build (win-x64), eigenstaendig -
-          keine .NET-Installation noetig, EDSEditor.exe starten.
+          keine .NET-Installation noetig, EDSEditor.exe starten. Laeuft auch unter Wine
+          (wine EDSEditor.exe); die DPAPI-Passwortablage nutzt dort den Wine-Prefix.
 
           EDSEditorGUI2-win-x64.zip / EDSEditorGUI2-linux-x64.tar.gz: GUI 2 (neue
           Avalonia-Oberflaeche), eigenstaendig gebaut - keine .NET-Installation noetig.
