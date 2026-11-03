@@ -180,6 +180,21 @@ export function mappingTargetLabel(document: DeviceDocument, raw: string): strin
   return `0x${hex4(decoded.index)}/${hex2(decoded.subIndex)}/${name} (${decoded.bits})`;
 }
 
+/** Names each mapping sub-object after the object it maps, as shown in the object dictionary. */
+export function syncMappingNames(document: DeviceDocument, mapIndex?: number): void {
+  for (const map of document.objects) {
+    if (!isMappingObject(map.index) || (mapIndex != null && map.index !== mapIndex)) {
+      continue;
+    }
+    for (const sub of map.subObjects) {
+      const label = sub.subIndex > 0 ? mappingTargetLabel(document, sub.defaultValue) : null;
+      if (label) {
+        sub.name = label;
+      }
+    }
+  }
+}
+
 function toMappingRow(document: DeviceDocument, subIndex: number, raw: string): MappingRow {
   const decoded = decodeMapping(raw);
   return {
@@ -407,6 +422,7 @@ export function setMappingRaw(
   raw: string,
 ): void {
   setSubValue(document, mapBase(direction) + slot, subIndex, raw);
+  syncMappingNames(document, mapBase(direction) + slot);
 }
 
 export function setMappingEntry(

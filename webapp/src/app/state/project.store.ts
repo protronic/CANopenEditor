@@ -3,7 +3,7 @@ import { DeviceDocument, ensureXddName, formatDate, formatTime } from '../model/
 import { createEmptyDocument } from '../model/device';
 import { parseXdd, writeXdd } from '../xdd/xdd-codec';
 import { InsertRow, insertSelected } from '../xdd/profiles';
-import { pdoSlots } from '../xdd/pdo';
+import { pdoSlots, syncMappingNames } from '../xdd/pdo';
 
 export interface OpenDevice {
   id: string;
@@ -82,6 +82,7 @@ export class ProjectStore {
     const fileName = ensureXddName(device.fileName, device.document.productName);
     device.document.fileName = fileName;
     device.document.schemaVersion = '1.1';
+    syncMappingNames(device.document);
     return { fileName, xml: writeXdd(device.document, now) };
   }
 

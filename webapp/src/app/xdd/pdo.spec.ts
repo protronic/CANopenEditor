@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { bitLength, createEntry, createEmptyDocument } from '../model/device';
-import { emptySpans, fitMappingBits, isMappingObject, mappableEntries, mappingTargetLabel } from './pdo';
+import {
+  addMapping,
+  addPdo,
+  emptySpans,
+  fitMappingBits,
+  isMappingObject,
+  mappableEntries,
+  mappingTargetLabel,
+  setMappingEntry,
+  syncMappingNames,
+} from './pdo';
 
 describe('mappingTargetLabel', () => {
   const document = createEmptyDocument();
@@ -23,6 +33,23 @@ describe('mappingTargetLabel', () => {
   it('leaves empty or non-static entries unlabeled', () => {
     expect(mappingTargetLabel(document, '0x00000000')).toBeNull();
     expect(mappingTargetLabel(document, '$NODEID+1')).toBeNull();
+  });
+
+  it('renames mapping sub-objects after their mapped object', () => {
+    const project = createEmptyDocument();
+    project.objects.push(createEntry({ index: 0x2100, name: 'Temperatur', objectType: 'VAR', dataType: 'BOOLEAN', pdoMapping: 'optional' }));
+    addPdo(project, 'tx');
+    const map = project.objects.find((object) => object.index === 0x1a00)!;
+    map.subObjects.push(createEntry({ index: 0x1a00, subIndex: 2, name: 'Application object 2', defaultValue: '0x00000000' }));
+    addMapping(project, 'tx', 0);
+    setMappingEntry(project, 'tx', 0, 1, 0x2100, 0, 1);
+
+    expect(map.subObjects.find((sub) => sub.subIndex === 1)?.name).toBe('0x2100/00/Temperatur (1)');
+    expect(map.subObjects.find((sub) => sub.subIndex === 2)?.name).toBe('Application object 2');
+
+    project.objects.find((object) => object.index === 0x2100)!.name = 'Temperature';
+    syncMappingNames(project);
+    expect(map.subObjects.find((sub) => sub.subIndex === 1)?.name).toBe('0x2100/00/Temperature (1)');
   });
 
   it('recognises the RPDO and TPDO mapping ranges', () => {

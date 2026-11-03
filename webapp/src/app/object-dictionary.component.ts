@@ -72,12 +72,7 @@ type MenuKind = 'object' | 'sub';
             <thead>
               <tr>
                 <th>Sub</th>
-                <th>
-                  Name
-                  @if (selectedIsMapping()) {
-                    <button type="button" class="system mini" (click)="refreshMappingLabels()">Refresh</button>
-                  }
-                </th>
+                <th>Name</th>
                 <th>Obj Type</th>
                 <th>Data Type</th>
                 <th>SDO</th>
@@ -329,9 +324,6 @@ export class ObjectDictionaryComponent {
   menu: { x: number; y: number; kind: MenuKind } | null = null;
   pending = false;
   pendingLabel = '';
-  private mappingLabels = new Map<string, string | null>();
-  private mappingLabelsFor: DeviceDocument | null = null;
-
   draftName = '';
   draftDenotation = '';
   draftDescription = '';
@@ -845,29 +837,11 @@ export class ObjectDictionaryComponent {
     };
   }
 
-  selectedIsMapping(): boolean {
-    const object = this.selected();
-    return !!object && isMappingObject(object.index);
-  }
-
-  refreshMappingLabels(): void {
-    this.mappingLabels.clear();
-  }
-
   private mappingLabel(parent: OdEntry, entry: OdEntry): string | null {
     if (!isMappingObject(parent.index) || entry.subIndex === 0) {
       return null;
     }
-    const document = this.document();
-    if (this.mappingLabelsFor !== document) {
-      this.mappingLabels.clear();
-      this.mappingLabelsFor = document;
-    }
-    const key = `${parent.index}:${entry.subIndex}`;
-    if (!this.mappingLabels.has(key)) {
-      this.mappingLabels.set(key, mappingTargetLabel(document, entry.defaultValue));
-    }
-    return this.mappingLabels.get(key) ?? null;
+    return mappingTargetLabel(this.document(), entry.defaultValue);
   }
 
   private sdoLabel(entry: OdEntry): string {

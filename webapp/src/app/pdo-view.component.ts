@@ -267,9 +267,7 @@ export class PdoViewComponent {
     this.pickedCell = { slot: slot.slot, key: block.key };
     if (block.value) {
       this.listKey = block.value;
-      requestAnimationFrame(() => {
-        this.host.nativeElement.querySelector('.available tr.selected')?.scrollIntoView({ block: 'nearest' });
-      });
+      requestAnimationFrame(() => this.centerListSelection());
     } else {
       this.listKey = null;
     }
@@ -295,6 +293,19 @@ export class PdoViewComponent {
     if (target != null) {
       this.pickedCell = { slot: slot.slot, key: `${slot.commIndex}-${target}` };
     }
+  }
+
+  private centerListSelection(): void {
+    const list = this.host.nativeElement.querySelector<HTMLElement>('.available .od-scroll');
+    const position = this.mappable().findIndex((entry) => entry.key === this.listKey);
+    const row = position < 0 ? null : list?.querySelectorAll<HTMLElement>('tbody tr')[position];
+    if (!list || !row) {
+      return;
+    }
+    const head = list.querySelector('thead')?.getBoundingClientRect().height ?? 0;
+    const rowTop = row.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop;
+    const visible = list.clientHeight - head;
+    list.scrollTop = Math.max(0, rowTop - head - (visible - row.offsetHeight) / 2);
   }
 
   private pickedBlock(): { slot: PdoSlot; block: MapBlock } | null {
