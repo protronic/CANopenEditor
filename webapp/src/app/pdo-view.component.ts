@@ -1,4 +1,4 @@
-import { Component, HostListener, input, output } from '@angular/core';
+import { Component, ElementRef, HostListener, input, output, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DeviceDocument, bitLength, hex2, hex4 } from './model/device';
 import {
@@ -104,7 +104,7 @@ interface MapBlock {
         </fieldset>
       </div>
 
-      <div class="map-scroll" [style.--bit]="bitSize + 'px'">
+      <div class="map-scroll" #mapScroll [style.--zoom]="zoomLevel">
         <div class="map-head">
           <span>ID</span>
           <span>COB</span>
@@ -161,8 +161,9 @@ export class PdoViewComponent {
   readonly changed = output<void>();
   formError = '';
   selectedSlot: number | null = null;
-  bitSize = 14;
+  zoomLevel = 1;
   menu: { x: number; y: number; slot: number; subIndex: number } | null = null;
+  private readonly mapScroll = viewChild<ElementRef<HTMLElement>>('mapScroll');
   readonly bitNumbers = Array.from({ length: 64 }, (_, index) => index);
   readonly byteNumbers = [0, 1, 2, 3, 4, 5, 6, 7];
   readonly hex = hex4;
@@ -328,7 +329,15 @@ export class PdoViewComponent {
   }
 
   zoom(step: number): void {
-    this.bitSize = Math.min(28, Math.max(8, this.bitSize + step * 4));
+    const scroller = this.mapScroll()?.nativeElement;
+    const scrollLeft = scroller?.scrollLeft ?? 0;
+    const factor = step > 0 ? 1.25 : 0.8;
+    this.zoomLevel = Math.min(6, Math.max(0.35, this.zoomLevel * factor));
+    if (scroller) {
+      requestAnimationFrame(() => {
+        scroller.scrollLeft = scrollLeft;
+      });
+    }
   }
 
   private blockLabel(row: MappingRow): string {

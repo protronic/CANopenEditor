@@ -691,6 +691,7 @@ label.check.invalid {
 }
 
 .map-scroll {
+  container-type: inline-size;
   overflow: auto;
   flex: 1;
   min-height: 7rem;
@@ -701,10 +702,11 @@ label.check.invalid {
 .map-head,
 .map-bytes,
 .map-row {
+  --byte-span: max(0px, calc((100cqi - 10.5rem - 2px) * var(--zoom, 1)));
   display: grid;
-  grid-template-columns: 2.5rem 4.4rem 3.6rem minmax(calc(var(--bit, 14px) * 64), 1fr);
+  grid-template-columns: 2.5rem 4.4rem 3.6rem var(--byte-span);
   align-items: stretch;
-  width: max(100%, calc(10.5rem + var(--bit, 14px) * 64));
+  width: calc(10.5rem + var(--byte-span));
 }
 
 .map-head > span,
@@ -719,6 +721,27 @@ label.check.invalid {
 
 .map-head > span { font-weight: 600; background: #f7f4ee; }
 
+.map-head > span:nth-child(-n + 3),
+.map-bytes > span:nth-child(-n + 3),
+.map-row > span:nth-child(-n + 3) {
+  position: sticky;
+  z-index: 2;
+}
+
+.map-head > span:nth-child(1),
+.map-bytes > span:nth-child(1),
+.map-row > span:nth-child(1) { left: 0; }
+
+.map-head > span:nth-child(2),
+.map-bytes > span:nth-child(2),
+.map-row > span:nth-child(2) { left: 2.5rem; }
+
+.map-head > span:nth-child(3),
+.map-bytes > span:nth-child(3),
+.map-row > span:nth-child(3) { left: 6.9rem; }
+
+.map-bytes > span:nth-child(-n + 3) { background: white; }
+
 .map-row > span:nth-child(-n + 3) { background: lightblue; }
 
 .map-row:nth-child(even) > span:nth-child(-n + 3) { background: lightcyan; }
@@ -728,13 +751,14 @@ label.check.invalid {
 .bit-track {
   display: flex;
   width: 100%;
-  min-width: calc(var(--bit, 14px) * 64);
+  min-width: 0;
   border-bottom: 1px solid #d5d0c6;
 }
 
 .map-head .bit-track > i {
-  flex: 1 0 var(--bit, 14px);
-  min-width: var(--bit, 14px);
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
   text-align: center;
   font-style: normal;
   font-size: 0.62rem;
@@ -743,8 +767,9 @@ label.check.invalid {
 }
 
 .map-bytes .bit-track > b {
-  flex: 8 0 calc(var(--bit, 14px) * 8);
-  min-width: calc(var(--bit, 14px) * 8);
+  flex: 8 8 0;
+  min-width: 0;
+  overflow: hidden;
   text-align: center;
   background: tomato;
   color: white;
