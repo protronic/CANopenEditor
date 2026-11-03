@@ -238,16 +238,16 @@ export const PDO_MAPPINGS: PdoMapping[] = ['no', 'optional', 'RPDO', 'TPDO', 'de
 export const STORAGE_GROUPS = ['RAM', 'ROM', 'EEPROM', 'PERSIST_COMM', 'PERSIST_APP'];
 
 export const BAUD_OPTIONS: { key: keyof BaudRates; label: string; xml: string }[] = [
-  { key: 'b10', label: '10 kbit/s', xml: '10 Kbps' },
-  { key: 'b20', label: '20 kbit/s', xml: '20 Kbps' },
-  { key: 'b50', label: '50 kbit/s', xml: '50 Kbps' },
-  { key: 'b100', label: '100 kbit/s', xml: '100 Kbps' },
-  { key: 'b125', label: '125 kbit/s', xml: '125 Kbps' },
-  { key: 'b250', label: '250 kbit/s', xml: '250 Kbps' },
-  { key: 'b500', label: '500 kbit/s', xml: '500 Kbps' },
-  { key: 'b800', label: '800 kbit/s', xml: '800 Kbps' },
-  { key: 'b1000', label: '1000 kbit/s', xml: '1000 Kbps' },
-  { key: 'auto', label: 'Automatisch', xml: 'auto-baudRate' },
+  { key: 'b10', label: '10 kbps', xml: '10 Kbps' },
+  { key: 'b20', label: '20 kbps', xml: '20 Kbps' },
+  { key: 'b50', label: '50 kbps', xml: '50 Kbps' },
+  { key: 'b100', label: '100 kbps', xml: '100 Kbps' },
+  { key: 'b125', label: '125 kbps', xml: '125 Kbps' },
+  { key: 'b250', label: '250 kbps', xml: '250 Kbps' },
+  { key: 'b500', label: '500 kbps', xml: '500 Kbps' },
+  { key: 'b800', label: '800 kbps', xml: '800 Kbps' },
+  { key: 'b1000', label: '1000 kbps', xml: '1000 Kbps' },
+  { key: 'auto', label: 'auto', xml: 'auto-baudRate' },
 ];
 
 export function emptyBaudRates(): BaudRates {
@@ -268,7 +268,7 @@ export function emptyBaudRates(): BaudRates {
 export function createEmptyDocument(): DeviceDocument {
   return {
     schemaVersion: '1.1',
-    fileName: 'neues-geraet.xdd',
+    fileName: 'project.xdd',
     fileVersion: '1',
     fileCreator: '',
     fileCreationDate: '',
@@ -279,7 +279,7 @@ export function createEmptyDocument(): DeviceDocument {
     description: '',
     vendorName: '',
     vendorId: '',
-    productName: 'Neues Gerät',
+    productName: 'New Product',
     productId: '',
     orderCode: '',
     versionSw: '0',
@@ -346,19 +346,13 @@ export function parseUserIndex(raw: string): number | null {
 }
 
 export function objectGroup(index: number): string {
-  if (index < 0x1000) {
-    return 'Datentypen';
+  if (index >= 0x1000 && index < 0x2000) {
+    return 'Communication Specific Parameters';
   }
-  if (index < 0x2000) {
-    return 'Kommunikation';
+  if (index >= 0x2000 && index < 0x6000) {
+    return 'Manufacturer Specific Parameters';
   }
-  if (index < 0x6000) {
-    return 'Hersteller';
-  }
-  if (index <= 0x9fff) {
-    return 'Geräteprofil';
-  }
-  return 'Reserviert';
+  return 'Device Profile Specific Parameters';
 }
 
 export function sortDocument(document: DeviceDocument): void {
@@ -374,7 +368,7 @@ export function findObject(document: DeviceDocument, index: number): OdEntry | u
 
 export function addObject(document: DeviceDocument, entry: OdEntry): string | null {
   if (document.objects.some((object) => object.index === entry.index)) {
-    return `Index ${hex4(entry.index)} ist bereits vorhanden.`;
+    return `Index ${hex4(entry.index)} already exists.`;
   }
   document.objects.push(entry);
   sortDocument(document);
@@ -398,10 +392,10 @@ function refreshSubZero(object: OdEntry): void {
 export function addSubObject(document: DeviceDocument, index: number): string | null {
   const object = findObject(document, index);
   if (!object) {
-    return 'Objekt nicht gefunden.';
+    return 'Object not found.';
   }
   if (object.objectType !== 'ARRAY' && object.objectType !== 'RECORD') {
-    return 'Unterobjekte sind nur bei ARRAY und RECORD möglich.';
+    return 'Sub-objects are only available for ARRAY and RECORD.';
   }
   const used = new Set(object.subObjects.map((sub) => sub.subIndex));
   let subIndex = 0;
@@ -409,7 +403,7 @@ export function addSubObject(document: DeviceDocument, index: number): string | 
     subIndex += 1;
   }
   if (used.has(subIndex)) {
-    return 'Kein freier Subindex.';
+    return 'No free sub-index.';
   }
   const dataType = subIndex === 0
     ? 'UNSIGNED8'
@@ -417,7 +411,7 @@ export function addSubObject(document: DeviceDocument, index: number): string | 
   object.subObjects.push(createEntry({
     index,
     subIndex,
-    name: subIndex === 0 ? 'Highest sub-index supported' : `Subindex ${hex2(subIndex)}`,
+    name: subIndex === 0 ? 'Highest sub-index supported' : `Sub ${hex2(subIndex)}`,
     objectType: 'VAR',
     dataType,
     access: subIndex === 0 ? 'const' : object.access === 'unknown' ? 'readWrite' : object.access,
@@ -470,9 +464,9 @@ export function bitLength(dataType: DataTypeName): number {
 }
 
 export function ensureXddName(fileName: string, productName: string): string {
-  const source = fileName.trim() || productName.trim() || 'geraet';
-  const baseName = source.replace(/^.*[\\/]/, '').replace(/\.xdd$/i, '') || 'geraet';
-  const safe = baseName.replace(/[^\w.\- ()[\]]+/g, '_');
+  const source = fileName.trim() || productName.trim() || 'project';
+  const baseName = source.replace(/^.*[\\/]/, '').replace(/\.xdd$/i, '') || 'project';
+  const safe = baseName.replace(/[^\w.\- ()[\]]+/g, '_') || 'project';
   return `${safe}.xdd`;
 }
 

@@ -1,4 +1,4 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DeviceDocument, bitLength, hex2, hex4 } from './model/device';
 import {
@@ -24,18 +24,15 @@ import {
   imports: [FormsModule],
   template: `
     <div class="pdo-head">
-      <div class="tabs">
-        <button type="button" [class.active]="direction() === 'rx'" (click)="direction.set('rx')">RPDO</button>
-        <button type="button" [class.active]="direction() === 'tx'" (click)="direction.set('tx')">TPDO</button>
-      </div>
-      <button type="button" (click)="create()">{{ direction() === 'rx' ? 'RPDO' : 'TPDO' }} hinzufügen</button>
+      <h2>{{ direction() === 'rx' ? 'RX PDO Mapping' : 'TX PDO Mapping' }}</h2>
+      <button type="button" (click)="create()">Add new PDO</button>
     </div>
     @if (formError) {
       <p class="error">{{ formError }}</p>
     }
-    <p class="hint">Mapbare Objekte erscheinen, wenn ihr PDO-Mapping nicht auf „no“ steht. Gespeichert wird weiterhin nur XDD.</p>
+    <p class="hint">Objects appear here when Access PDO is not no.</p>
     @if (slots().length === 0) {
-      <p class="hint">Keine {{ direction() === 'rx' ? 'Empfangs' : 'Sende' }}-PDOs im Objektverzeichnis.</p>
+      <p class="hint">{{ direction() === 'rx' ? 'No receive PDOs.' : 'No transmit PDOs.' }}</p>
     }
     <div class="pdo-list">
       @for (slot of slots(); track slot.commIndex) {
@@ -43,16 +40,17 @@ import {
           <header>
             <h3>{{ direction() === 'rx' ? 'RPDO' : 'TPDO' }} {{ slot.slot + 1 }}</h3>
             <span class="mono">{{ hex(slot.commIndex) }} / {{ hex(slot.mapIndex) }}</span>
-            <button type="button" class="danger" (click)="remove(slot)">Entfernen</button>
+            <button type="button" class="danger" (click)="remove(slot)">Delete PDO</button>
           </header>
+          <h4>Communication parameters</h4>
           <div class="pdo-fields">
-            <label>COB-ID
+            <label>COB
               <input [ngModel]="slot.cobId" (ngModelChange)="field(slot, 'cobId', $event)" />
             </label>
-            <label>Transmission Type
+            <label>Type
               <input [ngModel]="slot.transmission" (ngModelChange)="field(slot, 'transmission', $event)" />
             </label>
-            <label>Inhibit Time
+            <label>Inhibit
               <input [ngModel]="slot.inhibit" (ngModelChange)="field(slot, 'inhibit', $event)" />
             </label>
             <label>Event Timer
@@ -61,20 +59,20 @@ import {
           </div>
           <div class="mapping-head">
             <h4>Mapping</h4>
-            <button type="button" (click)="map(slot)">Eintrag</button>
+            <button type="button" (click)="map(slot)">Insert Item</button>
           </div>
           @for (row of slot.mappings; track row.subIndex) {
             <div class="mapping-row">
               <span class="mono">{{ hexByte(row.subIndex) }}</span>
               <select [ngModel]="selectionKey(row)" (ngModelChange)="choose(slot, row, $event)">
-                <option value="">Objekt wählen</option>
+                <option value="">Select object</option>
                 @for (entry of mappable(); track entry.key) {
                   <option [value]="entry.key">{{ hex(entry.index) }}:{{ hexByte(entry.subIndex) }} {{ entry.name }}</option>
                 }
               </select>
               <input [ngModel]="row.raw" (ngModelChange)="raw(slot, row, $event)" />
               <span>{{ row.label }}</span>
-              <button type="button" (click)="unmap(slot, row)">×</button>
+              <button type="button" (click)="unmap(slot, row)" aria-label="Remove Item">×</button>
             </div>
           }
         </article>
@@ -84,8 +82,8 @@ import {
 })
 export class PdoViewComponent {
   readonly document = input.required<DeviceDocument>();
+  readonly direction = input.required<PdoDirection>();
   readonly changed = output<void>();
-  readonly direction = signal<PdoDirection>('rx');
   formError = '';
   readonly hex = hex4;
   readonly hexByte = hex2;
@@ -107,7 +105,7 @@ export class PdoViewComponent {
   }
 
   remove(slot: PdoSlot): void {
-    if (!confirm(`${this.direction() === 'rx' ? 'RPDO' : 'TPDO'} ${slot.slot + 1} entfernen?`)) {
+    if (!confirm('Delete PDO?')) {
       return;
     }
     removePdo(this.document(), slot.direction, slot.slot);

@@ -113,17 +113,17 @@ export function mappingLabel(
   decoded: { index: number; subIndex: number; bits: number } | null,
 ): string {
   if (!decoded || decoded.bits === 0) {
-    return decoded ? 'leer' : 'kein statischer Wert';
+    return decoded ? 'empty' : 'not a static mapping';
   }
   const object = findObject(document, decoded.index);
   if (!object) {
-    return `${hex4(decoded.index)}:${hex2(decoded.subIndex)} · ${decoded.bits} Bit`;
+    return `${hex4(decoded.index)}:${hex2(decoded.subIndex)} · ${decoded.bits} bits`;
   }
   if (decoded.subIndex === 0 && object.objectType === 'VAR') {
-    return `${hex4(object.index)} ${object.name} · ${decoded.bits} Bit`;
+    return `${hex4(object.index)} ${object.name} · ${decoded.bits} bits`;
   }
   const sub = object.subObjects.find((entry) => entry.subIndex === decoded.subIndex);
-  return `${hex4(object.index)}:${hex2(decoded.subIndex)} ${sub?.name || object.name} · ${decoded.bits} Bit`;
+  return `${hex4(object.index)}:${hex2(decoded.subIndex)} ${sub?.name || object.name} · ${decoded.bits} bits`;
 }
 
 function toMappingRow(document: DeviceDocument, subIndex: number, raw: string): MappingRow {
@@ -248,12 +248,12 @@ export function addPdo(document: DeviceDocument, direction: PdoDirection): strin
     slot += 1;
   }
   if (slot >= 0x200) {
-    return 'Es ist kein weiterer PDO-Slot frei.';
+    return 'No further PDO slot is free.';
   }
   const commIndex = base + slot;
   const mappingIndex = mapBase(direction) + slot;
   if (findObject(document, mappingIndex)) {
-    return `Mapping-Index ${hex4(mappingIndex)} ist bereits belegt.`;
+    return `Mapping index ${hex4(mappingIndex)} is already in use.`;
   }
   const receive = direction === 'rx';
   document.objects.push(
@@ -332,11 +332,11 @@ export function setMappingEntry(
 export function addMapping(document: DeviceDocument, direction: PdoDirection, slot: number): string | null {
   const map = findObject(document, mapBase(direction) + slot);
   if (!map) {
-    return 'Mapping-Objekt fehlt.';
+    return 'Mapping object is missing.';
   }
   const count = mappingCount(map);
   if (count >= 64) {
-    return 'Es sind höchstens 64 Mapping-Einträge möglich.';
+    return 'At most 64 mapping entries are possible.';
   }
   const subIndex = count + 1;
   if (!map.subObjects.some((sub) => sub.subIndex === subIndex)) {

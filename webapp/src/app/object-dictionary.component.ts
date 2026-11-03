@@ -34,8 +34,8 @@ import {
     <div class="od">
       <div class="od-list">
         <div class="od-toolbar">
-          <input placeholder="Index oder Name" [ngModel]="query" (ngModelChange)="query = $event" />
-          <button type="button" (click)="showAdd = !showAdd">{{ showAdd ? 'Abbrechen' : 'Objekt' }}</button>
+          <input placeholder="Index or name" [ngModel]="query" (ngModelChange)="query = $event" />
+          <button type="button" (click)="showAdd = !showAdd">{{ showAdd ? 'Cancel' : 'Add...' }}</button>
         </div>
         @if (showAdd) {
           <form class="add-box" (submit)="createObject($event)">
@@ -45,41 +45,41 @@ import {
             <label>Name
               <input [(ngModel)]="addName" name="addName" />
             </label>
-            <label>Objekttyp
+            <label>Object Type
               <select [(ngModel)]="addType" name="addType">
                 @for (type of objectTypes; track type) {
                   <option [ngValue]="type">{{ type }}</option>
                 }
               </select>
             </label>
-            <label>Datentyp
+            <label>Data Type
               <select [(ngModel)]="addDataType" name="addDataType">
                 @for (type of dataTypes; track type) {
                   <option [ngValue]="type">{{ type }}</option>
                 }
               </select>
             </label>
-            <label>Zugriff
+            <label>Access SDO
               <select [(ngModel)]="addAccess" name="addAccess">
                 @for (access of accessTypes; track access) {
                   <option [ngValue]="access">{{ access }}</option>
                 }
               </select>
             </label>
-            <label>PDO
+            <label>Access PDO
               <select [(ngModel)]="addPdo" name="addPdo">
                 @for (pdo of pdoMappings; track pdo) {
                   <option [ngValue]="pdo">{{ pdo }}</option>
                 }
               </select>
             </label>
-            <label>Standardwert
+            <label>Default value
               <input [(ngModel)]="addDefault" name="addDefault" />
             </label>
             @if (formError) {
               <p class="error">{{ formError }}</p>
             }
-            <button type="submit">Hinzufügen</button>
+            <button type="submit">Create</button>
           </form>
         }
         <div class="entries">
@@ -89,10 +89,10 @@ import {
             }
             <button type="button" class="entry" [class.active]="object.index === selectedIndex" (click)="select(object.index)">
               <span class="mono">{{ hex(object.index) }}</span>
-              <span>{{ object.name || 'ohne Name' }}</span>
+              <span>{{ object.name || 'unnamed' }}</span>
             </button>
           } @empty {
-            <p class="hint">Keine Objekte. Mit „Objekt“ wird ein Eintrag angelegt.</p>
+            <p class="hint">No objects. Use Add... to create an entry.</p>
           }
         </div>
       </div>
@@ -103,9 +103,9 @@ import {
             <h2 class="mono">{{ hex(object.index) }} {{ object.name }}</h2>
             <div class="row-actions">
               @if (object.objectType === 'ARRAY' || object.objectType === 'RECORD') {
-                <button type="button" (click)="addSub()">Subindex</button>
+                <button type="button" (click)="addSub()">Add</button>
               }
-              <button type="button" class="danger" (click)="removeSelected()">Löschen</button>
+              <button type="button" class="danger" (click)="removeSelected()">Delete...</button>
             </div>
           </div>
           @if (indexError) {
@@ -117,7 +117,7 @@ import {
                 <label>Index (hex)
                   <input [ngModel]="indexDraft" (ngModelChange)="indexDraft = $event" (blur)="commitIndex()" />
                 </label>
-                <label>Objekttyp
+                <label>Object Type
                   <select [ngModel]="entry.objectType" (ngModelChange)="setObjectType(entry, $event)">
                     @for (type of objectTypes; track type) {
                       <option [value]="type">{{ type }} ({{ typeCode(type) }})</option>
@@ -125,58 +125,58 @@ import {
                   </select>
                 </label>
               } @else {
-                <p class="hint">Subindex {{ hexByte(entry.subIndex) }} von {{ hex(object.index) }}</p>
-                <button type="button" (click)="selectedSubIndex = null">Zum Objekt</button>
+                <p class="hint">Sub-index {{ hexByte(entry.subIndex) }} of {{ hex(object.index) }}</p>
+                <button type="button" (click)="selectedSubIndex = null">Back to object</button>
               }
               <label>Name
                 <input [ngModel]="entry.name" (ngModelChange)="update(entry, 'name', $event)" />
               </label>
-              <label>Datentyp
+              <label>Data Type
                 <select [ngModel]="entry.dataType" (ngModelChange)="setDataType(entry, $event)">
                   @for (type of dataChoices(entry.dataType); track type) {
                     <option [value]="type">{{ type }}</option>
                   }
                 </select>
               </label>
-              <label>Zugriff
+              <label>Access SDO
                 <select [ngModel]="entry.access" (ngModelChange)="setAccess(entry, $event)">
                   @for (access of accessChoices(entry.access); track access) {
                     <option [value]="access">{{ access }}</option>
                   }
                 </select>
               </label>
-              <label>PDO-Mapping
+              <label>Access PDO
                 <select [ngModel]="entry.pdoMapping" (ngModelChange)="setPdo(entry, $event)">
                   @for (pdo of pdoMappings; track pdo) {
                     <option [value]="pdo">{{ pdo }}</option>
                   }
                 </select>
               </label>
-              <label>Standardwert
+              <label>Default value
                 <input [ngModel]="entry.defaultValue" (ngModelChange)="update(entry, 'defaultValue', $event)" />
               </label>
-              <label>Istwert
+              <label>Actual Value
                 <input [ngModel]="entry.actualValue" (ngModelChange)="update(entry, 'actualValue', $event)" />
               </label>
-              <label>Untergrenze
+              <label>LowLimit
                 <input [ngModel]="entry.lowLimit" (ngModelChange)="update(entry, 'lowLimit', $event)" />
               </label>
-              <label>Obergrenze
+              <label>HighLimit
                 <input [ngModel]="entry.highLimit" (ngModelChange)="update(entry, 'highLimit', $event)" />
               </label>
-              <label>Bezeichnung
+              <label>Denotation
                 <input [ngModel]="entry.denotation" (ngModelChange)="update(entry, 'denotation', $event)" />
               </label>
-              <label class="wide">Beschreibung
+              <label class="wide">Description
                 <textarea rows="5" [ngModel]="entry.description" (ngModelChange)="update(entry, 'description', $event)"></textarea>
               </label>
               <fieldset class="wide">
-                <legend>CANopenNode</legend>
+                <legend>Object settings</legend>
                 <div class="checks">
-                  <label class="check"><input type="checkbox" [ngModel]="entry.disabled" (ngModelChange)="update(entry, 'disabled', $event)" /> Deaktiviert</label>
-                  <label class="check"><input type="checkbox" [ngModel]="entry.flagsPdo" (ngModelChange)="update(entry, 'flagsPdo', $event)" /> PDO-Flag</label>
+                  <label class="check"><input type="checkbox" [ngModel]="!entry.disabled" (ngModelChange)="update(entry, 'disabled', !$event)" /> Enabled</label>
+                  <label class="check"><input type="checkbox" [ngModel]="entry.flagsPdo" (ngModelChange)="update(entry, 'flagsPdo', $event)" /> TPDO COS</label>
                 </div>
-                <label>Speichergruppe
+                <label>Storage Group
                   <input list="storage-groups" [ngModel]="entry.storageGroup" (ngModelChange)="update(entry, 'storageGroup', $event)" />
                 </label>
                 <datalist id="storage-groups">
@@ -184,10 +184,10 @@ import {
                     <option [value]="group"></option>
                   }
                 </datalist>
-                <label>Zähler-Label
+                <label>Count Label
                   <input [ngModel]="entry.countLabel" (ngModelChange)="update(entry, 'countLabel', $event)" />
                 </label>
-                <label>SRDO-Zugriff
+                <label>Access SRDO
                   <select [ngModel]="entry.accessSrdo" (ngModelChange)="setSrdo(entry, $event)">
                     <option value="no">no</option>
                     <option value="tx">tx</option>
@@ -195,7 +195,7 @@ import {
                     <option value="trx">trx</option>
                   </select>
                 </label>
-                <label>Minimale Stringlänge
+                <label>String Len Min
                   <input type="number" min="0" [ngModel]="entry.stringLengthMin" (ngModelChange)="setStringLength(entry, $event)" />
                 </label>
               </fieldset>
@@ -208,10 +208,10 @@ import {
                 <tr>
                   <th>Sub</th>
                   <th>Name</th>
-                  <th>Typ</th>
-                  <th>Zugriff</th>
-                  <th>PDO</th>
-                  <th>Standard</th>
+                  <th>Data Type</th>
+                  <th>Access SDO</th>
+                  <th>Access PDO</th>
+                  <th>Default Value</th>
                 </tr>
               </thead>
               <tbody>
@@ -229,7 +229,7 @@ import {
             </table>
           }
         } @else {
-          <p class="hint">Kein Objekt ausgewählt.</p>
+          <p class="hint">No object selected.</p>
         }
       </div>
     </div>
@@ -369,12 +369,12 @@ export class ObjectDictionaryComponent {
     }
     const parsed = parseUserIndex(this.indexDraft);
     if (parsed == null) {
-      this.indexError = 'Index als Hexwert zwischen 0 und FFFF angeben.';
+      this.indexError = 'Enter the index as a hex value between 0 and FFFF.';
       this.indexDraft = hex4(object.index);
       return;
     }
     if (parsed !== object.index && this.document().objects.some((item) => item.index === parsed)) {
-      this.indexError = `Index ${hex4(parsed)} ist bereits vorhanden.`;
+      this.indexError = `Index ${hex4(parsed)} already exists.`;
       this.indexDraft = hex4(object.index);
       return;
     }
@@ -393,12 +393,12 @@ export class ObjectDictionaryComponent {
     event.preventDefault();
     const parsed = parseUserIndex(this.addIndex);
     if (parsed == null) {
-      this.formError = 'Index als Hexwert angeben.';
+      this.formError = 'Enter the index as a hex value between 0 and FFFF.';
       return;
     }
     const entry = createEntry({
       index: parsed,
-      name: this.addName.trim() || `Objekt ${hex4(parsed)}`,
+      name: this.addName.trim() || 'New Object',
       objectType: this.addType,
       dataType: this.addDataType,
       access: this.addAccess,
@@ -454,8 +454,8 @@ export class ObjectDictionaryComponent {
       return;
     }
     const sub = this.selectedSub();
-    const label = sub ? `Subindex ${hex2(sub.subIndex)}` : `Objekt ${hex4(object.index)}`;
-    if (!confirm(`${label} löschen?`)) {
+    const label = sub ? `Sub-index ${hex2(sub.subIndex)}` : `${hex4(object.index)} ${object.name}`;
+    if (!confirm(`Delete ${label}?`)) {
       return;
     }
     if (sub) {

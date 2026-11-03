@@ -81,19 +81,19 @@ const PDO_VALUES = new Set<PdoMapping>(['no', 'default', 'optional', 'TPDO', 'RP
 export function parseXdd(xml: string): DeviceDocument {
   const source = xml.replace(/^\uFEFF/, '').trim();
   if (!source) {
-    throw new XddFormatError('Die Datei ist leer.');
+    throw new XddFormatError('The file is empty.');
   }
   if (source.startsWith('[')) {
-    throw new XddFormatError('EDS, DCF und andere Formate werden nicht gelesen. Es ist nur XDD vorgesehen.');
+    throw new XddFormatError('EDS, DCF and other formats are not read. Only XDD is supported.');
   }
 
   const parsed = new DOMParser().parseFromString(source, 'text/xml');
   const root = parsed.documentElement;
   if (!root || root.localName === 'parsererror') {
-    throw new XddFormatError('Das XDD-Dokument enthält kein gültiges XML.');
+    throw new XddFormatError('The XDD document is not valid XML.');
   }
   if (root.localName !== 'ISO15745ProfileContainer') {
-    throw new XddFormatError('Die Datei ist kein CANopen-XDD (ISO15745ProfileContainer).');
+    throw new XddFormatError('The file is not a CANopen XDD (ISO15745ProfileContainer).');
   }
 
   const document = createEmptyDocument();
@@ -146,7 +146,7 @@ export function parseXdd(xml: string): DeviceDocument {
 
   sortDocument(document);
   if (!document.productName) {
-    document.productName = 'Unbenannt';
+    document.productName = 'Unnamed';
   }
   return document;
 }
@@ -308,7 +308,7 @@ function schemaVersion(root: Element): SchemaVersion {
   if (namespace.includes('/1.1') || namespace === '') {
     return '1.1';
   }
-  throw new XddFormatError(`Der XDD-Namespace wird nicht unterstützt: ${namespace}`);
+  throw new XddFormatError(`The XDD namespace is not supported: ${namespace}`);
 }
 
 function readDeviceProfile(document: DeviceDocument, body: Element): void {
@@ -451,7 +451,7 @@ function readNetworkObject(
       applyParameter(sub, parameters.get(subId)!, typeDefs);
     }
     if (!sub.name) {
-      sub.name = `Subindex ${hex2(subIndex)}`;
+      sub.name = `Sub ${hex2(subIndex)}`;
     }
     entry.subObjects.push(sub);
   }
@@ -473,7 +473,7 @@ function readParameterOnlyObjects(
     }
     const entry = createEntry({
       index: Number.parseInt(match[1], 16),
-      name: directText(parameter, 'label') || `Objekt ${match[1].toUpperCase()}`,
+      name: directText(parameter, 'label') || `Object ${match[1].toUpperCase()}`,
     });
     applyParameter(entry, parameter, typeDefs);
     document.objects.push(entry);
@@ -491,7 +491,7 @@ function readParameterOnlyObjects(
     const sub = createEntry({
       index: parent.index,
       subIndex,
-      name: directText(parameter, 'label') || `Subindex ${hex2(subIndex)}`,
+      name: directText(parameter, 'label') || `Sub ${hex2(subIndex)}`,
       objectType: 'VAR',
     });
     applyParameter(sub, parameter, typeDefs);

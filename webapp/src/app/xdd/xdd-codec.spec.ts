@@ -120,9 +120,9 @@ describe('parseXdd', () => {
 
   it('rejects EDS text and documents that are not XDD', () => {
     expect(() => parseXdd('[FileInfo]\nFileName=demo.eds\n')).toThrow(XddFormatError);
-    expect(() => parseXdd('[FileInfo]\nFileName=demo.eds\n')).toThrow(/nur XDD/);
+    expect(() => parseXdd('[FileInfo]\nFileName=demo.eds\n')).toThrow(/Only XDD/);
     expect(() => parseXdd('<Device/>')).toThrow(/ISO15745ProfileContainer/);
-    expect(() => parseXdd('<not-xml')).toThrow(/gültiges XML/);
+    expect(() => parseXdd('<not-xml')).toThrow(/valid XML/);
   });
 });
 

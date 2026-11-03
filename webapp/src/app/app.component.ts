@@ -4,7 +4,7 @@ import { ObjectDictionaryComponent } from './object-dictionary.component';
 import { PdoViewComponent } from './pdo-view.component';
 import { OpenDevice, ProjectStore } from './state/project.store';
 
-type EditorTab = 'info' | 'od' | 'pdo';
+type EditorTab = 'info' | 'od' | 'rx' | 'tx';
 
 @Component({
   selector: 'app-root',
@@ -16,15 +16,15 @@ type EditorTab = 'info' | 'od' | 'pdo';
         <div class="brand">
           <span class="mark">OD</span>
           <div>
-            <strong>CANopen Editor</strong>
-            <small>Objektverzeichnis, nur XDD</small>
+            <strong>Object Dictionary Editor</strong>
+            <small>XDD</small>
           </div>
         </div>
         <div class="actions">
-          <button type="button" (click)="store.newDevice()">Neu</button>
-          <button type="button" (click)="picker.click()">Öffnen</button>
-          <button type="button" (click)="save()" [disabled]="!store.selected()">Speichern</button>
-          <button type="button" class="quiet" (click)="loadExample()">Beispiel</button>
+          <button type="button" (click)="store.newDevice()">New</button>
+          <button type="button" (click)="picker.click()">Open</button>
+          <button type="button" (click)="save()" [disabled]="!store.selected()">Save</button>
+          <button type="button" class="quiet" (click)="loadExample()">Example</button>
           <input #picker hidden type="file" accept=".xdd,application/xml" (change)="openFile($event)" />
         </div>
       </header>
@@ -37,17 +37,17 @@ type EditorTab = 'info' | 'od' | 'pdo';
 
       <div class="workspace">
         <aside>
-          <h2>Geräte</h2>
+          <h2>Devices</h2>
           @for (device of store.devices(); track device.id) {
             <div class="device" [class.active]="device.id === store.selectedId()" (click)="store.select(device.id)">
               <div>
-                <strong>{{ device.document.productName || 'Unbenannt' }}</strong>
-                <small>{{ device.fileName }}{{ device.dirty ? ' · geändert' : '' }}</small>
+                <strong>{{ device.document.productName || 'Unnamed' }}</strong>
+                <small>{{ device.fileName }}{{ device.dirty ? ' · modified' : '' }}</small>
               </div>
-              <button type="button" (click)="close(device, $event)" aria-label="Gerät schließen">×</button>
+              <button type="button" (click)="close(device, $event)" aria-label="Close file">×</button>
             </div>
           } @empty {
-            <p class="hint">Noch kein Gerät geöffnet.</p>
+            <p class="hint">No device open.</p>
           }
         </aside>
 
@@ -55,11 +55,12 @@ type EditorTab = 'info' | 'od' | 'pdo';
           @if (store.selected(); as device) {
             <div class="main-head">
               <div class="tabs">
-                <button type="button" [class.active]="tab() === 'info'" (click)="tab.set('info')">Gerät</button>
-                <button type="button" [class.active]="tab() === 'od'" (click)="tab.set('od')">Objektverzeichnis</button>
-                <button type="button" [class.active]="tab() === 'pdo'" (click)="tab.set('pdo')">PDO</button>
+                <button type="button" [class.active]="tab() === 'info'" (click)="tab.set('info')">Device Info</button>
+                <button type="button" [class.active]="tab() === 'od'" (click)="tab.set('od')">Object Dictionary</button>
+                <button type="button" [class.active]="tab() === 'rx'" (click)="tab.set('rx')">RX PDO Mapping</button>
+                <button type="button" [class.active]="tab() === 'tx'" (click)="tab.set('tx')">TX PDO Mapping</button>
               </div>
-              <span class="schema">XDD {{ device.document.schemaVersion }} · Speichern schreibt XDD 1.1</span>
+              <span class="schema">Opened as XDD {{ device.document.schemaVersion }}. Save writes XDD 1.1</span>
             </div>
             <div class="pane" [hidden]="tab() !== 'info'">
               <app-device-info [document]="device.document" (changed)="store.touch(device.id)" />
@@ -67,17 +68,20 @@ type EditorTab = 'info' | 'od' | 'pdo';
             <div class="pane" [hidden]="tab() !== 'od'">
               <app-object-dictionary [document]="device.document" (changed)="store.touch(device.id)" />
             </div>
-            <div class="pane" [hidden]="tab() !== 'pdo'">
-              <app-pdo-view [document]="device.document" (changed)="store.touch(device.id)" />
+            <div class="pane" [hidden]="tab() !== 'rx'">
+              <app-pdo-view direction="rx" [document]="device.document" (changed)="store.touch(device.id)" />
+            </div>
+            <div class="pane" [hidden]="tab() !== 'tx'">
+              <app-pdo-view direction="tx" [document]="device.document" (changed)="store.touch(device.id)" />
             </div>
           } @else {
             <section class="empty">
-              <h2>CANopen-Objektverzeichnis</h2>
-              <p>Diese Webapp bildet den Editor aus der Desktop-Anwendung ab: Geräteinformationen, Objektverzeichnis und PDO.</p>
-              <p>Gelesen und geschrieben wird ausschließlich das Dateiformat <strong>XDD</strong> (CiA 311, XML Device Description). EDS, DCF, XDC, Dokumentation und C-Quelltext werden weder importiert noch exportiert.</p>
+              <h2>Object Dictionary Editor</h2>
+              <p>Edit device information, the object dictionary, and PDO mapping.</p>
+              <p>Only the <strong>XDD</strong> file format is read and written.</p>
               <div class="actions">
-                <button type="button" (click)="store.newDevice()">Neues Gerät</button>
-                <button type="button" (click)="loadExample()">Beispiel-XDD öffnen</button>
+                <button type="button" (click)="store.newDevice()">New</button>
+                <button type="button" (click)="loadExample()">Open example XDD</button>
               </div>
             </section>
           }
@@ -99,7 +103,7 @@ export class AppComponent {
       return;
     }
     if (!file.name.toLowerCase().endsWith('.xdd')) {
-      this.store.error.set('Es werden nur XDD-Dateien gelesen. Andere Formate werden weder importiert noch exportiert.');
+      this.store.error.set('Only XDD files are read. Other formats are not imported or exported.');
       return;
     }
     const reader = new FileReader();
@@ -107,7 +111,7 @@ export class AppComponent {
       this.store.openXml(file.name, String(reader.result ?? ''));
     };
     reader.onerror = () => {
-      this.store.error.set('Die Datei konnte nicht gelesen werden.');
+      this.store.error.set('The file could not be read.');
     };
     reader.readAsText(file);
   }
@@ -131,7 +135,7 @@ export class AppComponent {
   close(device: OpenDevice, event: Event): void {
     event.stopPropagation();
     const name = device.document.productName || device.fileName;
-    if (device.dirty && !confirm(`„${name}“ hat ungespeicherte Änderungen. Schließen?`)) {
+    if (device.dirty && !confirm(`"${name}" has unsaved changes. Close file?`)) {
       return;
     }
     this.store.close(device.id);
@@ -141,11 +145,11 @@ export class AppComponent {
     try {
       const response = await fetch('minimal_project.xdd');
       if (!response.ok) {
-        throw new Error('Beispiel nicht gefunden');
+        throw new Error('Example not found');
       }
       this.store.openXml('minimal_project.xdd', await response.text());
     } catch {
-      this.store.error.set('Das Beispiel-XDD konnte nicht geladen werden.');
+      this.store.error.set('The example XDD could not be loaded.');
     }
   }
 }

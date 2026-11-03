@@ -25,8 +25,8 @@ export class ProjectStore {
   }
 
   newDevice(): void {
-    this.add(this.create(createEmptyDocument(), 'neues-geraet.xdd', true));
-    this.status.set('Neues Gerät angelegt.');
+    this.add(this.create(createEmptyDocument(), 'project.xdd', true));
+    this.status.set('New device created.');
     this.error.set(null);
   }
 
@@ -36,10 +36,10 @@ export class ProjectStore {
       const safeName = ensureXddName(fileName, document.productName);
       document.fileName = safeName;
       this.add(this.create(document, safeName, false));
-      this.status.set(`${safeName} geöffnet.`);
+      this.status.set(`${safeName} opened.`);
       this.error.set(null);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Die XDD-Datei konnte nicht gelesen werden.';
+      const message = error instanceof Error ? error.message : 'The XDD file could not be read.';
       this.error.set(message);
     }
   }
@@ -75,7 +75,7 @@ export class ProjectStore {
     this.devices.update((list) => list.map((device) => (
       device.id === id ? { ...device, dirty: false, fileName } : device
     )));
-    this.status.set(`${fileName} geschrieben.`);
+    this.status.set(`${fileName} written.`);
     this.error.set(null);
   }
 

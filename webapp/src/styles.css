@@ -99,6 +99,8 @@ label {
 
 .brand, .actions, .tabs, .row-actions { display: flex; align-items: center; gap: 0.5rem; }
 
+.tabs { flex-wrap: wrap; }
+
 .brand > div { display: flex; flex-direction: column; line-height: 1.15; }
 
 .brand small, .device small, .schema, .hint { color: var(--muted); }
