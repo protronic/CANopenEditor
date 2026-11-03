@@ -747,7 +747,16 @@ label.check.invalid {
 
 .map-row:nth-child(even) > span:nth-child(-n + 3) { background: lightcyan; }
 
-.map-row.selected { outline: 2px solid #2f7d32; outline-offset: -2px; }
+.map-row { position: relative; }
+
+.map-row.selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid #111;
+  pointer-events: none;
+  z-index: 3;
+}
 
 .bit-track {
   display: grid;
