@@ -32,3 +32,6 @@ Dateiinformationen, Objektverzeichnis, Baudraten und Netzwerkmerkmalen bleiben d
 
 Die Web-Oberfläche soll den CANopenEditor EDSEditorGUI mit der älteren WinForms-Oberfläche nachbilden.
 Alle Beschriftungen innerhalb der Oberflächen bleiben in ihrer Originalsprache englisch und werden nicht übersetzt.
+
+Vorgegebens Layout für den Tab "Object Dictionary": 
+![Tab Object Dictionary](/home/frab/WORK/__Projekte__/RZ25/CANopenEditor_protronic/webapp/images/Template_Tab_Object_Dictionary.png)
