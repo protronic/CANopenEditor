@@ -121,6 +121,21 @@ describe('mappableEntries', () => {
       defaultValue: 'ABCD',
     }));
 
-    expect(mappableEntries(document)).toMatchObject([{ bits: 32 }]);
+    expect(mappableEntries(document)[6]).toMatchObject({ index: 0x2000, bits: 32 });
+  });
+
+  it('starts with the dummy objects for every direction', () => {
+    const document = createEmptyDocument();
+    for (const direction of [undefined, 'rx', 'tx'] as const) {
+      expect(mappableEntries(document, direction).map((entry) => [entry.index, entry.subIndex, entry.name, entry.bits]))
+        .toEqual([
+          [0x0002, 0, 'Dummy Int8', 8],
+          [0x0003, 0, 'Dummy Int16', 16],
+          [0x0004, 0, 'Dummy Int32', 32],
+          [0x0005, 0, 'Dummy UInt8', 8],
+          [0x0006, 0, 'Dummy UInt16', 16],
+          [0x0007, 0, 'Dummy UInt32', 32],
+        ]);
+    }
   });
 });

@@ -9,6 +9,7 @@ import {
   PdoSlot,
   addMapping,
   addPdo,
+  dummyName,
   emptySpans,
   fitMappingBits,
   mappableEntries,
@@ -425,7 +426,7 @@ export class PdoViewComponent {
     }
     const object = this.document().objects.find((entry) => entry.index === row.index);
     const sub = object?.subObjects.find((entry) => entry.subIndex === row.entrySubIndex);
-    const name = row.entrySubIndex === 0 ? object?.name : sub?.name || object?.name;
+    const name = dummyName(row.index) ?? (row.entrySubIndex === 0 ? object?.name : sub?.name || object?.name);
     return `0x${hex4(row.index)}/${hex2(row.entrySubIndex)}/${name ?? ''}`.replace(/\/$/, '');
   }
 }

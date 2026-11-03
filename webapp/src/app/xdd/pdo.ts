@@ -153,14 +153,22 @@ export function mappingLabel(
   return `${hex4(object.index)}:${hex2(decoded.subIndex)} ${sub?.name || object.name} · ${decoded.bits} bits`;
 }
 
-const DUMMY_NAMES: Record<number, string> = {
-  0x0002: 'Dummy Int8',
-  0x0003: 'Dummy Int16',
-  0x0004: 'Dummy Int32',
-  0x0005: 'Dummy UInt8',
-  0x0006: 'Dummy UInt16',
-  0x0007: 'Dummy UInt32',
-};
+const DUMMY_OBJECTS: { index: number; name: string; dataType: OdEntry['dataType'] }[] = [
+  { index: 0x0002, name: 'Dummy Int8', dataType: 'INTEGER8' },
+  { index: 0x0003, name: 'Dummy Int16', dataType: 'INTEGER16' },
+  { index: 0x0004, name: 'Dummy Int32', dataType: 'INTEGER32' },
+  { index: 0x0005, name: 'Dummy UInt8', dataType: 'UNSIGNED8' },
+  { index: 0x0006, name: 'Dummy UInt16', dataType: 'UNSIGNED16' },
+  { index: 0x0007, name: 'Dummy UInt32', dataType: 'UNSIGNED32' },
+];
+
+const DUMMY_NAMES: Record<number, string> = Object.fromEntries(
+  DUMMY_OBJECTS.map((dummy) => [dummy.index, dummy.name]),
+);
+
+export function dummyName(index: number): string | undefined {
+  return DUMMY_NAMES[index];
+}
 
 export function isMappingObject(index: number): boolean {
   return (index >= 0x1600 && index < 0x1800) || (index >= 0x1a00 && index < 0x1c00);
@@ -268,9 +276,16 @@ function mappingBits(dataType: OdEntry['dataType'], defaultValue: string): numbe
 }
 
 export function mappableEntries(document: DeviceDocument, direction?: PdoDirection): MappableEntry[] {
-  const result: MappableEntry[] = [];
+  const result: MappableEntry[] = DUMMY_OBJECTS.map((dummy) => ({
+    index: dummy.index,
+    subIndex: 0,
+    name: dummy.name,
+    dataType: dummy.dataType,
+    bits: bitLength(dummy.dataType),
+    key: `${dummy.index}:0`,
+  }));
   for (const object of document.objects) {
-    if (object.disabled) {
+    if (object.disabled || DUMMY_NAMES[object.index]) {
       continue;
     }
     if (object.objectType === 'VAR' && acceptsMapping(object.pdoMapping, direction)) {
