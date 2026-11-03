@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { DeviceInfoComponent } from './device-info.component';
+import { InsertProfileComponent } from './insert-profile.component';
 import { ObjectDictionaryComponent } from './object-dictionary.component';
 import { PdoViewComponent } from './pdo-view.component';
 import { OpenDevice, ProjectStore } from './state/project.store';
@@ -9,7 +10,7 @@ type EditorTab = 'info' | 'od' | 'rx' | 'tx';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [DeviceInfoComponent, ObjectDictionaryComponent, PdoViewComponent],
+  imports: [DeviceInfoComponent, InsertProfileComponent, ObjectDictionaryComponent, PdoViewComponent],
   template: `
     <div class="shell">
       <header class="top">
@@ -25,6 +26,7 @@ type EditorTab = 'info' | 'od' | 'rx' | 'tx';
           <button type="button" (click)="picker.click()">Open</button>
           <button type="button" (click)="save()" [disabled]="!store.selected()">Save</button>
           <button type="button" class="quiet" (click)="loadExample()">Example</button>
+          <button type="button" (click)="profileOpen.set(true)" [disabled]="!store.selected()">Insert Profile</button>
           <input #picker hidden type="file" accept=".xdd,application/xml" (change)="openFile($event)" />
         </div>
       </header>
@@ -87,11 +89,15 @@ type EditorTab = 'info' | 'od' | 'rx' | 'tx';
           }
         </main>
       </div>
+      @if (profileOpen()) {
+        <app-insert-profile (closed)="profileOpen.set(false)" (inserted)="tab.set('od')" />
+      }
     </div>
   `,
 })
 export class AppComponent {
   readonly tab = signal<EditorTab>('info');
+  readonly profileOpen = signal(false);
 
   constructor(readonly store: ProjectStore) {}
 

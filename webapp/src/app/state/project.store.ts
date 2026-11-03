@@ -2,6 +2,8 @@ import { Injectable, computed, signal } from '@angular/core';
 import { DeviceDocument, ensureXddName, formatDate, formatTime } from '../model/device';
 import { createEmptyDocument } from '../model/device';
 import { parseXdd, writeXdd } from '../xdd/xdd-codec';
+import { InsertRow, insertSelected } from '../xdd/profiles';
+import { pdoSlots } from '../xdd/pdo';
 
 export interface OpenDevice {
   id: string;
@@ -42,6 +44,18 @@ export class ProjectStore {
       const message = error instanceof Error ? error.message : 'The XDD file could not be read.';
       this.error.set(message);
     }
+  }
+
+  insertObjects(id: string, rows: InsertRow[]): number | null {
+    const device = this.devices().find((entry) => entry.id === id);
+    if (!device) {
+      return null;
+    }
+    const inserted = insertSelected(device.document, rows);
+    device.document.nrOfRxPdo = pdoSlots(device.document, 'rx').length;
+    device.document.nrOfTxPdo = pdoSlots(device.document, 'tx').length;
+    this.touch(id);
+    return inserted;
   }
 
   touch(id: string): void {

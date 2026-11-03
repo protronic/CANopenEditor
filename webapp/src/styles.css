@@ -456,6 +456,34 @@ button.collapse {
 
 .modal-actions { display: flex; gap: 0.5rem; }
 
+.modal-spacer { flex: 1; }
+
+.profile-modal {
+  width: min(52rem, calc(100vw - 2rem));
+  max-height: min(44rem, calc(100vh - 2rem));
+}
+
+.profile-modal .info-line { grid-template-columns: 5.5rem minmax(0, 1fr); }
+
+.profile-scroll {
+  overflow: auto;
+  min-height: 8rem;
+  border: 1px solid var(--line);
+}
+
+.profile-scroll table { margin: 0; font-size: 0.82rem; }
+
+.profile-scroll th {
+  position: sticky;
+  top: 0;
+  background: #ece7dc;
+  z-index: 1;
+}
+
+.profile-scroll input[type="checkbox"] { width: auto; }
+
+.profile-modal tr.conflict td { color: tomato; font-weight: 700; }
+
 .mono { font-family: var(--mono); }
 
 .wide { grid-column: 1 / -1; }
