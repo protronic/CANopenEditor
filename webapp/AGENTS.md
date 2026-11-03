@@ -20,31 +20,37 @@ You are an autonomous AI coding assistant integrated into this repository. Your 
 5. Provide a clear summary of changes made and instructions for verification.
 6. Do not read the Readme.md.
 
-## Projekt
+## Project
 
-Die Branch webapp enthält eine Angular-Webapp, die den CANopen-Editor aus main im Browser
-abbildet. Sie liest und schreibt ausschließlich XDD-Format.
+The `webapp` branch contains an Angular web app that recreates the CANopen editor from `main`
+in the browser. It reads and writes XDD format exclusively.
 
-Die Anwendung liegt unter webapp/ und umfasst Geräteinformationen, das Objektverzeichnis
-und PDO. Mehrere Geräte können gleichzeitig offen sein. XDD 1.0 wird geöffnet, beim Speichern
-entsteht ein normalisiertes XDD 1.1. Zusätzliche XML-Fragmente außerhalb von Identität,
-Dateiinformationen, Objektverzeichnis, Baudraten und Netzwerkmerkmalen bleiben dabei nicht erhalten.
+The application lives under `webapp/` and covers device information, the object dictionary,
+and PDOs. Multiple devices can be open at the same time. XDD 1.0 files can be opened; saving
+produces a normalized XDD 1.1 file. Additional XML fragments outside of identity,
+file information, object dictionary, baud rates, and network features are not preserved.
 
-Die Web-Oberfläche soll den CANopenEditor EDSEditorGUI mit der älteren WinForms-Oberfläche nachbilden.
-Alle Beschriftungen innerhalb der Oberflächen bleiben in ihrer Originalsprache englisch und werden nicht übersetzt.
+The web UI should replicate the CANopenEditor EDSEditorGUI with the older WinForms interface.
+All labels within the UI remain in their original English language and are not translated.
 
 ### Layout
 
-Die folgenden Bilder zeigen das vorgegebene Layout für die einzelnen Tabs:
+The following images show the prescribed layout for each tab.
 
-Tab "Device Info" 
+#### Tab "Device Info" 
+
 ![Tab Device Info](images/Template_Tab_Device_Info.png)
 
-Tab "Object Dictionary"
+#### Tab "Object Dictionary"
+
 ![Tab Object Dictionary](images/Template_Tab_Object_Dictionary.png)
 
-Tab "TX PDO Mapping"
+The three stacked lists "Communication Specific Parameters", "Manufacturer Specific Parameters", and "Device Profile Specific Parameters" should each be independently collapsible.
+
+#### Tab "TX PDO Mapping"
+
 ![Tab TX PDO Mapping](images/Template_Tab_TX_PDO_Mapping.png)
 
-Tab "RX PDO Mapping"
+#### Tab "RX PDO Mapping"
+
 ![Tab RX PDO Mapping](images/Template_Tab_RX_PDO_Mapping.png)
