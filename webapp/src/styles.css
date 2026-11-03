@@ -749,14 +749,14 @@ label.check.invalid {
 .map-row.selected { outline: 2px solid #2f7d32; outline-offset: -2px; }
 
 .bit-track {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(64, minmax(0, 1fr));
   width: 100%;
   min-width: 0;
   border-bottom: 1px solid #d5d0c6;
 }
 
 .map-head .bit-track > i {
-  flex: 1 1 0;
   min-width: 0;
   overflow: hidden;
   text-align: center;
@@ -767,7 +767,7 @@ label.check.invalid {
 }
 
 .map-bytes .bit-track > b {
-  flex: 8 8 0;
+  grid-column: span 8;
   min-width: 0;
   overflow: hidden;
   text-align: center;
@@ -777,24 +777,28 @@ label.check.invalid {
   border-right: 1px solid #c44a32;
 }
 
-.map-row em {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.map-row .bit-track select {
+  width: 100%;
   min-width: 0;
-  overflow: hidden;
-  padding: 0.12rem 0.15rem;
+  max-width: 100%;
+  margin: 0;
+  padding: 0 0.1rem;
+  border: 0;
   border-right: 1px solid #c8c0a8;
-  font-style: normal;
+  border-radius: 0;
   font-size: 0.72rem;
+  line-height: 1.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
 }
 
-.map-row em.a { background: khaki; }
+.map-row .bit-track select.a { background: khaki; }
 
-.map-row em.b { background: lemonchiffon; }
+.map-row .bit-track select.b { background: lemonchiffon; }
 
-.map-row em.empty { background: lightgray; color: #333; }
+.map-row .bit-track select.empty { background: lightgray; color: #333; }
 
 @media (max-width: 860px) {
   .workspace, .od { grid-template-columns: 1fr; }

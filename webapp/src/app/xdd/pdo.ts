@@ -111,6 +111,30 @@ export function encodeMapping(index: number, subIndex: number, bits: number): st
   return `0x${value.toString(16).toUpperCase().padStart(8, '0')}`;
 }
 
+/** Bit widths of the empty cells that follow the mapped objects, each ending on a byte boundary. */
+export function emptySpans(used: number): number[] {
+  const spans: number[] = [];
+  let bit = Math.min(64, Math.max(0, Math.floor(used)));
+  while (bit < 64) {
+    let span = (64 - bit) % 8;
+    if (span === 0) {
+      span = Math.min(8, 64 - bit);
+    }
+    spans.push(span);
+    bit += span;
+  }
+  return spans;
+}
+
+/** Width stored for a newly chosen object: the datatype width, capped by the free bits in the PDO. */
+export function fitMappingBits(entryBits: number, usedBits: number, replacedBits = 0): number {
+  const capacity = 64 - (usedBits - Math.max(0, replacedBits));
+  if (entryBits <= 0 || capacity <= 0) {
+    return 0;
+  }
+  return Math.min(entryBits, capacity);
+}
+
 export function mappingLabel(
   document: DeviceDocument,
   decoded: { index: number; subIndex: number; bits: number } | null,
@@ -191,6 +215,16 @@ function acceptsMapping(mapping: OdEntry['pdoMapping'], direction: PdoDirection 
   return direction === 'tx' ? mapping === 'TPDO' : mapping === 'RPDO';
 }
 
+function mappingBits(dataType: OdEntry['dataType'], defaultValue: string): number {
+  if (dataType === 'VISIBLE_STRING') {
+    return defaultValue.length * 8;
+  }
+  if (dataType === 'OCTET_STRING') {
+    return Math.floor(defaultValue.replace(/\s/g, '').length / 2) * 8;
+  }
+  return bitLength(dataType);
+}
+
 export function mappableEntries(document: DeviceDocument, direction?: PdoDirection): MappableEntry[] {
   const result: MappableEntry[] = [];
   for (const object of document.objects) {
@@ -203,7 +237,7 @@ export function mappableEntries(document: DeviceDocument, direction?: PdoDirecti
         subIndex: 0,
         name: object.name,
         dataType: object.dataType,
-        bits: bitLength(object.dataType),
+        bits: mappingBits(object.dataType, object.defaultValue),
         key: `${object.index}:0`,
       });
     }
@@ -215,7 +249,7 @@ export function mappableEntries(document: DeviceDocument, direction?: PdoDirecti
           subIndex: sub.subIndex,
           name: sub.name || object.name,
           dataType,
-          bits: bitLength(dataType),
+          bits: mappingBits(dataType, sub.defaultValue),
           key: `${object.index}:${sub.subIndex}`,
         });
       }

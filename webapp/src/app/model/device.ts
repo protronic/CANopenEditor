@@ -433,8 +433,14 @@ export function deleteSubObject(document: DeviceDocument, index: number, subInde
 
 export function bitLength(dataType: DataTypeName): number {
   switch (dataType) {
+    case 'BOOLEAN':
+      return 1;
+    case 'INTEGER8':
+    case 'UNSIGNED8':
+      return 8;
     case 'INTEGER16':
     case 'UNSIGNED16':
+    case 'UNICODE_STRING':
       return 16;
     case 'INTEGER24':
     case 'UNSIGNED24':
@@ -442,14 +448,14 @@ export function bitLength(dataType: DataTypeName): number {
     case 'INTEGER32':
     case 'UNSIGNED32':
     case 'REAL32':
-    case 'TIME_OF_DAY':
-    case 'TIME_DIFFERENCE':
       return 32;
     case 'INTEGER40':
     case 'UNSIGNED40':
       return 40;
     case 'INTEGER48':
     case 'UNSIGNED48':
+    case 'TIME_OF_DAY':
+    case 'TIME_DIFFERENCE':
       return 48;
     case 'INTEGER56':
     case 'UNSIGNED56':
@@ -458,6 +464,8 @@ export function bitLength(dataType: DataTypeName): number {
     case 'UNSIGNED64':
     case 'REAL64':
       return 64;
+    case 'DOMAIN':
+      return 0;
     default:
       return 8;
   }

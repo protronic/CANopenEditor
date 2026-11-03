@@ -1,6 +1,6 @@
 import { Component, ElementRef, HostListener, input, output, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { DeviceDocument, bitLength, hex2, hex4 } from './model/device';
+import { DeviceDocument, hex2, hex4 } from './model/device';
 import {
   MappableEntry,
   MappingRow,
@@ -9,6 +9,8 @@ import {
   PdoSlot,
   addMapping,
   addPdo,
+  emptySpans,
+  fitMappingBits,
   mappableEntries,
   pdoSlots,
   removeMapping,
@@ -23,6 +25,7 @@ interface MapBlock {
   label: string;
   kind: 'a' | 'b' | 'empty';
   subIndex: number | null;
+  value: string;
 }
 
 @Component({
@@ -132,10 +135,21 @@ interface MapBlock {
             <span class="mono">{{ hex(slot.commIndex) }}</span>
             <span class="bit-track">
               @for (block of blocks(slot); track block.key) {
-                <em
+                <select
                   [class]="block.kind"
-                  [style.flex]="block.bits"
-                  (contextmenu)="openMenu($event, slot, block)">{{ block.label }}</em>
+                  [style.grid-column]="'span ' + block.bits"
+                  [title]="block.label"
+                  [ngModel]="block.value"
+                  (ngModelChange)="choose(slot, block, $event)"
+                  (contextmenu)="openMenu($event, slot, block)">
+                  <option value="">Empty</option>
+                  @if (block.value && !optionKnown(block.value)) {
+                    <option [value]="block.value">{{ block.label }}</option>
+                  }
+                  @for (entry of mappable(); track entry.key) {
+                    <option [value]="entry.key">{{ optionLabel(entry) }}</option>
+                  }
+                </select>
               }
             </span>
           </div>
@@ -218,28 +232,63 @@ export class PdoViewComponent {
     let used = 0;
     slot.mappings.forEach((row, index) => {
       const bits = row.bits && row.bits > 0 ? row.bits : 0;
-      if (bits === 0) {
+      if (bits === 0 || used >= 64) {
         return;
       }
+      const span = Math.min(bits, 64 - used);
+      const value = row.index != null && row.entrySubIndex != null ? `${row.index}:${row.entrySubIndex}` : '';
       blocks.push({
         key: `${slot.commIndex}-${row.subIndex}`,
-        bits,
+        bits: span,
         label: this.blockLabel(row),
         kind: index % 2 === 0 ? 'a' : 'b',
         subIndex: row.subIndex,
+        value,
       });
-      used += bits;
+      used += span;
     });
-    if (used < 64) {
+    let bit = used;
+    for (const span of emptySpans(used)) {
       blocks.push({
-        key: `${slot.commIndex}-empty`,
-        bits: 64 - used,
+        key: `${slot.commIndex}-empty-${bit}`,
+        bits: span,
         label: 'Empty',
         kind: 'empty',
         subIndex: null,
+        value: '',
       });
+      bit += span;
     }
     return blocks;
+  }
+
+  optionLabel(entry: MappableEntry): string {
+    return `0x${hex4(entry.index)}/${hex2(entry.subIndex)}/${entry.name}`;
+  }
+
+  optionKnown(value: string): boolean {
+    return this.mappable().some((entry) => entry.key === value);
+  }
+
+  choose(slot: PdoSlot, block: MapBlock, value: string): void {
+    this.select(slot);
+    if (value === block.value) {
+      return;
+    }
+    if (!value) {
+      if (block.subIndex == null) {
+        return;
+      }
+      removeMapping(this.document(), slot.direction, slot.slot, block.subIndex);
+      this.formError = '';
+      this.changed.emit();
+      return;
+    }
+    const entry = this.mappable().find((item) => item.key === value);
+    if (!entry) {
+      return;
+    }
+    this.applyMapping(slot, block.subIndex, entry);
   }
 
   field(name: PdoField, value: string): void {
@@ -292,28 +341,15 @@ export class PdoViewComponent {
       this.formError = 'Select a PDO first.';
       return;
     }
-    const error = addMapping(this.document(), slot.direction, slot.slot);
-    if (error) {
-      this.formError = error;
-      return;
-    }
-    const updated = this.slots().find((item) => item.slot === slot.slot);
-    const row = updated?.mappings[updated.mappings.length - 1];
-    if (!row) {
-      return;
-    }
-    const bits = entry.bits || bitLength('UNSIGNED32');
-    setMappingEntry(this.document(), slot.direction, slot.slot, row.subIndex, entry.index, entry.subIndex, bits);
-    this.formError = '';
-    this.changed.emit();
+    this.applyMapping(slot, null, entry);
   }
 
   openMenu(event: MouseEvent, slot: PdoSlot, block: MapBlock): void {
+    event.preventDefault();
+    event.stopPropagation();
     if (block.subIndex == null) {
       return;
     }
-    event.preventDefault();
-    event.stopPropagation();
     this.selectedSlot = slot.slot;
     this.menu = { x: event.clientX, y: event.clientY, slot: slot.slot, subIndex: block.subIndex };
   }
@@ -338,6 +374,33 @@ export class PdoViewComponent {
         scroller.scrollLeft = scrollLeft;
       });
     }
+  }
+
+  private applyMapping(slot: PdoSlot, subIndex: number | null, entry: MappableEntry): boolean {
+    const used = slot.mappings.reduce((sum, row) => sum + (row.bits && row.bits > 0 ? row.bits : 0), 0);
+    const replaced = subIndex == null ? 0 : slot.mappings.find((row) => row.subIndex === subIndex)?.bits ?? 0;
+    const bits = fitMappingBits(entry.bits, used, replaced > 0 ? replaced : 0);
+    if (bits <= 0) {
+      this.formError = 'The object does not fit into the PDO.';
+      return false;
+    }
+    let target = subIndex;
+    if (target == null) {
+      const error = addMapping(this.document(), slot.direction, slot.slot);
+      if (error) {
+        this.formError = error;
+        return false;
+      }
+      const updated = this.slots().find((item) => item.slot === slot.slot);
+      target = updated?.mappings[updated.mappings.length - 1]?.subIndex ?? null;
+      if (target == null) {
+        return false;
+      }
+    }
+    setMappingEntry(this.document(), slot.direction, slot.slot, target, entry.index, entry.subIndex, bits);
+    this.formError = '';
+    this.changed.emit();
+    return true;
   }
 
   private blockLabel(row: MappingRow): string {
