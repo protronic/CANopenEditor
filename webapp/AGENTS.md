@@ -48,7 +48,7 @@ The following images show the prescribed layout for each tab.
 The three stacked lists "Communication Specific Parameters", "Manufacturer Specific Parameters",
 and "Device Profile Specific Parameters" should each be independently collapsible.
 
-Highlight the beginning of each list. Make the font size for the list title 1.5 times as large. 
+Highlight the beginning of each list.
 
 #### Tab "TX PDO Mapping"
 
@@ -62,3 +62,8 @@ Highlight the beginning of each list. Make the font size for the list title 1.5 
 
 Provide a button for loading one or more profiles. The `EDSEditorGUI/Profiles` folder contains
 files with predefined profiles for use with CANopenEditor. Offer these profiles when loading.
+
+Provide two buttons to check all objects and to uncheck all objects. Checked objects are included in the project profile.
+
+If an object already exists in the project file, leave it unchecked in the list. If the user checks that object again,
+highlight it in the list. When the selection is saved, ask whether to overwrite the existing object.
