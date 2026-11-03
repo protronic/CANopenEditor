@@ -24,15 +24,6 @@ import {
 type PendingChoice = 'yes' | 'no' | 'cancel';
 type MenuKind = 'object' | 'sub';
 
-const FORM_ACCESS: { label: string; value: AccessType }[] = [
-  { label: 'rw', value: 'readWrite' },
-  { label: 'ro', value: 'read' },
-  { label: 'wo', value: 'write' },
-  { label: 'rwr', value: 'readWriteInput' },
-  { label: 'rww', value: 'readWriteOutput' },
-  { label: 'const', value: 'const' },
-];
-
 @Component({
   selector: 'app-object-dictionary',
   standalone: true,
@@ -182,10 +173,11 @@ const FORM_ACCESS: { label: string; value: AccessType }[] = [
 
             <label class="od-line">
               <span>Access SDO</span>
-              <select [ngModel]="isVar ? draftAccess : ''" (ngModelChange)="setDraft('access', $event)" [disabled]="!isVar">
-                @for (access of formAccess; track access.value) {
-                  <option [value]="access.value">{{ access.label }}</option>
-                }
+              <select [ngModel]="isVar ? sdoShort(draftAccess) : ''" (ngModelChange)="setSdoShort($event)" [disabled]="!isVar">
+                <option value="no">no</option>
+                <option value="ro">ro</option>
+                <option value="wo">wo</option>
+                <option value="rw">rw</option>
               </select>
             </label>
             <label class="od-line">
@@ -310,7 +302,6 @@ export class ObjectDictionaryComponent {
   ] as const;
 
   readonly objectTypes: ObjectTypeName[] = ['VAR', 'ARRAY', 'RECORD', 'DOMAIN', 'DEFTYPE', 'DEFSTRUCT', 'NULL'];
-  readonly formAccess = FORM_ACCESS;
   readonly hex = hex4;
   readonly dataChoices = dataTypeChoices;
 
@@ -384,6 +375,36 @@ export class ObjectDictionaryComponent {
   toggleGroup(id: 'communication' | 'manufacturer' | 'profile', event: Event): void {
     event.stopPropagation();
     this.collapsed = { ...this.collapsed, [id]: !this.collapsed[id] };
+  }
+
+  sdoShort(value: AccessType): string {
+    switch (value) {
+      case 'const':
+      case 'read':
+        return 'ro';
+      case 'write':
+        return 'wo';
+      case 'readWrite':
+      case 'readWriteInput':
+      case 'readWriteOutput':
+        return 'rw';
+      default:
+        return 'no';
+    }
+  }
+
+  setSdoShort(value: string): void {
+    if (value === 'ro') {
+      this.draftAccess = 'read';
+    } else if (value === 'wo') {
+      this.draftAccess = 'write';
+    } else if (value === 'rw') {
+      const pdo = this.pdoShort(this.draftPdo);
+      this.draftAccess = pdo === 'r' ? 'readWriteOutput' : pdo === 't' ? 'readWriteInput' : 'readWrite';
+    } else {
+      this.draftAccess = 'noAccess';
+    }
+    this.applyDraft();
   }
 
   pdoShort(value: PdoMapping): string {
@@ -817,19 +838,7 @@ export class ObjectDictionaryComponent {
   }
 
   private sdoLabel(entry: OdEntry): string {
-    switch (entry.access) {
-      case 'const':
-      case 'read':
-        return 'ro';
-      case 'write':
-        return 'wo';
-      case 'readWrite':
-      case 'readWriteInput':
-      case 'readWriteOutput':
-        return 'rw';
-      default:
-        return 'no';
-    }
+    return this.sdoShort(entry.access);
   }
 
   private pdoLabel(entry: OdEntry): string {
@@ -875,7 +884,7 @@ export class ObjectDictionaryComponent {
     this.draftDescription = entry.description;
     this.draftType = entry.objectType;
     this.draftDataType = entry.dataType === 'UNKNOWN' && parent.dataType !== 'UNKNOWN' ? parent.dataType : entry.dataType;
-    this.draftAccess = entry.access === 'unknown' || entry.access === 'noAccess' ? 'read' : entry.access;
+    this.draftAccess = entry.access;
     this.draftPdo = entry.pdoMapping;
     this.draftSrdo = entry.accessSrdo;
     this.draftDefault = entry.defaultValue;
