@@ -709,8 +709,8 @@ label.check.invalid {
   width: calc(10.5rem + var(--byte-span));
 }
 
-.map-head > span,
-.map-bytes > span,
+.map-head > span:not(.bit-track),
+.map-bytes > span:not(.bit-track),
 .map-row > span:not(.bit-track) {
   display: flex;
   align-items: center;
@@ -720,6 +720,8 @@ label.check.invalid {
 }
 
 .map-head > span { font-weight: 600; background: #f7f4ee; }
+
+.map-head > span.bit-track { font-weight: 400; }
 
 .map-head > span:nth-child(-n + 3),
 .map-bytes > span:nth-child(-n + 3),
@@ -763,8 +765,12 @@ label.check.invalid {
   font-style: normal;
   font-size: 0.62rem;
   line-height: 1.7;
-  border-right: 1px solid #eee;
+  border-right: 1px solid #e4e0d8;
 }
+
+.map-head .bit-track > i:nth-child(8n + 1) { color: tomato; font-weight: 600; }
+
+.map-head .bit-track > i:nth-child(8n) { border-right-color: #9b958a; }
 
 .map-bytes .bit-track > b {
   grid-column: span 8;
