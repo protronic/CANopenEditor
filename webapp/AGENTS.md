@@ -54,3 +54,7 @@ The three stacked lists "Communication Specific Parameters", "Manufacturer Speci
 #### Tab "RX PDO Mapping"
 
 ![Tab RX PDO Mapping](images/Template_Tab_RX_PDO_Mapping.png)
+
+### Profiles
+
+Provide a button for loading one or more profiles. The `EDSEditorGUI/Profiles` folder contains files with predefined profiles for use with CANopenEditor. Offer these profiles when loading.
