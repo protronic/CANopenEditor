@@ -45,7 +45,10 @@ The following images show the prescribed layout for each tab.
 
 ![Tab Object Dictionary](images/Template_Tab_Object_Dictionary.png)
 
-The three stacked lists "Communication Specific Parameters", "Manufacturer Specific Parameters", and "Device Profile Specific Parameters" should each be independently collapsible.
+The three stacked lists "Communication Specific Parameters", "Manufacturer Specific Parameters",
+and "Device Profile Specific Parameters" should each be independently collapsible.
+
+Highlight the beginning of each list. Make the font size for the list title 1.5 times as large. 
 
 #### Tab "TX PDO Mapping"
 
@@ -57,4 +60,5 @@ The three stacked lists "Communication Specific Parameters", "Manufacturer Speci
 
 ### Profiles
 
-Provide a button for loading one or more profiles. The `EDSEditorGUI/Profiles` folder contains files with predefined profiles for use with CANopenEditor. Offer these profiles when loading.
+Provide a button for loading one or more profiles. The `EDSEditorGUI/Profiles` folder contains
+files with predefined profiles for use with CANopenEditor. Offer these profiles when loading.
