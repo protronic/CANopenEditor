@@ -379,7 +379,7 @@ export function deleteObject(document: DeviceDocument, index: number): void {
   document.objects = document.objects.filter((object) => object.index !== index);
 }
 
-function refreshSubZero(object: OdEntry): void {
+export function refreshSubZero(object: OdEntry): void {
   const sub0 = object.subObjects.find((sub) => sub.subIndex === 0);
   if (!sub0) {
     return;

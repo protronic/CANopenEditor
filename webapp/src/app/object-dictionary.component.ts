@@ -1,18 +1,15 @@
-import { Component, effect, input, output } from '@angular/core';
+import { Component, HostListener, effect, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
-  ACCESS_TYPES,
   AccessType,
-  DATA_TYPES,
   DataTypeName,
   DeviceDocument,
-  OBJECT_TYPE_CODE,
   ObjectTypeName,
   OdEntry,
   PDO_MAPPINGS,
   PdoMapping,
   STORAGE_GROUPS,
-  accessChoices,
+  SrdoAccess,
   addObject,
   addSubObject,
   createEntry,
@@ -20,11 +17,22 @@ import {
   deleteObject,
   deleteSubObject,
   hex2,
+  refreshSubZero,
   hex4,
-  objectGroup,
   parseUserIndex,
-  sortDocument,
 } from './model/device';
+
+type PendingChoice = 'yes' | 'no' | 'cancel';
+type MenuKind = 'object' | 'sub';
+
+const FORM_ACCESS: { label: string; value: AccessType }[] = [
+  { label: 'rw', value: 'readWrite' },
+  { label: 'ro', value: 'read' },
+  { label: 'wo', value: 'write' },
+  { label: 'rwr', value: 'readWriteInput' },
+  { label: 'rww', value: 'readWriteOutput' },
+  { label: 'const', value: 'const' },
+];
 
 @Component({
   selector: 'app-object-dictionary',
@@ -32,239 +40,315 @@ import {
   imports: [FormsModule],
   template: `
     <div class="od">
-      <div class="od-list">
-        <div class="od-toolbar">
-          <input placeholder="Index or name" [ngModel]="query" (ngModelChange)="query = $event" />
-          <button type="button" (click)="showAdd = !showAdd">{{ showAdd ? 'Cancel' : 'Add...' }}</button>
-        </div>
-        @if (showAdd) {
-          <form class="add-box" (submit)="createObject($event)">
-            <label>Index (hex)
-              <input [(ngModel)]="addIndex" name="addIndex" placeholder="2000" />
-            </label>
-            <label>Name
-              <input [(ngModel)]="addName" name="addName" />
-            </label>
-            <label>Object Type
-              <select [(ngModel)]="addType" name="addType">
-                @for (type of objectTypes; track type) {
-                  <option [ngValue]="type">{{ type }}</option>
-                }
-              </select>
-            </label>
-            <label>Data Type
-              <select [(ngModel)]="addDataType" name="addDataType">
-                @for (type of dataTypes; track type) {
-                  <option [ngValue]="type">{{ type }}</option>
-                }
-              </select>
-            </label>
-            <label>Access SDO
-              <select [(ngModel)]="addAccess" name="addAccess">
-                @for (access of accessTypes; track access) {
-                  <option [ngValue]="access">{{ access }}</option>
-                }
-              </select>
-            </label>
-            <label>Access PDO
-              <select [(ngModel)]="addPdo" name="addPdo">
-                @for (pdo of pdoMappings; track pdo) {
-                  <option [ngValue]="pdo">{{ pdo }}</option>
-                }
-              </select>
-            </label>
-            <label>Default value
-              <input [(ngModel)]="addDefault" name="addDefault" />
-            </label>
-            @if (formError) {
-              <p class="error">{{ formError }}</p>
-            }
-            <button type="submit">Create</button>
-          </form>
+      <div class="od-groups">
+        @for (group of groups; track group.title) {
+          <section class="od-group" (contextmenu)="openObjectMenu($event, null)">
+            <h3>{{ group.title }}</h3>
+            <div class="od-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th (click)="openObjectMenu($event, null)">Index</th>
+                    <th (click)="openObjectMenu($event, null)">Name</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (object of objectsIn(group.id); track object.index) {
+                    <tr
+                      [class.selected]="object.index === selectedIndex"
+                      [class.disabled]="object.disabled"
+                      (click)="selectObject(object.index)"
+                      (contextmenu)="openObjectMenu($event, object.index)">
+                      <td class="mono">0x{{ hex(object.index) }}</td>
+                      <td>{{ object.name }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
         }
-        <div class="entries">
-          @for (object of filtered(); track object.index; let i = $index) {
-            @if (i === 0 || group(object.index) !== group(filtered()[i - 1].index)) {
-              <div class="group">{{ group(object.index) }}</div>
-            }
-            <button type="button" class="entry" [class.active]="object.index === selectedIndex" (click)="select(object.index)">
-              <span class="mono">{{ hex(object.index) }}</span>
-              <span>{{ object.name || 'unnamed' }}</span>
-            </button>
-          } @empty {
-            <p class="hint">No objects. Use Add... to create an entry.</p>
-          }
-        </div>
       </div>
 
-      <div class="od-detail">
-        @if (selected(); as object) {
-          <div class="detail-head">
-            <h2 class="mono">{{ hex(object.index) }} {{ object.name }}</h2>
-            <div class="row-actions">
-              @if (object.objectType === 'ARRAY' || object.objectType === 'RECORD') {
-                <button type="button" (click)="addSub()">Add</button>
+      <div class="od-main">
+        <div class="od-scroll od-subs" (contextmenu)="openSubMenu($event, null)">
+          <table>
+            <thead>
+              <tr>
+                <th>Sub</th>
+                <th>Name</th>
+                <th>Obj Type</th>
+                <th>Data Type</th>
+                <th>SDO</th>
+                <th>PDO</th>
+                <th>SRDO</th>
+                <th>Default Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of subRows(); track row.key) {
+                <tr
+                  [class.selected]="row.selected"
+                  (click)="selectSub(row.subIndex)"
+                  (contextmenu)="openSubMenu($event, row.subIndex)">
+                  <td class="mono">{{ row.subLabel }}</td>
+                  <td>{{ row.name }}</td>
+                  <td>{{ row.objectType }}</td>
+                  <td>{{ row.dataType }}</td>
+                  <td>{{ row.sdo }}</td>
+                  <td>{{ row.pdo }}</td>
+                  <td>{{ row.srdo }}</td>
+                  <td class="mono">{{ row.defaultValue }}</td>
+                </tr>
               }
-              <button type="button" class="danger" (click)="removeSelected()">Delete...</button>
-            </div>
-          </div>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="od-form">
           @if (indexError) {
             <p class="error">{{ indexError }}</p>
           }
-          @if (editing(); as entry) {
-            <div class="detail-form">
-              @if (!selectedSub()) {
-                <label>Index (hex)
-                  <input [ngModel]="indexDraft" (ngModelChange)="indexDraft = $event" (blur)="commitIndex()" />
-                </label>
-                <label>Object Type
-                  <select [ngModel]="entry.objectType" (ngModelChange)="setObjectType(entry, $event)">
-                    @for (type of objectTypes; track type) {
-                      <option [value]="type">{{ type }} ({{ typeCode(type) }})</option>
-                    }
-                  </select>
-                </label>
-              } @else {
-                <p class="hint">Sub-index {{ hexByte(entry.subIndex) }} of {{ hex(object.index) }}</p>
-                <button type="button" (click)="selectedSubIndex = null">Back to object</button>
-              }
-              <label>Name
-                <input [ngModel]="entry.name" (ngModelChange)="update(entry, 'name', $event)" />
-              </label>
-              <label>Data Type
-                <select [ngModel]="entry.dataType" (ngModelChange)="setDataType(entry, $event)">
-                  @for (type of dataChoices(entry.dataType); track type) {
-                    <option [value]="type">{{ type }}</option>
-                  }
-                </select>
-              </label>
-              <label>Access SDO
-                <select [ngModel]="entry.access" (ngModelChange)="setAccess(entry, $event)">
-                  @for (access of accessChoices(entry.access); track access) {
-                    <option [value]="access">{{ access }}</option>
-                  }
-                </select>
-              </label>
-              <label>Access PDO
-                <select [ngModel]="entry.pdoMapping" (ngModelChange)="setPdo(entry, $event)">
-                  @for (pdo of pdoMappings; track pdo) {
-                    <option [value]="pdo">{{ pdo }}</option>
-                  }
-                </select>
-              </label>
-              <label>Default value
-                <input [ngModel]="entry.defaultValue" (ngModelChange)="update(entry, 'defaultValue', $event)" />
-              </label>
-              <label>Actual Value
-                <input [ngModel]="entry.actualValue" (ngModelChange)="update(entry, 'actualValue', $event)" />
-              </label>
-              <label>LowLimit
-                <input [ngModel]="entry.lowLimit" (ngModelChange)="update(entry, 'lowLimit', $event)" />
-              </label>
-              <label>HighLimit
-                <input [ngModel]="entry.highLimit" (ngModelChange)="update(entry, 'highLimit', $event)" />
-              </label>
-              <label>Denotation
-                <input [ngModel]="entry.denotation" (ngModelChange)="update(entry, 'denotation', $event)" />
-              </label>
-              <label class="wide">Description
-                <textarea rows="5" [ngModel]="entry.description" (ngModelChange)="update(entry, 'description', $event)"></textarea>
-              </label>
-              <fieldset class="wide">
-                <legend>Object settings</legend>
-                <div class="checks">
-                  <label class="check"><input type="checkbox" [ngModel]="!entry.disabled" (ngModelChange)="update(entry, 'disabled', !$event)" /> Enabled</label>
-                  <label class="check"><input type="checkbox" [ngModel]="entry.flagsPdo" (ngModelChange)="update(entry, 'flagsPdo', $event)" /> TPDO COS</label>
-                </div>
-                <label>Storage Group
-                  <input list="storage-groups" [ngModel]="entry.storageGroup" (ngModelChange)="update(entry, 'storageGroup', $event)" />
-                </label>
-                <datalist id="storage-groups">
-                  @for (group of storageGroups; track group) {
-                    <option [value]="group"></option>
-                  }
-                </datalist>
-                <label>Count Label
-                  <input [ngModel]="entry.countLabel" (ngModelChange)="update(entry, 'countLabel', $event)" />
-                </label>
-                <label>Access SRDO
-                  <select [ngModel]="entry.accessSrdo" (ngModelChange)="setSrdo(entry, $event)">
-                    <option value="no">no</option>
-                    <option value="tx">tx</option>
-                    <option value="rx">rx</option>
-                    <option value="trx">trx</option>
-                  </select>
-                </label>
-                <label>String Len Min
-                  <input type="number" min="0" [ngModel]="entry.stringLengthMin" (ngModelChange)="setStringLength(entry, $event)" />
-                </label>
-              </fieldset>
-            </div>
-          }
+          <div class="od-id-row">
+            <label class="od-line compact">
+              <span>Index</span>
+              <input readonly [value]="indexText()" />
+            </label>
+            <label class="od-line compact">
+              <span>Sub Index</span>
+              <input readonly [value]="subText()" />
+            </label>
+          </div>
+          <label class="od-line">
+            <span>Name</span>
+            <input [ngModel]="draftName" (ngModelChange)="setDraft('name', $event)" [disabled]="!editing()" />
+          </label>
+          <label class="od-line">
+            <span>Denotation</span>
+            <input class="peach" [ngModel]="draftDenotation" (ngModelChange)="setDraft('denotation', $event)" [disabled]="!editing()" />
+          </label>
+          <label class="od-line od-description">
+            <span>Description</span>
+            <textarea [ngModel]="draftDescription" (ngModelChange)="setDraft('description', $event)" [disabled]="!editing()"></textarea>
+          </label>
 
-          @if (object.subObjects.length > 0) {
-            <table>
-              <thead>
-                <tr>
-                  <th>Sub</th>
-                  <th>Name</th>
-                  <th>Data Type</th>
-                  <th>Access SDO</th>
-                  <th>Access PDO</th>
-                  <th>Default Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (sub of object.subObjects; track sub.subIndex) {
-                  <tr [class.active]="sub.subIndex === selectedSubIndex" (click)="selectedSubIndex = sub.subIndex">
-                    <td class="mono">{{ hexByte(sub.subIndex) }}</td>
-                    <td>{{ sub.name }}</td>
-                    <td>{{ sub.dataType }}</td>
-                    <td>{{ sub.access }}</td>
-                    <td>{{ sub.pdoMapping }}</td>
-                    <td class="mono">{{ sub.defaultValue }}</td>
-                  </tr>
+          <fieldset class="object-settings">
+            <legend>Object settings</legend>
+            <label class="od-line">
+              <span>Object Type</span>
+              <select [ngModel]="draftType" disabled>
+                @for (type of objectTypes; track type) {
+                  <option [value]="type">{{ type }}</option>
                 }
-              </tbody>
-            </table>
-          }
-        } @else {
-          <p class="hint">No object selected.</p>
-        }
+              </select>
+            </label>
+            <label class="od-line">
+              <span>HighLimit</span>
+              <input [ngModel]="isVar ? draftHigh : ''" (ngModelChange)="setDraft('high', $event)" [disabled]="!isVar" />
+            </label>
+            <label class="od-line">
+              <span>Count Label</span>
+              <select [ngModel]="draftCount" (ngModelChange)="setCount($event)" [disabled]="!isParent">
+                @for (label of countLabels(); track label) {
+                  <option [value]="label">{{ label }}</option>
+                }
+              </select>
+            </label>
+
+            <label class="od-line">
+              <span>Data Type</span>
+              <select [ngModel]="isVar ? draftDataType : ''" (ngModelChange)="setDraft('dataType', $event)" [disabled]="!isVar">
+                @for (type of dataChoices(draftDataType); track type) {
+                  <option [value]="type">{{ type }}</option>
+                }
+              </select>
+            </label>
+            <label class="od-line">
+              <span>LowLimit</span>
+              <input [ngModel]="isVar ? draftLow : ''" (ngModelChange)="setDraft('low', $event)" [disabled]="!isVar" />
+            </label>
+            <label class="od-line">
+              <span>Storage Group</span>
+              <select [ngModel]="draftStorage" (ngModelChange)="setStorage($event)" [disabled]="!isParent">
+                @for (group of storageLabels(); track group) {
+                  <option [value]="group">{{ group }}</option>
+                }
+              </select>
+            </label>
+
+            <label class="od-line">
+              <span>Access SDO</span>
+              <select [ngModel]="isVar ? draftAccess : ''" (ngModelChange)="setDraft('access', $event)" [disabled]="!isVar">
+                @for (access of formAccess; track access.value) {
+                  <option [value]="access.value">{{ access.label }}</option>
+                }
+              </select>
+            </label>
+            <label class="od-line">
+              <span>Actual Value</span>
+              <input class="peach" [ngModel]="isVar ? draftActual : ''" (ngModelChange)="setDraft('actual', $event)" [disabled]="!isVar" />
+            </label>
+            <label class="od-check">
+              <span>Enabled</span>
+              <input type="checkbox" [ngModel]="!draftDisabled" (ngModelChange)="setDraft('enabled', $event)" [disabled]="!isParent" />
+            </label>
+
+            <label class="od-line">
+              <span>Access PDO</span>
+              <select [ngModel]="isVar ? draftPdo : ''" (ngModelChange)="setDraft('pdo', $event)" [disabled]="!isVar">
+                @for (pdo of pdoMappings; track pdo) {
+                  <option [value]="pdo">{{ pdo }}</option>
+                }
+              </select>
+            </label>
+            <label class="od-line">
+              <span>String Len Min</span>
+              <input type="number" min="0" [ngModel]="isVar ? draftStringLen : ''" (ngModelChange)="setDraft('stringLen', $event)" [disabled]="!isVar" />
+            </label>
+            <label class="od-check">
+              <span>TPDO COS</span>
+              <input type="checkbox" [ngModel]="draftFlags" (ngModelChange)="setDraft('flags', $event)" [disabled]="!isParent" />
+            </label>
+
+            <label class="od-line">
+              <span>Access SRDO</span>
+              <select [ngModel]="isVar ? draftSrdo : ''" (ngModelChange)="setDraft('srdo', $event)" [disabled]="!isVar">
+                <option value="no">no</option>
+                <option value="tx">tx</option>
+                <option value="rx">rx</option>
+                <option value="trx">trx</option>
+              </select>
+            </label>
+            <span></span>
+            <span></span>
+
+            <label class="od-line span-2">
+              <span>Default value</span>
+              <input [ngModel]="isVar ? draftDefault : ''" (ngModelChange)="setDraft('default', $event)" [disabled]="!isVar" />
+            </label>
+            <div class="save-row">
+              <button type="button" class="system" [class.dirty]="dirty" (click)="saveChanges()" [disabled]="!editing()">Save Changes</button>
+              <label class="od-check autosave">
+                <input type="checkbox" [(ngModel)]="autosave" />
+                <span>Autosave changes</span>
+              </label>
+            </div>
+          </fieldset>
+        </div>
       </div>
     </div>
+
+    @if (menu; as menu) {
+      <div class="menu" [style.left.px]="menu.x" [style.top.px]="menu.y" (click)="$event.stopPropagation()" (contextmenu)="$event.preventDefault()">
+        @if (menu.kind === 'object') {
+          <button type="button" (click)="addObjectDialog()">Add...</button>
+          <button type="button" (click)="deleteSelected()" [disabled]="selectedIndex == null">Delete...</button>
+          <button type="button" (click)="toggleSelected()" [disabled]="selectedIndex == null">Toggle</button>
+        } @else {
+          <button type="button" (click)="addSub()" [disabled]="!canAddSub">Add</button>
+          <button type="button" (click)="removeSub(true)" [disabled]="!canRemoveSub">Remove (shift up)</button>
+          <button type="button" (click)="removeSub(false)" [disabled]="!canRemoveGap">Remove (leave gap)</button>
+        }
+      </div>
+    }
+
+    @if (showAdd) {
+      <div class="modal-back">
+        <form class="modal" (submit)="createObject($event)">
+          <h3>Create new OD Index</h3>
+          <label class="od-line">
+            <span>Index (hex)</span>
+            <input [(ngModel)]="addIndex" name="addIndex" />
+          </label>
+          <label class="od-line">
+            <span>Name</span>
+            <input [(ngModel)]="addName" name="addName" />
+          </label>
+          <fieldset>
+            <legend>Object Type</legend>
+            <label class="check"><input type="radio" name="addType" value="VAR" [(ngModel)]="addType" /> VAR</label>
+            <label class="check"><input type="radio" name="addType" value="ARRAY" [(ngModel)]="addType" /> ARRAY</label>
+            <label class="check"><input type="radio" name="addType" value="RECORD" [(ngModel)]="addType" /> RECORD</label>
+          </fieldset>
+          @if (formError) {
+            <p class="error">{{ formError }}</p>
+          }
+          <div class="modal-actions">
+            <button type="submit">Create</button>
+            <button type="button" class="quiet" (click)="showAdd = false">Cancel</button>
+          </div>
+        </form>
+      </div>
+    }
+
+    @if (pending) {
+      <div class="modal-back">
+        <div class="modal">
+          <h3>Unsaved changes</h3>
+          <p>Unsaved changes on Index {{ pendingLabel }}. Do you wish to switch object and loose your changes?</p>
+          <p>Yes = Lose changes. No = Save. Cancel = Go back and stay on the object.</p>
+          <div class="modal-actions">
+            <button type="button" (click)="resolvePending('yes')">Yes</button>
+            <button type="button" (click)="resolvePending('no')">No</button>
+            <button type="button" class="quiet" (click)="resolvePending('cancel')">Cancel</button>
+          </div>
+        </div>
+      </div>
+    }
   `,
 })
 export class ObjectDictionaryComponent {
   readonly document = input.required<DeviceDocument>();
   readonly changed = output<void>();
 
-  query = '';
+  readonly groups = [
+    { id: 'communication', title: 'Communication Specific Parameters' },
+    { id: 'manufacturer', title: 'Manufacturer Specific Parameters' },
+    { id: 'profile', title: 'Device Profile Specific Parameters' },
+  ] as const;
+
+  readonly objectTypes: ObjectTypeName[] = ['VAR', 'ARRAY', 'RECORD', 'DOMAIN', 'DEFTYPE', 'DEFSTRUCT', 'NULL'];
+  readonly formAccess = FORM_ACCESS;
+  readonly pdoMappings = PDO_MAPPINGS;
+  readonly hex = hex4;
+  readonly dataChoices = dataTypeChoices;
+
+  selectedIndex: number | null = null;
+  selectedSubIndex: number | null = null;
+  dirty = false;
+  autosave = false;
   showAdd = false;
   formError = '';
   indexError = '';
-  indexDraft = '';
-  selectedIndex: number | null = null;
-  selectedSubIndex: number | null = null;
-  addIndex = '';
-  addName = '';
+  addIndex = '2000';
+  addName = 'New Object';
   addType: ObjectTypeName = 'VAR';
-  addDataType: DataTypeName = 'UNSIGNED32';
-  addAccess: AccessType = 'readWrite';
-  addPdo: PdoMapping = 'no';
-  addDefault = '';
+  menu: { x: number; y: number; kind: MenuKind } | null = null;
+  pending = false;
+  pendingLabel = '';
 
-  readonly objectTypes: ObjectTypeName[] = ['VAR', 'ARRAY', 'RECORD', 'DOMAIN', 'DEFTYPE', 'DEFSTRUCT', 'NULL'];
-  readonly dataTypes = DATA_TYPES;
-  readonly accessTypes = ACCESS_TYPES.filter((access) => access !== 'unknown');
-  readonly pdoMappings = PDO_MAPPINGS;
-  readonly storageGroups = STORAGE_GROUPS;
-  readonly group = objectGroup;
-  readonly hex = hex4;
-  readonly hexByte = hex2;
-  readonly dataChoices = dataTypeChoices;
-  readonly accessChoices = accessChoices;
+  draftName = '';
+  draftDenotation = '';
+  draftDescription = '';
+  draftType: ObjectTypeName = 'VAR';
+  draftDataType: DataTypeName = 'UNSIGNED32';
+  draftAccess: AccessType = 'readWrite';
+  draftPdo: PdoMapping = 'no';
+  draftSrdo: SrdoAccess = 'no';
+  draftDefault = '';
+  draftActual = '';
+  draftLow = '';
+  draftHigh = '';
+  draftStringLen = 0;
+  draftCount = '';
+  draftStorage = 'RAM';
+  draftDisabled = false;
+  draftFlags = false;
 
+  private extraCounts: string[] = [];
+  private extraStorage: string[] = [];
+  private baseline = '';
+  private pendingResolve: ((choice: PendingChoice) => void) | null = null;
   private seen: DeviceDocument | null = null;
 
   constructor() {
@@ -274,24 +358,21 @@ export class ObjectDictionaryComponent {
         this.seen = document;
         this.selectedIndex = document.objects[0]?.index ?? null;
         this.selectedSubIndex = null;
-        this.query = '';
-        this.formError = '';
+        this.menu = null;
+        this.showAdd = false;
         this.indexError = '';
-        this.syncIndexDraft();
+        this.loadDraft();
       }
     });
   }
 
-  filtered(): OdEntry[] {
-    const query = this.query.trim().toLowerCase();
-    const objects = this.document().objects;
-    if (!query) {
-      return objects;
-    }
-    return objects.filter((object) => {
-      const hex = hex4(object.index).toLowerCase();
-      return hex.includes(query) || `0x${hex}`.includes(query) || object.name.toLowerCase().includes(query);
-    });
+  @HostListener('document:click')
+  closeMenu(): void {
+    this.menu = null;
+  }
+
+  objectsIn(group: 'communication' | 'manufacturer' | 'profile'): OdEntry[] {
+    return this.document().objects.filter((object) => this.groupOf(object.index) === group);
   }
 
   selected(): OdEntry | null {
@@ -312,81 +393,218 @@ export class ObjectDictionaryComponent {
     return this.selectedSub() ?? this.selected();
   }
 
-  select(index: number): void {
+  get isVar(): boolean {
+    return this.editing()?.objectType === 'VAR';
+  }
+
+  get isParent(): boolean {
+    return this.selected() != null && this.selectedSub() == null;
+  }
+
+  get canAddSub(): boolean {
+    const object = this.selected();
+    return object?.objectType === 'ARRAY' || object?.objectType === 'RECORD';
+  }
+
+  get canRemoveSub(): boolean {
+    return this.selectedSubIndex != null && this.selectedSubIndex > 0;
+  }
+
+  get canRemoveGap(): boolean {
+    return this.selected()?.objectType === 'RECORD' && this.canRemoveSub;
+  }
+
+  subRows(): {
+    key: string;
+    subIndex: number | null;
+    selected: boolean;
+    subLabel: string;
+    name: string;
+    objectType: string;
+    dataType: string;
+    sdo: string;
+    pdo: string;
+    srdo: string;
+    defaultValue: string;
+  }[] {
+    const object = this.selected();
+    if (!object) {
+      return [];
+    }
+    const parentSelected = this.selectedSubIndex == null;
+    const rows = [this.rowFor(object, null, parentSelected, object.objectType === 'VAR')];
+    if (object.objectType === 'ARRAY' || object.objectType === 'RECORD') {
+      for (const sub of object.subObjects) {
+        rows.push(this.rowFor(sub, object, sub.subIndex === this.selectedSubIndex, true));
+      }
+    }
+    return rows;
+  }
+
+  indexText(): string {
+    const entry = this.editing();
+    return entry ? `0x${hex4(entry.index)}` : '';
+  }
+
+  subText(): string {
+    const sub = this.selectedSub();
+    return sub ? `0x${hex2(sub.subIndex)}` : '';
+  }
+
+  countLabels(): string[] {
+    const labels = new Set<string>(['']);
+    for (const object of this.document().objects) {
+      if (object.countLabel) {
+        labels.add(object.countLabel);
+      }
+    }
+    for (const extra of this.extraCounts) {
+      labels.add(extra);
+    }
+    if (this.draftCount) {
+      labels.add(this.draftCount);
+    }
+    return [...labels, 'Add...'];
+  }
+
+  storageLabels(): string[] {
+    const labels = new Set<string>(STORAGE_GROUPS);
+    for (const object of this.document().objects) {
+      if (object.storageGroup) {
+        labels.add(object.storageGroup);
+      }
+    }
+    for (const extra of this.extraStorage) {
+      labels.add(extra);
+    }
+    if (this.draftStorage) {
+      labels.add(this.draftStorage);
+    }
+    return [...labels, 'Add...'];
+  }
+
+  async selectObject(index: number): Promise<void> {
+    if (index === this.selectedIndex && this.selectedSubIndex == null) {
+      return;
+    }
+    if (!(await this.guard())) {
+      return;
+    }
     this.selectedIndex = index;
     this.selectedSubIndex = null;
     this.indexError = '';
-    this.syncIndexDraft();
+    this.loadDraft();
   }
 
-  typeCode(type: ObjectTypeName): number {
-    return OBJECT_TYPE_CODE[type];
-  }
-
-  update<K extends keyof OdEntry>(entry: OdEntry, key: K, value: OdEntry[K]): void {
-    entry[key] = value;
-    this.changed.emit();
-  }
-
-  setObjectType(entry: OdEntry, value: ObjectTypeName): void {
-    entry.objectType = value;
-    if ((value === 'ARRAY' || value === 'RECORD') && entry.subObjects.length === 0) {
-      addSubObject(this.document(), entry.index);
-    }
-    this.changed.emit();
-  }
-
-  setDataType(entry: OdEntry, value: DataTypeName): void {
-    entry.dataType = value;
-    this.changed.emit();
-  }
-
-  setAccess(entry: OdEntry, value: AccessType): void {
-    entry.access = value;
-    this.changed.emit();
-  }
-
-  setPdo(entry: OdEntry, value: PdoMapping): void {
-    entry.pdoMapping = value;
-    this.changed.emit();
-  }
-
-  setSrdo(entry: OdEntry, value: OdEntry['accessSrdo']): void {
-    entry.accessSrdo = value;
-    this.changed.emit();
-  }
-
-  setStringLength(entry: OdEntry, value: number | string): void {
-    const parsed = Number(value);
-    entry.stringLengthMin = Number.isFinite(parsed) ? parsed : 0;
-    this.changed.emit();
-  }
-
-  commitIndex(): void {
-    const object = this.selected();
-    if (!object) {
+  async selectSub(subIndex: number | null): Promise<void> {
+    if (subIndex === this.selectedSubIndex) {
       return;
     }
-    const parsed = parseUserIndex(this.indexDraft);
-    if (parsed == null) {
-      this.indexError = 'Enter the index as a hex value between 0 and FFFF.';
-      this.indexDraft = hex4(object.index);
+    if (!(await this.guard())) {
       return;
     }
-    if (parsed !== object.index && this.document().objects.some((item) => item.index === parsed)) {
-      this.indexError = `Index ${hex4(parsed)} already exists.`;
-      this.indexDraft = hex4(object.index);
+    this.selectedSubIndex = subIndex;
+    this.loadDraft();
+  }
+
+  async openObjectMenu(event: MouseEvent, index: number | null): Promise<void> {
+    event.preventDefault();
+    event.stopPropagation();
+    if (index != null && index !== this.selectedIndex) {
+      if (!(await this.guard())) {
+        return;
+      }
+      this.selectedIndex = index;
+      this.selectedSubIndex = null;
+      this.loadDraft();
+    } else if (index != null && this.dirty && !(await this.guard())) {
       return;
     }
-    object.index = parsed;
-    for (const sub of object.subObjects) {
-      sub.index = parsed;
+    this.menu = { x: event.clientX, y: event.clientY, kind: 'object' };
+  }
+
+  async openSubMenu(event: MouseEvent, subIndex: number | null): Promise<void> {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!this.selected()) {
+      return;
     }
-    sortDocument(this.document());
-    this.selectedIndex = parsed;
-    this.indexError = '';
-    this.syncIndexDraft();
-    this.changed.emit();
+    if (subIndex !== this.selectedSubIndex) {
+      if (!(await this.guard())) {
+        return;
+      }
+      this.selectedSubIndex = subIndex;
+      this.loadDraft();
+    } else if (this.dirty && !(await this.guard())) {
+      return;
+    }
+    this.menu = { x: event.clientX, y: event.clientY, kind: 'sub' };
+  }
+
+  setDraft(field: string, value: string | number | boolean): void {
+    switch (field) {
+      case 'name': this.draftName = String(value); break;
+      case 'denotation': this.draftDenotation = String(value); break;
+      case 'description': this.draftDescription = String(value); break;
+      case 'dataType': this.draftDataType = value as DataTypeName; break;
+      case 'access': this.draftAccess = value as AccessType; break;
+      case 'pdo': this.draftPdo = value as PdoMapping; break;
+      case 'srdo': this.draftSrdo = value as SrdoAccess; break;
+      case 'default': this.draftDefault = String(value); break;
+      case 'actual': this.draftActual = String(value); break;
+      case 'low': this.draftLow = String(value); break;
+      case 'high': this.draftHigh = String(value); break;
+      case 'stringLen': this.draftStringLen = Number(value) || 0; break;
+      case 'enabled': this.draftDisabled = !value; break;
+      case 'flags': this.draftFlags = Boolean(value); break;
+      default: break;
+    }
+    this.applyDraft();
+  }
+
+  setCount(value: string): void {
+    if (value === 'Add...') {
+      const name = window.prompt('Add Count Label');
+      if (name?.trim()) {
+        this.extraCounts = [...this.extraCounts, name.trim()];
+        this.draftCount = name.trim();
+        this.applyDraft();
+      }
+      return;
+    }
+    this.draftCount = value;
+    this.applyDraft();
+  }
+
+  setStorage(value: string): void {
+    if (value === 'Add...') {
+      const name = window.prompt('Add Storage Group');
+      if (name?.trim()) {
+        this.extraStorage = [...this.extraStorage, name.trim()];
+        this.draftStorage = name.trim();
+        this.applyDraft();
+      }
+      return;
+    }
+    this.draftStorage = value;
+    this.applyDraft();
+  }
+
+  saveChanges(): void {
+    this.applyDraft();
+    this.dirty = false;
+    this.baseline = this.snapshot();
+  }
+
+  addObjectDialog(): void {
+    this.menu = null;
+    const current = this.selectedIndex;
+    const next = current == null ? 0x2000 : Math.min(0xffff, current + 1);
+    this.addIndex = hex4(next);
+    this.addName = 'New Object';
+    this.addType = 'VAR';
+    this.formError = '';
+    this.showAdd = true;
   }
 
   createObject(event: Event): void {
@@ -396,23 +614,39 @@ export class ObjectDictionaryComponent {
       this.formError = 'Enter the index as a hex value between 0 and FFFF.';
       return;
     }
+    const name = this.addName.trim();
+    if (!name) {
+      this.formError = 'Please specify a name';
+      return;
+    }
     const entry = createEntry({
       index: parsed,
-      name: this.addName.trim() || 'New Object',
+      name,
       objectType: this.addType,
-      dataType: this.addDataType,
-      access: this.addAccess,
-      pdoMapping: this.addPdo,
-      defaultValue: this.addDefault,
+      dataType: 'UNSIGNED32',
+      access: 'readWrite',
+      pdoMapping: 'no',
+      defaultValue: '0',
     });
     if (entry.objectType === 'ARRAY' || entry.objectType === 'RECORD') {
+      entry.defaultValue = '';
       entry.subObjects.push(createEntry({
         index: parsed,
         subIndex: 0,
         name: 'Highest sub-index supported',
         objectType: 'VAR',
         dataType: 'UNSIGNED8',
-        access: 'const',
+        access: 'read',
+        pdoMapping: 'no',
+        defaultValue: '0x01',
+      }));
+      entry.subObjects.push(createEntry({
+        index: parsed,
+        subIndex: 1,
+        name: 'Sub Object 1',
+        objectType: 'VAR',
+        dataType: 'UNSIGNED32',
+        access: 'readWrite',
         pdoMapping: 'no',
         defaultValue: '0',
       }));
@@ -422,55 +656,316 @@ export class ObjectDictionaryComponent {
       this.formError = error;
       return;
     }
-    this.formError = '';
     this.showAdd = false;
-    this.addIndex = '';
-    this.addName = '';
-    this.addDefault = '';
     this.selectedIndex = parsed;
     this.selectedSubIndex = null;
-    this.syncIndexDraft();
+    this.loadDraft();
+    this.changed.emit();
+  }
+
+  deleteSelected(): void {
+    this.menu = null;
+    const object = this.selected();
+    if (!object) {
+      return;
+    }
+    if (!confirm('Do you really want to delete the selected 1 items?')) {
+      return;
+    }
+    deleteObject(this.document(), object.index);
+    this.selectedIndex = this.document().objects[0]?.index ?? null;
+    this.selectedSubIndex = null;
+    this.loadDraft();
+    this.changed.emit();
+  }
+
+  toggleSelected(): void {
+    this.menu = null;
+    const object = this.selected();
+    if (!object) {
+      return;
+    }
+    object.disabled = !object.disabled;
+    this.draftDisabled = object.disabled;
+    this.baseline = this.snapshot();
     this.changed.emit();
   }
 
   addSub(): void {
+    this.menu = null;
     const object = this.selected();
     if (!object) {
       return;
     }
     const error = addSubObject(this.document(), object.index);
+    this.indexError = error ?? '';
     if (error) {
-      this.formError = error;
       return;
     }
-    this.formError = '';
     this.selectedSubIndex = object.subObjects[object.subObjects.length - 1]?.subIndex ?? null;
+    this.loadDraft();
     this.changed.emit();
   }
 
-  removeSelected(): void {
+  removeSub(shiftUp: boolean): void {
+    this.menu = null;
     const object = this.selected();
-    if (!object) {
+    const subIndex = this.selectedSubIndex;
+    if (!object || subIndex == null || subIndex === 0) {
       return;
     }
-    const sub = this.selectedSub();
-    const label = sub ? `Sub-index ${hex2(sub.subIndex)}` : `${hex4(object.index)} ${object.name}`;
-    if (!confirm(`Delete ${label}?`)) {
-      return;
+    deleteSubObject(this.document(), object.index, subIndex);
+    if (shiftUp) {
+      for (const sub of object.subObjects) {
+        if (sub.subIndex > subIndex) {
+          sub.subIndex -= 1;
+        }
+      }
+      refreshSubZero(object);
     }
-    if (sub) {
-      deleteSubObject(this.document(), object.index, sub.subIndex);
-      this.selectedSubIndex = null;
-    } else {
-      deleteObject(this.document(), object.index);
-      this.selectedIndex = this.document().objects[0]?.index ?? null;
-      this.syncIndexDraft();
-    }
+    this.selectedSubIndex = null;
+    this.loadDraft();
     this.changed.emit();
   }
 
-  private syncIndexDraft(): void {
-    const object = this.selected();
-    this.indexDraft = object ? hex4(object.index) : '';
+  resolvePending(choice: PendingChoice): void {
+    this.pending = false;
+    this.pendingResolve?.(choice);
+    this.pendingResolve = null;
+  }
+
+  private groupOf(index: number): 'communication' | 'manufacturer' | 'profile' {
+    if (index >= 0x1000 && index < 0x2000) {
+      return 'communication';
+    }
+    if (index >= 0x2000 && index < 0x6000) {
+      return 'manufacturer';
+    }
+    return 'profile';
+  }
+
+  private rowFor(entry: OdEntry, parent: OdEntry | null, selected: boolean, detailed: boolean): {
+    key: string;
+    subIndex: number | null;
+    selected: boolean;
+    subLabel: string;
+    name: string;
+    objectType: string;
+    dataType: string;
+    sdo: string;
+    pdo: string;
+    srdo: string;
+    defaultValue: string;
+  } {
+    const dataType = entry.dataType !== 'UNKNOWN'
+      ? entry.dataType
+      : parent?.dataType && parent.dataType !== 'UNKNOWN' ? parent.dataType : entry.dataType;
+    return {
+      key: parent ? `sub-${entry.subIndex}` : 'parent',
+      subIndex: parent ? entry.subIndex : null,
+      selected,
+      subLabel: parent ? `0x${hex2(entry.subIndex)}` : '',
+      name: entry.name,
+      objectType: entry.objectType,
+      dataType: detailed ? dataType : '',
+      sdo: detailed ? this.sdoLabel(entry) : '',
+      pdo: detailed ? this.pdoLabel(entry) : '',
+      srdo: detailed ? entry.accessSrdo : '',
+      defaultValue: detailed ? entry.defaultValue : '',
+    };
+  }
+
+  private sdoLabel(entry: OdEntry): string {
+    switch (entry.access) {
+      case 'const':
+      case 'read':
+        return 'ro';
+      case 'write':
+        return 'wo';
+      case 'readWrite':
+      case 'readWriteInput':
+      case 'readWriteOutput':
+        return 'rw';
+      default:
+        return 'no';
+    }
+  }
+
+  private pdoLabel(entry: OdEntry): string {
+    if (entry.pdoMapping === 'RPDO' || entry.access === 'readWriteOutput') {
+      return 'r';
+    }
+    if (entry.pdoMapping === 'TPDO' || entry.access === 'readWriteInput') {
+      return 't';
+    }
+    if (entry.pdoMapping === 'optional' || entry.pdoMapping === 'default') {
+      return 'tr';
+    }
+    return 'no';
+  }
+
+  private loadDraft(): void {
+    const entry = this.editing();
+    const parent = this.selected();
+    this.dirty = false;
+    if (!entry || !parent) {
+      this.draftName = '';
+      this.draftDenotation = '';
+      this.draftDescription = '';
+      this.draftType = 'VAR';
+      this.draftDataType = 'UNSIGNED32';
+      this.draftAccess = 'readWrite';
+      this.draftPdo = 'no';
+      this.draftSrdo = 'no';
+      this.draftDefault = '';
+      this.draftActual = '';
+      this.draftLow = '';
+      this.draftHigh = '';
+      this.draftStringLen = 0;
+      this.draftCount = '';
+      this.draftStorage = 'RAM';
+      this.draftDisabled = false;
+      this.draftFlags = false;
+      this.baseline = this.snapshot();
+      return;
+    }
+    this.draftName = entry.name;
+    this.draftDenotation = entry.denotation;
+    this.draftDescription = entry.description;
+    this.draftType = entry.objectType;
+    this.draftDataType = entry.dataType === 'UNKNOWN' && parent.dataType !== 'UNKNOWN' ? parent.dataType : entry.dataType;
+    this.draftAccess = entry.access === 'unknown' || entry.access === 'noAccess' ? 'read' : entry.access;
+    this.draftPdo = entry.pdoMapping;
+    this.draftSrdo = entry.accessSrdo;
+    this.draftDefault = entry.defaultValue;
+    this.draftActual = entry.actualValue;
+    this.draftLow = entry.lowLimit;
+    this.draftHigh = entry.highLimit;
+    this.draftStringLen = entry.stringLengthMin;
+    this.draftCount = parent.countLabel;
+    this.draftStorage = parent.storageGroup || 'RAM';
+    this.draftDisabled = parent.disabled;
+    this.draftFlags = parent.flagsPdo;
+    this.baseline = this.snapshot();
+  }
+
+  private applyDraft(): void {
+    const entry = this.editing();
+    const parent = this.selected();
+    if (!entry || !parent) {
+      return;
+    }
+    entry.name = this.draftName;
+    entry.denotation = this.draftDenotation;
+    entry.description = this.draftDescription;
+    if (entry.objectType === 'VAR') {
+      entry.dataType = this.draftDataType;
+      entry.access = this.draftAccess;
+      entry.pdoMapping = this.draftPdo;
+      entry.accessSrdo = this.draftSrdo;
+      entry.defaultValue = this.draftDefault;
+      entry.actualValue = this.draftActual;
+      entry.lowLimit = this.draftLow;
+      entry.highLimit = this.draftHigh;
+      entry.stringLengthMin = this.draftStringLen;
+    }
+    if (entry === parent) {
+      parent.countLabel = this.draftCount;
+      parent.storageGroup = this.draftStorage || 'RAM';
+      parent.disabled = this.draftDisabled;
+      parent.flagsPdo = this.draftFlags;
+    }
+    this.dirty = this.snapshot() !== this.baseline;
+    this.changed.emit();
+  }
+
+  private snapshot(): string {
+    return JSON.stringify({
+      name: this.draftName,
+      denotation: this.draftDenotation,
+      description: this.draftDescription,
+      dataType: this.draftDataType,
+      access: this.draftAccess,
+      pdo: this.draftPdo,
+      srdo: this.draftSrdo,
+      defaultValue: this.draftDefault,
+      actual: this.draftActual,
+      low: this.draftLow,
+      high: this.draftHigh,
+      stringLen: this.draftStringLen,
+      count: this.draftCount,
+      storage: this.draftStorage,
+      disabled: this.draftDisabled,
+      flags: this.draftFlags,
+    });
+  }
+
+  private async guard(): Promise<boolean> {
+    if (!this.dirty) {
+      return true;
+    }
+    if (this.autosave) {
+      this.dirty = false;
+      this.baseline = this.snapshot();
+      return true;
+    }
+    const entry = this.editing();
+    this.pendingLabel = entry
+      ? `0x${hex4(entry.index)}/${hex2(this.selectedSub()?.subIndex ?? 0)}`
+      : '';
+    this.pending = true;
+    const choice = await new Promise<PendingChoice>((resolve) => {
+      this.pendingResolve = resolve;
+    });
+    if (choice === 'cancel') {
+      return false;
+    }
+    if (choice === 'yes') {
+      this.restoreBaseline();
+    }
+    this.dirty = false;
+    this.baseline = this.snapshot();
+    return true;
+  }
+
+  private restoreBaseline(): void {
+    const saved = this.baseline;
+    const parsed = JSON.parse(saved) as {
+      name: string;
+      denotation: string;
+      description: string;
+      dataType: DataTypeName;
+      access: AccessType;
+      pdo: PdoMapping;
+      srdo: SrdoAccess;
+      defaultValue: string;
+      actual: string;
+      low: string;
+      high: string;
+      stringLen: number;
+      count: string;
+      storage: string;
+      disabled: boolean;
+      flags: boolean;
+    };
+    this.draftName = parsed.name;
+    this.draftDenotation = parsed.denotation;
+    this.draftDescription = parsed.description;
+    this.draftDataType = parsed.dataType;
+    this.draftAccess = parsed.access;
+    this.draftPdo = parsed.pdo;
+    this.draftSrdo = parsed.srdo;
+    this.draftDefault = parsed.defaultValue;
+    this.draftActual = parsed.actual;
+    this.draftLow = parsed.low;
+    this.draftHigh = parsed.high;
+    this.draftStringLen = parsed.stringLen;
+    this.draftCount = parsed.count;
+    this.draftStorage = parsed.storage;
+    this.draftDisabled = parsed.disabled;
+    this.draftFlags = parsed.flags;
+    this.applyDraft();
+    this.dirty = false;
+    this.baseline = saved;
   }
 }
