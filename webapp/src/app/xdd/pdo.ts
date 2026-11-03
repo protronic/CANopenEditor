@@ -153,6 +153,33 @@ export function mappingLabel(
   return `${hex4(object.index)}:${hex2(decoded.subIndex)} ${sub?.name || object.name} · ${decoded.bits} bits`;
 }
 
+const DUMMY_NAMES: Record<number, string> = {
+  0x0002: 'Dummy Int8',
+  0x0003: 'Dummy Int16',
+  0x0004: 'Dummy Int32',
+  0x0005: 'Dummy UInt8',
+  0x0006: 'Dummy UInt16',
+  0x0007: 'Dummy UInt32',
+};
+
+export function isMappingObject(index: number): boolean {
+  return (index >= 0x1600 && index < 0x1800) || (index >= 0x1a00 && index < 0x1c00);
+}
+
+/** `0xIIII/SS/name (bits)` for a mapping entry value, or null if it maps nothing. */
+export function mappingTargetLabel(document: DeviceDocument, raw: string): string | null {
+  const decoded = decodeMapping(raw);
+  if (!decoded || (decoded.index === 0 && decoded.subIndex === 0 && decoded.bits === 0)) {
+    return null;
+  }
+  const object = findObject(document, decoded.index);
+  const sub = object?.subObjects.find((entry) => entry.subIndex === decoded.subIndex);
+  const name = DUMMY_NAMES[decoded.index]
+    ?? (decoded.subIndex === 0 && object?.objectType === 'VAR' ? object.name : sub?.name || object?.name)
+    ?? '';
+  return `0x${hex4(decoded.index)}/${hex2(decoded.subIndex)}/${name} (${decoded.bits})`;
+}
+
 function toMappingRow(document: DeviceDocument, subIndex: number, raw: string): MappingRow {
   const decoded = decodeMapping(raw);
   return {

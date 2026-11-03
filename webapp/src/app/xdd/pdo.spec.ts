@@ -1,6 +1,36 @@
 import { describe, expect, it } from 'vitest';
 import { bitLength, createEntry, createEmptyDocument } from '../model/device';
-import { emptySpans, fitMappingBits, mappableEntries } from './pdo';
+import { emptySpans, fitMappingBits, isMappingObject, mappableEntries, mappingTargetLabel } from './pdo';
+
+describe('mappingTargetLabel', () => {
+  const document = createEmptyDocument();
+  document.objects.push(
+    createEntry({ index: 0x2100, name: 'Temperatur', objectType: 'VAR', dataType: 'BOOLEAN' }),
+    createEntry({
+      index: 0x2001,
+      name: 'Eingang',
+      objectType: 'ARRAY',
+      subObjects: [createEntry({ index: 0x2001, subIndex: 2, name: 'Eingang 2', dataType: 'INTEGER16' })],
+    }),
+  );
+
+  it('names the mapped object with index, sub-index and bit width', () => {
+    expect(mappingTargetLabel(document, '0x21000001')).toBe('0x2100/00/Temperatur (1)');
+    expect(mappingTargetLabel(document, '0x20010210')).toBe('0x2001/02/Eingang 2 (16)');
+    expect(mappingTargetLabel(document, '0x00050008')).toBe('0x0005/00/Dummy UInt8 (8)');
+  });
+
+  it('leaves empty or non-static entries unlabeled', () => {
+    expect(mappingTargetLabel(document, '0x00000000')).toBeNull();
+    expect(mappingTargetLabel(document, '$NODEID+1')).toBeNull();
+  });
+
+  it('recognises the RPDO and TPDO mapping ranges', () => {
+    expect(isMappingObject(0x1600)).toBe(true);
+    expect(isMappingObject(0x1bff)).toBe(true);
+    expect(isMappingObject(0x1800)).toBe(false);
+  });
+});
 
 describe('emptySpans', () => {
   it('fills a free PDO with byte-sized cells', () => {

@@ -20,6 +20,7 @@ import {
   hex4,
   parseUserIndex,
 } from './model/device';
+import { isMappingObject, mappingTargetLabel } from './xdd/pdo';
 
 type PendingChoice = 'yes' | 'no' | 'cancel';
 type MenuKind = 'object' | 'sub';
@@ -71,7 +72,12 @@ type MenuKind = 'object' | 'sub';
             <thead>
               <tr>
                 <th>Sub</th>
-                <th>Name</th>
+                <th>
+                  Name
+                  @if (selectedIsMapping()) {
+                    <button type="button" class="system mini" (click)="refreshMappingLabels()">Refresh</button>
+                  }
+                </th>
                 <th>Obj Type</th>
                 <th>Data Type</th>
                 <th>SDO</th>
@@ -323,6 +329,8 @@ export class ObjectDictionaryComponent {
   menu: { x: number; y: number; kind: MenuKind } | null = null;
   pending = false;
   pendingLabel = '';
+  private mappingLabels = new Map<string, string | null>();
+  private mappingLabelsFor: DeviceDocument | null = null;
 
   draftName = '';
   draftDenotation = '';
@@ -827,7 +835,7 @@ export class ObjectDictionaryComponent {
       subIndex: parent ? entry.subIndex : null,
       selected,
       subLabel: parent ? `0x${hex2(entry.subIndex)}` : '',
-      name: entry.name,
+      name: (parent && this.mappingLabel(parent, entry)) || entry.name,
       objectType: entry.objectType,
       dataType: detailed ? dataType : '',
       sdo: detailed ? this.sdoLabel(entry) : '',
@@ -835,6 +843,31 @@ export class ObjectDictionaryComponent {
       srdo: detailed ? entry.accessSrdo : '',
       defaultValue: detailed ? entry.defaultValue : '',
     };
+  }
+
+  selectedIsMapping(): boolean {
+    const object = this.selected();
+    return !!object && isMappingObject(object.index);
+  }
+
+  refreshMappingLabels(): void {
+    this.mappingLabels.clear();
+  }
+
+  private mappingLabel(parent: OdEntry, entry: OdEntry): string | null {
+    if (!isMappingObject(parent.index) || entry.subIndex === 0) {
+      return null;
+    }
+    const document = this.document();
+    if (this.mappingLabelsFor !== document) {
+      this.mappingLabels.clear();
+      this.mappingLabelsFor = document;
+    }
+    const key = `${parent.index}:${entry.subIndex}`;
+    if (!this.mappingLabels.has(key)) {
+      this.mappingLabels.set(key, mappingTargetLabel(document, entry.defaultValue));
+    }
+    return this.mappingLabels.get(key) ?? null;
   }
 
   private sdoLabel(entry: OdEntry): string {

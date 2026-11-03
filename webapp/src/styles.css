@@ -323,6 +323,13 @@ button.collapse {
 
 .od-subs tr.selected td { background: #0a64c8; color: white; }
 
+.od-subs th button.mini {
+  margin-left: 0.5rem;
+  padding: 0 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 400;
+}
+
 .od-form {
   flex: 1;
   min-height: 0;
