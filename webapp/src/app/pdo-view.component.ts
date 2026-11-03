@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, input, output, viewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, inject, input, output, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DeviceDocument, hex2, hex4 } from './model/device';
 import {
@@ -53,7 +53,7 @@ interface MapBlock {
               </thead>
               <tbody>
                 @for (entry of mappable(); track entry.key) {
-                  <tr (dblclick)="mapEntry(entry)">
+                  <tr [class.selected]="entry.key === listSelection()" (click)="pickEntry(entry)">
                     <td class="mono">0x{{ hex(entry.index) }}</td>
                     <td class="mono">0x{{ hexByte(entry.subIndex) }}</td>
                     <td>{{ entry.name }}</td>
@@ -135,21 +135,14 @@ interface MapBlock {
             <span class="mono">{{ hex(slot.commIndex) }}</span>
             <span class="bit-track">
               @for (block of blocks(slot); track block.key) {
-                <select
+                <span
+                  class="cell"
                   [class]="block.kind"
+                  [class.picked]="isPicked(slot, block)"
                   [style.grid-column]="'span ' + block.bits"
                   [title]="block.label"
-                  [ngModel]="block.value"
-                  (ngModelChange)="choose(slot, block, $event)"
-                  (contextmenu)="openMenu($event, slot, block)">
-                  <option value="">Empty</option>
-                  @if (block.value && !optionKnown(block.value)) {
-                    <option [value]="block.value">{{ block.label }}</option>
-                  }
-                  @for (entry of mappable(); track entry.key) {
-                    <option [value]="entry.key">{{ optionLabel(entry) }}</option>
-                  }
-                </select>
+                  (click)="selectCell(slot, block)"
+                  (contextmenu)="openMenu($event, slot, block)">{{ block.label }}</span>
               }
             </span>
           </div>
@@ -177,6 +170,9 @@ export class PdoViewComponent {
   selectedSlot: number | null = null;
   zoomLevel = 1;
   menu: { x: number; y: number; slot: number; subIndex: number } | null = null;
+  pickedCell: { slot: number; key: string } | null = null;
+  listKey: string | null = null;
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly mapScroll = viewChild<ElementRef<HTMLElement>>('mapScroll');
   readonly bitNumbers = Array.from({ length: 64 }, (_, index) => index);
   readonly byteNumbers = [0, 1, 2, 3, 4, 5, 6, 7];
@@ -262,33 +258,50 @@ export class PdoViewComponent {
     return blocks;
   }
 
-  optionLabel(entry: MappableEntry): string {
-    return `0x${hex4(entry.index)}/${hex2(entry.subIndex)}/${entry.name}`;
+  isPicked(slot: PdoSlot, block: MapBlock): boolean {
+    return this.pickedCell?.slot === slot.slot && this.pickedCell.key === block.key;
   }
 
-  optionKnown(value: string): boolean {
-    return this.mappable().some((entry) => entry.key === value);
-  }
-
-  choose(slot: PdoSlot, block: MapBlock, value: string): void {
+  selectCell(slot: PdoSlot, block: MapBlock): void {
     this.select(slot);
-    if (value === block.value) {
+    this.pickedCell = { slot: slot.slot, key: block.key };
+    if (block.value) {
+      this.listKey = block.value;
+      requestAnimationFrame(() => {
+        this.host.nativeElement.querySelector('.available tr.selected')?.scrollIntoView({ block: 'nearest' });
+      });
+    } else {
+      this.listKey = null;
+    }
+  }
+
+  listSelection(): string | null {
+    return this.pickedBlock()?.block.value || this.listKey;
+  }
+
+  pickEntry(entry: MappableEntry): void {
+    this.listKey = entry.key;
+    const picked = this.pickedBlock();
+    if (!picked) {
+      this.formError = 'Select an element in the PDO first.';
       return;
     }
-    if (!value) {
-      if (block.subIndex == null) {
-        return;
-      }
-      removeMapping(this.document(), slot.direction, slot.slot, block.subIndex);
+    const { slot, block } = picked;
+    if (block.value === entry.key) {
       this.formError = '';
-      this.changed.emit();
       return;
     }
-    const entry = this.mappable().find((item) => item.key === value);
-    if (!entry) {
-      return;
+    const target = this.applyMapping(slot, block.subIndex, entry);
+    if (target != null) {
+      this.pickedCell = { slot: slot.slot, key: `${slot.commIndex}-${target}` };
     }
-    this.applyMapping(slot, block.subIndex, entry);
+  }
+
+  private pickedBlock(): { slot: PdoSlot; block: MapBlock } | null {
+    const picked = this.pickedCell;
+    const slot = picked ? this.slots().find((item) => item.slot === picked.slot) : undefined;
+    const block = slot ? this.blocks(slot).find((item) => item.key === picked!.key) : undefined;
+    return slot && block ? { slot, block } : null;
   }
 
   field(name: PdoField, value: string): void {
@@ -335,22 +348,13 @@ export class PdoViewComponent {
     this.changed.emit();
   }
 
-  mapEntry(entry: MappableEntry): void {
-    const slot = this.selected();
-    if (!slot) {
-      this.formError = 'Select a PDO first.';
-      return;
-    }
-    this.applyMapping(slot, null, entry);
-  }
-
   openMenu(event: MouseEvent, slot: PdoSlot, block: MapBlock): void {
     event.preventDefault();
     event.stopPropagation();
     if (block.subIndex == null) {
       return;
     }
-    this.selectedSlot = slot.slot;
+    this.selectCell(slot, block);
     this.menu = { x: event.clientX, y: event.clientY, slot: slot.slot, subIndex: block.subIndex };
   }
 
@@ -361,6 +365,7 @@ export class PdoViewComponent {
       return;
     }
     removeMapping(this.document(), this.direction(), menu.slot, menu.subIndex);
+    this.pickedCell = null;
     this.changed.emit();
   }
 
@@ -376,31 +381,31 @@ export class PdoViewComponent {
     }
   }
 
-  private applyMapping(slot: PdoSlot, subIndex: number | null, entry: MappableEntry): boolean {
+  private applyMapping(slot: PdoSlot, subIndex: number | null, entry: MappableEntry): number | null {
     const used = slot.mappings.reduce((sum, row) => sum + (row.bits && row.bits > 0 ? row.bits : 0), 0);
     const replaced = subIndex == null ? 0 : slot.mappings.find((row) => row.subIndex === subIndex)?.bits ?? 0;
     const bits = fitMappingBits(entry.bits, used, replaced > 0 ? replaced : 0);
     if (bits <= 0) {
       this.formError = 'The object does not fit into the PDO.';
-      return false;
+      return null;
     }
     let target = subIndex;
     if (target == null) {
       const error = addMapping(this.document(), slot.direction, slot.slot);
       if (error) {
         this.formError = error;
-        return false;
+        return null;
       }
       const updated = this.slots().find((item) => item.slot === slot.slot);
       target = updated?.mappings[updated.mappings.length - 1]?.subIndex ?? null;
       if (target == null) {
-        return false;
+        return null;
       }
     }
     setMappingEntry(this.document(), slot.direction, slot.slot, target, entry.index, entry.subIndex, bits);
     this.formError = '';
     this.changed.emit();
-    return true;
+    return target;
   }
 
   private blockLabel(row: MappingRow): string {

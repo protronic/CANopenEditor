@@ -785,28 +785,36 @@ label.check.invalid {
 
 .map-bytes .bit-track > b:nth-child(even) { background: #b8341c; }
 
-.map-row .bit-track select {
-  width: 100%;
+.map-row .bit-track > span {
   min-width: 0;
-  max-width: 100%;
-  margin: 0;
-  padding: 0 0.1rem;
-  border: 0;
+  padding: 0.12rem 0.15rem;
   border-right: 1px solid #c8c0a8;
-  border-radius: 0;
   font-size: 0.72rem;
   line-height: 1.6;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
+  user-select: none;
 }
 
-.map-row .bit-track select.a { background: khaki; }
+.map-row .bit-track > span.a { background: khaki; }
 
-.map-row .bit-track select.b { background: lemonchiffon; }
+.map-row .bit-track > span.b { background: lemonchiffon; }
 
-.map-row .bit-track select.empty { background: lightgray; color: #333; }
+.map-row .bit-track > span.empty { background: lightgray; color: #333; }
+
+.map-row .bit-track > span.picked {
+  background: #0a64c8;
+  color: white;
+  box-shadow: inset 0 0 0 1px #063f80;
+}
+
+.available tbody tr { cursor: pointer; }
+
+.available tbody tr:hover td { background: #f0ece3; }
+
+.available tbody tr.selected td { background: #0a64c8; color: white; }
 
 @media (max-width: 860px) {
   .workspace, .od { grid-template-columns: 1fr; }
