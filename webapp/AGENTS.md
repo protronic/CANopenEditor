@@ -41,10 +41,10 @@ Tab "Device Info"
 ![Tab Device Info](images/Template_Tab_Device_Info.png)
 
 Tab "Object Dictionary"
-![Tab Object Dictionary](./images/Template_Tab_Object_Dictionary.png)
+![Tab Object Dictionary](images/Template_Tab_Object_Dictionary.png)
 
 Tab "TX PDO Mapping"
-![Tab TX PDO Mapping](./images/Template_Tab_TX_PDO_Mapping.png)
+![Tab TX PDO Mapping](images/Template_Tab_TX_PDO_Mapping.png)
 
 Tab "RX PDO Mapping"
-![Tab RX PDO Mapping](./images/Template_Tab_RX_PDO_Mapping.png)
+![Tab RX PDO Mapping](images/Template_Tab_RX_PDO_Mapping.png)
