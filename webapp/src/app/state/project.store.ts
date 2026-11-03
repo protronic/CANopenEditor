@@ -46,12 +46,12 @@ export class ProjectStore {
     }
   }
 
-  insertObjects(id: string, rows: InsertRow[]): number | null {
+  insertObjects(id: string, rows: InsertRow[], overwrite = false): number | null {
     const device = this.devices().find((entry) => entry.id === id);
     if (!device) {
       return null;
     }
-    const inserted = insertSelected(device.document, rows);
+    const inserted = insertSelected(device.document, rows, overwrite);
     device.document.nrOfRxPdo = pdoSlots(device.document, 'rx').length;
     device.document.nrOfTxPdo = pdoSlots(device.document, 'tx').length;
     this.touch(id);

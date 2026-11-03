@@ -82,14 +82,18 @@ export function buildInsertRows(
   return rows;
 }
 
-export function insertSelected(target: DeviceDocument, rows: InsertRow[]): number {
+export function insertSelected(target: DeviceDocument, rows: InsertRow[], overwrite = false): number {
   let inserted = 0;
   for (const row of rows) {
-    if (!row.selected || row.conflict) {
+    if (!row.selected || (row.conflict && !overwrite)) {
       continue;
     }
     for (const index of row.indexes) {
-      if (!validIndex(index) || findObject(target, index)) {
+      if (!validIndex(index)) {
+        continue;
+      }
+      const existing = findObject(target, index);
+      if (existing && !overwrite) {
         continue;
       }
       const copy = structuredClone(row.entry);
@@ -97,7 +101,11 @@ export function insertSelected(target: DeviceDocument, rows: InsertRow[]): numbe
       for (const sub of copy.subObjects) {
         sub.index = index;
       }
-      target.objects.push(copy);
+      if (existing) {
+        target.objects[target.objects.indexOf(existing)] = copy;
+      } else {
+        target.objects.push(copy);
+      }
       inserted += 1;
     }
   }

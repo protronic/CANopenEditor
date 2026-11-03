@@ -61,4 +61,18 @@ describe('profile insert', () => {
     expect(insertSelected(target, rows)).toBe(1);
     expect(findObject(target, 0x1001)?.name).toBe('First');
   });
+
+  it('overwrites an existing object only when requested', () => {
+    const profile = createEmptyDocument();
+    profile.objects.push(createEntry({ index: 0x1000, name: 'From profile' }));
+    const target = createEmptyDocument();
+    target.objects.push(createEntry({ index: 0x1000, name: 'Already there' }));
+    const rows = buildInsertRows([{ name: 'a.xpd', document: profile }], target, [0], new Map([['a.xpd:4096', true]]), false);
+    expect(rows[0]?.conflict).toBe(true);
+    expect(rows[0]?.selected).toBe(true);
+    expect(insertSelected(target, rows, false)).toBe(0);
+    expect(findObject(target, 0x1000)?.name).toBe('Already there');
+    expect(insertSelected(target, rows, true)).toBe(1);
+    expect(findObject(target, 0x1000)?.name).toBe('From profile');
+  });
 });

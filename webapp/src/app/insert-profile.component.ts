@@ -67,6 +67,7 @@ import {
           </table>
         </div>
         <div class="modal-actions">
+          <button type="button" class="quiet" (click)="checkAll()">Check all</button>
           <button type="button" class="quiet" (click)="uncheckAll()">Uncheck all</button>
           <span class="modal-spacer"></span>
           <button type="button" (click)="insert()" [disabled]="busy() || !canInsert()">Insert</button>
@@ -148,6 +149,13 @@ export class InsertProfileComponent {
     this.rebuild(false);
   }
 
+  checkAll(): void {
+    for (const row of this.rows()) {
+      this.selection.set(row.key, true);
+    }
+    this.rebuild(false);
+  }
+
   uncheckAll(): void {
     for (const row of this.rows()) {
       this.selection.set(row.key, false);
@@ -157,12 +165,19 @@ export class InsertProfileComponent {
 
   insert(): void {
     const rows = this.rows();
-    const blocked = rows.find((row) => row.selected && row.conflict);
-    if (blocked) {
-      this.message.set(`Index ${indexLabel(blocked.indexes)} already exists.`);
-      return;
+    const conflicts = rows.filter((row) => row.selected && row.conflict);
+    let overwrite = false;
+    if (conflicts.length > 0) {
+      const names = conflicts.map((row) => `${indexLabel(row.indexes)} ${row.entry.name}`).join(', ');
+      overwrite = confirm(conflicts.length === 1
+        ? `${names} already exists. Overwrite the existing object?`
+        : `These objects already exist: ${names}. Overwrite them?`);
+      if (!overwrite && !rows.some((row) => row.selected && !row.conflict)) {
+        this.message.set('Existing objects were kept.');
+        return;
+      }
     }
-    const count = this.store.insertObjects(this.targetId, rows);
+    const count = this.store.insertObjects(this.targetId, rows, overwrite);
     if (count == null) {
       this.message.set('Select a target device.');
       return;
