@@ -6,7 +6,6 @@ import {
   DeviceDocument,
   ObjectTypeName,
   OdEntry,
-  PDO_MAPPINGS,
   PdoMapping,
   STORAGE_GROUPS,
   SrdoAccess,
@@ -42,8 +41,12 @@ const FORM_ACCESS: { label: string; value: AccessType }[] = [
     <div class="od">
       <div class="od-groups">
         @for (group of groups; track group.title) {
-          <section class="od-group" (contextmenu)="openObjectMenu($event, null)">
-            <h3>{{ group.title }}</h3>
+          <section class="od-group" [class.collapsed]="isCollapsed(group.id)" (contextmenu)="openObjectMenu($event, null)">
+            <h3>
+              <button type="button" class="collapse" (click)="toggleGroup(group.id, $event)" [attr.aria-expanded]="!isCollapsed(group.id)">{{ isCollapsed(group.id) ? '▸' : '▾' }}</button>
+              {{ group.title }}
+            </h3>
+            @if (!isCollapsed(group.id)) {
             <div class="od-scroll">
               <table>
                 <thead>
@@ -66,6 +69,7 @@ const FORM_ACCESS: { label: string; value: AccessType }[] = [
                 </tbody>
               </table>
             </div>
+            }
           </section>
         }
       </div>
@@ -195,20 +199,18 @@ const FORM_ACCESS: { label: string; value: AccessType }[] = [
 
             <label class="od-line">
               <span>Access PDO</span>
-              <select [ngModel]="isVar ? draftPdo : ''" (ngModelChange)="setDraft('pdo', $event)" [disabled]="!isVar">
-                @for (pdo of pdoMappings; track pdo) {
-                  <option [value]="pdo">{{ pdo }}</option>
-                }
+              <select [ngModel]="isVar ? pdoShort(draftPdo) : ''" (ngModelChange)="setPdoShort($event)" [disabled]="!isVar">
+                <option value="no">no</option>
+                <option value="t">t</option>
+                <option value="r">r</option>
+                <option value="tr">tr</option>
               </select>
             </label>
             <label class="od-line">
               <span>String Len Min</span>
               <input type="number" min="0" [ngModel]="isVar ? draftStringLen : ''" (ngModelChange)="setDraft('stringLen', $event)" [disabled]="!isVar" />
             </label>
-            <label class="od-check">
-              <span>TPDO COS</span>
-              <input type="checkbox" [ngModel]="draftFlags" (ngModelChange)="setDraft('flags', $event)" [disabled]="!isParent" />
-            </label>
+            <span></span>
 
             <label class="od-line">
               <span>Access SRDO</span>
@@ -309,12 +311,16 @@ export class ObjectDictionaryComponent {
 
   readonly objectTypes: ObjectTypeName[] = ['VAR', 'ARRAY', 'RECORD', 'DOMAIN', 'DEFTYPE', 'DEFSTRUCT', 'NULL'];
   readonly formAccess = FORM_ACCESS;
-  readonly pdoMappings = PDO_MAPPINGS;
   readonly hex = hex4;
   readonly dataChoices = dataTypeChoices;
 
   selectedIndex: number | null = null;
   selectedSubIndex: number | null = null;
+  collapsed: Record<'communication' | 'manufacturer' | 'profile', boolean> = {
+    communication: false,
+    manufacturer: false,
+    profile: false,
+  };
   dirty = false;
   autosave = false;
   showAdd = false;
@@ -369,6 +375,41 @@ export class ObjectDictionaryComponent {
   @HostListener('document:click')
   closeMenu(): void {
     this.menu = null;
+  }
+
+  isCollapsed(id: 'communication' | 'manufacturer' | 'profile'): boolean {
+    return this.collapsed[id];
+  }
+
+  toggleGroup(id: 'communication' | 'manufacturer' | 'profile', event: Event): void {
+    event.stopPropagation();
+    this.collapsed = { ...this.collapsed, [id]: !this.collapsed[id] };
+  }
+
+  pdoShort(value: PdoMapping): string {
+    if (value === 'TPDO') {
+      return 't';
+    }
+    if (value === 'RPDO') {
+      return 'r';
+    }
+    if (value === 'optional' || value === 'default') {
+      return 'tr';
+    }
+    return 'no';
+  }
+
+  setPdoShort(value: string): void {
+    if (value === 't') {
+      this.draftPdo = 'TPDO';
+    } else if (value === 'r') {
+      this.draftPdo = 'RPDO';
+    } else if (value === 'tr') {
+      this.draftPdo = this.draftPdo === 'default' ? 'default' : 'optional';
+    } else {
+      this.draftPdo = 'no';
+    }
+    this.applyDraft();
   }
 
   objectsIn(group: 'communication' | 'manufacturer' | 'profile'): OdEntry[] {

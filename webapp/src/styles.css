@@ -241,8 +241,8 @@ app-object-dictionary {
 }
 
 .od-groups {
-  display: grid;
-  grid-template-rows: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   border-right: 1px solid var(--line);
   background: #f7f4ee;
@@ -251,17 +251,32 @@ app-object-dictionary {
 .od-group {
   display: flex;
   flex-direction: column;
+  flex: 1 1 0;
   min-height: 0;
   border-bottom: 1px solid var(--line);
 }
 
+.od-group.collapsed { flex: 0 0 auto; }
+
 .od-group:last-child { border-bottom: 0; }
 
 .od-group h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
   margin: 0;
   padding: 0.28rem 0.4rem 0.15rem;
   font-size: 0.78rem;
   font-weight: 600;
+}
+
+button.collapse {
+  background: transparent;
+  color: var(--ink);
+  border: 0;
+  border-radius: 2px;
+  padding: 0 0.2rem;
+  line-height: 1;
 }
 
 .od-scroll { overflow: auto; min-height: 0; }
@@ -474,6 +489,257 @@ tr { cursor: pointer; }
 
 .pdo-fields { margin-top: 0.7rem; }
 
+app-device-info,
+app-pdo-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.info-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 0.7rem 1rem;
+  align-content: start;
+}
+
+.info-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.info-split {
+  display: grid;
+  grid-template-columns: minmax(8.5rem, 0.72fr) minmax(0, 1.35fr);
+  gap: 0.7rem;
+}
+
+.info-wide { grid-column: 1 / -1; }
+
+.info-wide .info-line { grid-template-columns: 15.5rem minmax(0, 1fr); }
+
+.info-layout fieldset,
+.pdo-layout fieldset {
+  gap: 0.32rem;
+  padding: 0.55rem 0.7rem 0.65rem;
+}
+
+.info-layout legend,
+.pdo-layout legend {
+  padding: 0 0.3rem;
+  font-size: 0.82rem;
+}
+
+.info-line {
+  display: grid;
+  grid-template-columns: 11.2rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
+.info-line input {
+  width: 100%;
+  padding: 0.22rem 0.4rem;
+}
+
+.info-line input[readonly],
+.info-line input:disabled,
+.comm-fields input:disabled {
+  background: #e4e4e4;
+  color: #333;
+  cursor: default;
+}
+
+.info-line input.peach {
+  background: #ffdab9;
+}
+
+.info-line input[type="checkbox"] {
+  width: auto;
+  justify-self: start;
+}
+
+.info-checks {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12rem;
+}
+
+.pdo-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.pdo-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(20rem, 0.9fr);
+  gap: 0.75rem;
+  min-height: 0;
+}
+
+.available {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.available .od-scroll {
+  max-height: 17.5rem;
+  overflow: auto;
+}
+
+.available table,
+.map-scroll { margin: 0; font-size: 0.78rem; }
+
+.available th {
+  position: sticky;
+  top: 0;
+  background: #ece7dc;
+  z-index: 1;
+}
+
+.available th,
+.available td {
+  border-bottom: 1px solid #e4ddd0;
+  padding: 0.14rem 0.35rem;
+  white-space: nowrap;
+}
+
+.comm-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem 1rem;
+  align-items: center;
+}
+
+.comm-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.comm-fields .info-line { grid-template-columns: 7.4rem minmax(0, 1fr); }
+
+.sync-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.comm-actions,
+.zoom-row {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.comm-actions { flex-direction: column; }
+
+.pdo-layout button.system {
+  background: #f3f3f3;
+  color: var(--ink);
+  border: 1px solid #b7b0a4;
+  border-radius: 3px;
+  padding: 0.35rem 0.7rem;
+}
+
+label.check.invalid {
+  flex-direction: row;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.map-scroll {
+  overflow: auto;
+  flex: 1;
+  min-height: 7rem;
+  border: 1px solid var(--line);
+  background: white;
+}
+
+.map-head,
+.map-bytes,
+.map-row {
+  display: grid;
+  grid-template-columns: 2.5rem 4.4rem 3.6rem minmax(calc(var(--bit, 14px) * 64), 1fr);
+  align-items: stretch;
+  width: max(100%, calc(10.5rem + var(--bit, 14px) * 64));
+}
+
+.map-head > span,
+.map-bytes > span,
+.map-row > span:not(.bit-track) {
+  display: flex;
+  align-items: center;
+  padding: 0.08rem 0.25rem;
+  border-right: 1px solid #d5d0c6;
+  border-bottom: 1px solid #d5d0c6;
+}
+
+.map-head > span { font-weight: 600; background: #f7f4ee; }
+
+.map-row > span:nth-child(-n + 3) { background: lightblue; }
+
+.map-row:nth-child(even) > span:nth-child(-n + 3) { background: lightcyan; }
+
+.map-row.selected { outline: 2px solid #2f7d32; outline-offset: -2px; }
+
+.bit-track {
+  display: flex;
+  width: 100%;
+  min-width: calc(var(--bit, 14px) * 64);
+  border-bottom: 1px solid #d5d0c6;
+}
+
+.map-head .bit-track > i {
+  flex: 1 0 var(--bit, 14px);
+  min-width: var(--bit, 14px);
+  text-align: center;
+  font-style: normal;
+  font-size: 0.62rem;
+  line-height: 1.7;
+  border-right: 1px solid #eee;
+}
+
+.map-bytes .bit-track > b {
+  flex: 8 0 calc(var(--bit, 14px) * 8);
+  min-width: calc(var(--bit, 14px) * 8);
+  text-align: center;
+  background: tomato;
+  color: white;
+  font-weight: 600;
+  border-right: 1px solid #c44a32;
+}
+
+.map-row em {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0.12rem 0.15rem;
+  border-right: 1px solid #c8c0a8;
+  font-style: normal;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.map-row em.a { background: khaki; }
+
+.map-row em.b { background: lemonchiffon; }
+
+.map-row em.empty { background: lightgray; color: #333; }
+
 @media (max-width: 860px) {
   .workspace, .od { grid-template-columns: 1fr; }
   aside { border-right: 0; border-bottom: 1px solid var(--line); }
@@ -481,4 +747,5 @@ tr { cursor: pointer; }
   .od-groups { min-height: 22rem; border-right: 0; border-bottom: 1px solid var(--line); }
   .object-settings { grid-template-columns: 1fr; }
   .object-settings .span-2, .save-row { grid-column: auto; }
+  .info-layout, .info-split, .pdo-top, .comm-grid, .sync-row { grid-template-columns: 1fr; }
 }

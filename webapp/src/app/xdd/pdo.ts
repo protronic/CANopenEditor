@@ -20,7 +20,7 @@ import {
 } from '../model/device';
 
 export type PdoDirection = 'rx' | 'tx';
-export type PdoField = 'cobId' | 'transmission' | 'inhibit' | 'eventTimer';
+export type PdoField = 'cobId' | 'transmission' | 'inhibit' | 'eventTimer' | 'syncStart';
 
 export interface MappingRow {
   subIndex: number;
@@ -40,6 +40,7 @@ export interface PdoSlot {
   transmission: string;
   inhibit: string;
   eventTimer: string;
+  syncStart: string;
   mappings: MappingRow[];
 }
 
@@ -47,6 +48,7 @@ export interface MappableEntry {
   index: number;
   subIndex: number;
   name: string;
+  dataType: OdEntry['dataType'];
   bits: number;
   key: string;
 }
@@ -56,6 +58,7 @@ const FIELD_SUB: Record<PdoField, number> = {
   transmission: 2,
   inhibit: 3,
   eventTimer: 5,
+  syncStart: 6,
 };
 
 export function commBase(direction: PdoDirection): number {
@@ -172,30 +175,47 @@ export function pdoSlots(document: DeviceDocument, direction: PdoDirection): Pdo
         transmission: subValue(comm, 2),
         inhibit: subValue(comm, 3),
         eventTimer: subValue(comm, 5),
+        syncStart: subValue(comm, 6),
         mappings,
       };
     });
 }
 
-export function mappableEntries(document: DeviceDocument): MappableEntry[] {
+function acceptsMapping(mapping: OdEntry['pdoMapping'], direction: PdoDirection | undefined): boolean {
+  if (!direction) {
+    return mapping !== 'no';
+  }
+  if (mapping === 'optional' || mapping === 'default') {
+    return true;
+  }
+  return direction === 'tx' ? mapping === 'TPDO' : mapping === 'RPDO';
+}
+
+export function mappableEntries(document: DeviceDocument, direction?: PdoDirection): MappableEntry[] {
   const result: MappableEntry[] = [];
   for (const object of document.objects) {
-    if (object.objectType === 'VAR' && object.pdoMapping !== 'no') {
+    if (object.disabled) {
+      continue;
+    }
+    if (object.objectType === 'VAR' && acceptsMapping(object.pdoMapping, direction)) {
       result.push({
         index: object.index,
         subIndex: 0,
         name: object.name,
+        dataType: object.dataType,
         bits: bitLength(object.dataType),
         key: `${object.index}:0`,
       });
     }
     for (const sub of object.subObjects) {
-      if (sub.pdoMapping !== 'no') {
+      if (acceptsMapping(sub.pdoMapping, direction)) {
+        const dataType = sub.dataType !== 'UNKNOWN' ? sub.dataType : object.dataType;
         result.push({
           index: object.index,
           subIndex: sub.subIndex,
-          name: `${object.name} / ${sub.name}`,
-          bits: bitLength(sub.dataType),
+          name: sub.name || object.name,
+          dataType,
+          bits: bitLength(dataType),
           key: `${object.index}:${sub.subIndex}`,
         });
       }
@@ -304,7 +324,18 @@ export function setPdoField(
   field: PdoField,
   value: string,
 ): void {
-  setSubValue(document, commBase(direction) + slot, FIELD_SUB[field], value);
+  const index = commBase(direction) + slot;
+  const subIndex = FIELD_SUB[field];
+  const object = findObject(document, index);
+  if (field === 'syncStart' && object && !object.subObjects.some((sub) => sub.subIndex === subIndex)) {
+    object.subObjects.push(communicationSub(index, subIndex, 'Sync start value', 'UNSIGNED8', 'readWrite', value));
+    object.subObjects.sort((a, b) => a.subIndex - b.subIndex);
+    const count = object.subObjects.find((sub) => sub.subIndex === 0);
+    if (count) {
+      count.defaultValue = String(subIndex);
+    }
+  }
+  setSubValue(document, index, subIndex, value);
 }
 
 export function setMappingRaw(
