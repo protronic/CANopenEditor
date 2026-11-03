@@ -76,4 +76,4 @@ element that is already assigned automatically selects the matching object in th
 
 In the "Object Dictionary" tab, the sub-objects of the PDO mapping objects "TPDO mapping parameter"
 and "RPDO mapping parameter" should display the name of the mapped sub-object. The label should use
-the format `object-index/sub-index/name (bit width)`. Insert a refresh button to update the labels.
+the format `object-index/sub-index/name (bit width)`. The labels are saved into the project file.
