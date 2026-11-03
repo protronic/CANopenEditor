@@ -70,6 +70,10 @@ highlight it in the list. When the selection is saved, ask whether to overwrite 
 
 ### PDO Mapping
 
+In the PDO mapping tab, objects for a PDO are chosen from the "Available Objects for PDO" list.
+Select an element in the PDO, then select the corresponding object in the list. Selecting a PDO
+element that is already assigned automatically selects the matching object in the list.
+
 In the "Object Dictionary" tab, the sub-objects of the PDO mapping objects "TPDO mapping parameter"
 and "RPDO mapping parameter" should display the name of the mapped sub-object. The label should use
 the format `object-index/sub-index/name (bit width)`. Insert a refresh button to update the labels.
