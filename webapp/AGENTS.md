@@ -67,3 +67,9 @@ Provide two buttons to check all objects and to uncheck all objects. Checked obj
 
 If an object already exists in the project file, leave it unchecked in the list. If the user checks that object again,
 highlight it in the list. When the selection is saved, ask whether to overwrite the existing object.
+
+### PDO Mapping
+
+In the "Object Dictionary" tab, the sub-objects of the PDO mapping objects "TPDO mapping parameter"
+and "RPDO mapping parameter" should display the name of the mapped sub-object. The label should use
+the format `object-index/sub-index/name (bit width)`. Insert a refresh button to update the labels.
