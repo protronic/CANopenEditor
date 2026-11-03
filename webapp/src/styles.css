@@ -783,6 +783,8 @@ label.check.invalid {
   border-right: 1px solid #c44a32;
 }
 
+.map-bytes .bit-track > b:nth-child(even) { background: #b8341c; }
+
 .map-row .bit-track select {
   width: 100%;
   min-width: 0;
