@@ -28,6 +28,12 @@ releases/*
 out-cli/
 /demo/generated/
 
+# Angular webapp
+/webapp/node_modules/
+/webapp/dist/
+/webapp/.angular/
+/webapp/out-tsc/
+
 # SDK output and local regression build artifacts.
 /EDSSharp/bin/
 /Tests/generated-code-build/
