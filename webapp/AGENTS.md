@@ -70,7 +70,7 @@ highlight it in the list. When the selection is saved, ask whether to overwrite 
 
 ### PDO Mapping
 
-The following applies to both the "TX PDO Mapping" and the "RX PDO Mapping" tab.
+The "TX PDO Mapping" tab comes before the "RX PDO Mapping" tab. The following applies to both tabs.
 
 #### Graphical PDO overview
 
@@ -80,6 +80,9 @@ The following applies to both the "TX PDO Mapping" and the "RX PDO Mapping" tab.
 - Selecting a PDO highlights it with a frame drawn around the whole row. Selecting a PDO that was
   not selected before clears an existing object selection in the other PDOs.
 - The free bits after the mapped objects are shown as a single "Empty" element without a gray box.
+- Right-clicking a mapped object opens a context menu with "Insert Item before", "Insert Item after",
+  and "Remove Item". As in the desktop editor, inserting adds a "Dummy Int8" (0x0002) placeholder that
+  is selected afterwards. If the free space is not sufficient, the usual warning is shown.
 - The COB and Index columns are shown in hexadecimal (e.g. `0xC0000180`, `0x1800`). The COB value
   matches the "COB" field in "Communication parameters" without an optional `$NODEID+` prefix.
 
@@ -114,7 +117,8 @@ The following applies to both the "TX PDO Mapping" and the "RX PDO Mapping" tab.
     buttons are placed in an extra column that is reserved as long as the checkbox is checked,
     so the column widths stay constant when switching between objects. The default value is the
     width of its datatype. The width of the selected object in the graphical PDO overview is
-    updated immediately.
+    updated immediately. BOOLEAN objects occupy at most one bit, so they show no "-" and "+" buttons.
+    When the checkbox is checked, mapped objects wider than their datatype shrink to that width.
 - "Event Timer" is editable in both tabs, including "RX PDO Mapping".
 
 #### Object Dictionary

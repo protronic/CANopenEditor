@@ -12,7 +12,9 @@ import {
   byteMappingBits,
   commBase,
   dummyName,
+  encodeMapping,
   fitMappingBits,
+  insertMapping,
   isBitwiseMapping,
   mappableEntries,
   movePdo,
@@ -69,7 +71,7 @@ interface MapBlock {
                     <td>{{ shownBits(entry) }}</td>
                     @if (bitwise()) {
                       <td class="steps">
-                        @if (entry.key === listSelection()) {
+                        @if (entry.key === listSelection() && maxBits(entry) > 1) {
                           <button type="button" class="step" (click)="$event.stopPropagation(); stepBits(entry, -1)">-</button>
                           <button type="button" class="step" (click)="$event.stopPropagation(); stepBits(entry, 1)">+</button>
                         }
@@ -183,6 +185,8 @@ interface MapBlock {
 
     @if (menu; as menu) {
       <div class="menu" [style.left.px]="menu.x" [style.top.px]="menu.y" (click)="$event.stopPropagation()" (contextmenu)="$event.preventDefault()">
+        <button type="button" (click)="insertBlock(false)">Insert Item before</button>
+        <button type="button" (click)="insertBlock(true)">Insert Item after</button>
         <button type="button" (click)="removeBlock()">Remove Item</button>
       </div>
     }
@@ -204,6 +208,7 @@ export class PdoViewComponent {
   readonly byteNumbers = [0, 1, 2, 3, 4, 5, 6, 7];
   readonly hex = hex4;
   readonly hexByte = hex2;
+  readonly maxBits = maxBits;
 
   @HostListener('document:click')
   closeMenu(): void {
@@ -478,6 +483,29 @@ export class PdoViewComponent {
     this.menu = { x: event.clientX, y: event.clientY, slot: slot.slot, subIndex: block.subIndex };
   }
 
+  insertBlock(after: boolean): void {
+    const menu = this.menu;
+    this.menu = null;
+    const slot = menu ? this.slots().find((item) => item.slot === menu.slot) : undefined;
+    if (!menu || !slot) {
+      return;
+    }
+    if (fitMappingBits(INSERT_DUMMY_BITS, usedBits(slot)) < INSERT_DUMMY_BITS) {
+      this.formError = 'The object does not fit into the PDO.';
+      return;
+    }
+    const target = menu.subIndex + (after ? 1 : 0);
+    const raw = encodeMapping(INSERT_DUMMY, 0, INSERT_DUMMY_BITS);
+    const error = insertMapping(this.document(), slot.direction, slot.slot, target, raw);
+    this.formError = error ?? '';
+    if (!error) {
+      this.pickedCell = { slot: slot.slot, key: `${slot.commIndex}-${target}` };
+      this.listKey = `${INSERT_DUMMY}:0`;
+      requestAnimationFrame(() => this.centerListSelection());
+      this.changed.emit();
+    }
+  }
+
   removeBlock(): void {
     const menu = this.menu;
     this.menu = null;
@@ -538,6 +566,10 @@ export class PdoViewComponent {
     return `0x${hex4(row.index)}/${hex2(row.entrySubIndex)}/${name ?? ''}`.replace(/\/$/, '');
   }
 }
+
+/** Placeholder inserted from the context menu, as in the desktop editor: Dummy Int8. */
+const INSERT_DUMMY = 0x0002;
+const INSERT_DUMMY_BITS = 8;
 
 function usedBits(slot: PdoSlot): number {
   return slot.mappings.reduce((sum, row) => sum + (row.bits && row.bits > 0 ? row.bits : 0), 0);

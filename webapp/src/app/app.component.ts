@@ -59,8 +59,8 @@ type EditorTab = 'info' | 'od' | 'rx' | 'tx';
               <div class="tabs">
                 <button type="button" [class.active]="tab() === 'info'" (click)="tab.set('info')">Device Info</button>
                 <button type="button" [class.active]="tab() === 'od'" (click)="tab.set('od')">Object Dictionary</button>
-                <button type="button" [class.active]="tab() === 'rx'" (click)="tab.set('rx')">RX PDO Mapping</button>
                 <button type="button" [class.active]="tab() === 'tx'" (click)="tab.set('tx')">TX PDO Mapping</button>
+                <button type="button" [class.active]="tab() === 'rx'" (click)="tab.set('rx')">RX PDO Mapping</button>
               </div>
               <span class="schema">Opened as XDD {{ device.document.schemaVersion }}. Save writes XDD 1.1</span>
             </div>

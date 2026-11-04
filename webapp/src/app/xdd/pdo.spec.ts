@@ -5,6 +5,7 @@ import {
   addPdo,
   byteMappingBits,
   fitMappingBits,
+  insertMapping,
   isBitwiseMapping,
   isMappingObject,
   mappableEntries,
@@ -156,6 +157,9 @@ describe('PDO settings', () => {
     const slot = pdoSlots(document, 'rx')[0];
     expect(isBitwiseMapping(document, slot)).toBe(false);
     expect(slot.mappings.map((row) => row.bits)).toEqual([8, 16]);
+
+    expect(setBitwiseMapping(document, 'rx', 0, true)).toBeNull();
+    expect(pdoSlots(document, 'rx')[0].mappings.map((row) => row.bits)).toEqual([1, 16]);
   });
 
   it('moves communication and mapping objects together', () => {
@@ -165,6 +169,20 @@ describe('PDO settings', () => {
     expect(document.objects.some((object) => object.index === 0x1400 || object.index === 0x1600)).toBe(false);
     expect(document.objects.find((object) => object.index === 0x1605)!.subObjects.every((sub) => sub.index === 0x1605)).toBe(true);
     expect(movePdo(document, 'rx', 5, 0x1800)).toContain('0x1400');
+  });
+
+  it('inserts a mapping entry and moves the following entries up', () => {
+    const document = project();
+    addMapping(document, 'rx', 0);
+    addMapping(document, 'rx', 0);
+    setMappingEntry(document, 'rx', 0, 1, 0x2100, 0, 8);
+    setMappingEntry(document, 'rx', 0, 2, 0x2200, 0, 16);
+
+    expect(insertMapping(document, 'rx', 0, 2, '0x00020008')).toBeNull();
+    expect(pdoSlots(document, 'rx')[0].mappings.map((row) => row.raw)).toEqual(['0x21000008', '0x00020008', '0x22000010']);
+    const map = document.objects.find((object) => object.index === 0x1600)!;
+    expect(map.subObjects.find((sub) => sub.subIndex === 0)?.defaultValue).toBe('3');
+    expect(map.subObjects.find((sub) => sub.subIndex === 3)?.name).toBe('0x2200/00/Wert (16)');
   });
 
   it('adds a missing event timer to an RPDO', () => {

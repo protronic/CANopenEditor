@@ -494,18 +494,22 @@ export function setBitwiseMapping(
   if (!current) {
     return null;
   }
-  if (!bitwise) {
-    const rows = current.mappings.filter((row) => row.index != null && row.entrySubIndex != null && row.bits);
-    const widths = rows.map((row) => byteMappingBits(objectMappingBits(document, row.index!, row.entrySubIndex!) ?? row.bits!));
-    if (widths.reduce((sum, bits) => sum + bits, 0) > 64) {
-      return 'The objects do not fit into the PDO without bitwise mapping.';
+  const rows = current.mappings.filter((row) => row.index != null && row.entrySubIndex != null && row.bits);
+  const widths = rows.map((row) => {
+    const typeBits = objectMappingBits(document, row.index!, row.entrySubIndex!);
+    if (!bitwise) {
+      return byteMappingBits(typeBits ?? row.bits!);
     }
-    rows.forEach((row, position) => {
-      if (row.bits !== widths[position]) {
-        setMappingEntry(document, direction, slot, row.subIndex, row.index!, row.entrySubIndex!, widths[position]);
-      }
-    });
+    return typeBits && typeBits < row.bits! ? typeBits : row.bits!;
+  });
+  if (widths.reduce((sum, bits) => sum + bits, 0) > 64) {
+    return 'The objects do not fit into the PDO without bitwise mapping.';
   }
+  rows.forEach((row, position) => {
+    if (row.bits !== widths[position]) {
+      setMappingEntry(document, direction, slot, row.subIndex, row.index!, row.entrySubIndex!, widths[position]);
+    }
+  });
   let flags = bitwiseFlags.get(document);
   if (!flags) {
     flags = new Map();
@@ -556,6 +560,30 @@ export function addMapping(document: DeviceDocument, direction: PdoDirection, sl
   if (sub0) {
     sub0.defaultValue = String(subIndex);
   }
+  return null;
+}
+
+/** Inserts a mapping entry at `subIndex`; the following entries move up by one. */
+export function insertMapping(
+  document: DeviceDocument,
+  direction: PdoDirection,
+  slot: number,
+  subIndex: number,
+  raw: string,
+): string | null {
+  const mapIndex = mapBase(direction) + slot;
+  const count = mappingCount(findObject(document, mapIndex));
+  const error = addMapping(document, direction, slot);
+  if (error) {
+    return error;
+  }
+  const map = findObject(document, mapIndex)!;
+  const position = Math.min(Math.max(1, subIndex), count + 1);
+  for (let target = count + 1; target > position; target -= 1) {
+    setSubValue(document, mapIndex, target, subValue(map, target - 1));
+  }
+  setSubValue(document, mapIndex, position, raw);
+  syncMappingNames(document, mapIndex);
   return null;
 }
 
