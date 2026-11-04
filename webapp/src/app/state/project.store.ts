@@ -2,6 +2,7 @@ import { Injectable, computed, signal } from '@angular/core';
 import { DeviceDocument, ensureXddName, formatDate, formatTime } from '../model/device';
 import { createEmptyDocument } from '../model/device';
 import { parseXdd, writeXdd } from '../xdd/xdd-codec';
+import { CloneRow, cloneObjects } from '../xdd/clone';
 import { InsertRow, insertSelected } from '../xdd/profiles';
 import { pdoSlots, syncMappingNames } from '../xdd/pdo';
 
@@ -56,6 +57,18 @@ export class ProjectStore {
     device.document.nrOfTxPdo = pdoSlots(device.document, 'tx').length;
     this.touch(id);
     return inserted;
+  }
+
+  cloneInto(id: string, rows: CloneRow[], offsets: number[]): number | null {
+    const device = this.devices().find((entry) => entry.id === id);
+    if (!device) {
+      return null;
+    }
+    const cloned = cloneObjects(device.document, rows, offsets);
+    device.document.nrOfRxPdo = pdoSlots(device.document, 'rx').length;
+    device.document.nrOfTxPdo = pdoSlots(device.document, 'tx').length;
+    this.touch(id);
+    return cloned;
   }
 
   touch(id: string): void {

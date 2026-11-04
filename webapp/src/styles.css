@@ -486,6 +486,15 @@ button.collapse {
 
 .profile-modal tr.conflict td { color: tomato; font-weight: 700; }
 
+.clone-modal td.conflict { color: tomato; font-weight: 700; }
+
+.clone-modal tr.blocked td:not(.conflict) { color: #8a857c; }
+
+.clone-modal th:first-child,
+.clone-modal td:first-child { width: 3.5rem; text-align: center; }
+
+.od-group tbody tr { user-select: none; }
+
 .mono { font-family: var(--mono); }
 
 .wide { grid-column: 1 / -1; }

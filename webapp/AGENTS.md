@@ -50,6 +50,17 @@ and "Device Profile Specific Parameters" should each be independently collapsibl
 
 Highlight the beginning of each list.
 
+Several objects can be selected in a list with Ctrl+click and Shift+click. Right-clicking an object
+opens a context menu with "Add...", "Clone...", "Delete...", and "Toggle". "Clone..." opens the
+"Insert OD Objects" dialog for the selected objects:
+
+- "Target" selects one of the open projects.
+- "Index Offset" takes a positive or negative offset (decimal or `0x` hex); a space separated list
+  creates several clones. Each offset gets its own column with the new indices.
+- An object whose clone would overwrite an existing object (or whose new index is invalid) is still
+  listed, but without a checkbox, and its conflicting index is highlighted. It is not cloned.
+- A trailing number in the object name is shifted by the offset, as in the desktop editor.
+
 #### Tab "TX PDO Mapping"
 
 ![Tab TX PDO Mapping](images/Template_Tab_TX_PDO_Mapping.png)

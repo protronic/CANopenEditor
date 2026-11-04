@@ -20,6 +20,7 @@ import {
   hex4,
   parseUserIndex,
 } from './model/device';
+import { CloneObjectsComponent } from './clone-objects.component';
 import { isMappingObject, mappingTargetLabel } from './xdd/pdo';
 
 type PendingChoice = 'yes' | 'no' | 'cancel';
@@ -28,7 +29,7 @@ type MenuKind = 'object' | 'sub';
 @Component({
   selector: 'app-object-dictionary',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, CloneObjectsComponent],
   template: `
     <div class="od">
       <div class="od-groups">
@@ -50,9 +51,9 @@ type MenuKind = 'object' | 'sub';
                 <tbody>
                   @for (object of objectsIn(group.id); track object.index) {
                     <tr
-                      [class.selected]="object.index === selectedIndex"
+                      [class.selected]="object.index === selectedIndex || extraSelection.has(object.index)"
                       [class.disabled]="object.disabled"
-                      (click)="selectObject(object.index)"
+                      (click)="clickObject($event, group.id, object.index)"
                       (contextmenu)="openObjectMenu($event, object.index)">
                       <td class="mono">0x{{ hex(object.index) }}</td>
                       <td>{{ object.name }}</td>
@@ -237,6 +238,7 @@ type MenuKind = 'object' | 'sub';
       <div class="menu" [style.left.px]="menu.x" [style.top.px]="menu.y" (click)="$event.stopPropagation()" (contextmenu)="$event.preventDefault()">
         @if (menu.kind === 'object') {
           <button type="button" (click)="addObjectDialog()">Add...</button>
+          <button type="button" (click)="cloneDialog()" [disabled]="selectedIndex == null">Clone...</button>
           <button type="button" (click)="deleteSelected()" [disabled]="selectedIndex == null">Delete...</button>
           <button type="button" (click)="toggleSelected()" [disabled]="selectedIndex == null">Toggle</button>
         } @else {
@@ -274,6 +276,10 @@ type MenuKind = 'object' | 'sub';
           </div>
         </form>
       </div>
+    }
+
+    @if (cloneSources.length) {
+      <app-clone-objects [objects]="cloneSources" (closed)="cloneSources = []" />
     }
 
     @if (pending) {
@@ -322,6 +328,9 @@ export class ObjectDictionaryComponent {
   addName = 'New Object';
   addType: ObjectTypeName = 'VAR';
   menu: { x: number; y: number; kind: MenuKind } | null = null;
+  /** Objects selected with Ctrl or Shift in addition to the edited object. */
+  extraSelection = new Set<number>();
+  cloneSources: OdEntry[] = [];
   pending = false;
   pendingLabel = '';
   draftName = '';
@@ -355,6 +364,8 @@ export class ObjectDictionaryComponent {
         this.seen = document;
         this.selectedIndex = document.objects[0]?.index ?? null;
         this.selectedSubIndex = null;
+        this.extraSelection.clear();
+        this.cloneSources = [];
         this.menu = null;
         this.showAdd = false;
         this.indexError = '';
@@ -569,10 +580,47 @@ export class ObjectDictionaryComponent {
     this.loadDraft();
   }
 
+  clickObject(event: MouseEvent, group: 'communication' | 'manufacturer' | 'profile', index: number): void {
+    const primary = this.selectedIndex;
+    if (primary != null && (event.ctrlKey || event.metaKey)) {
+      if (index !== primary && !this.extraSelection.delete(index)) {
+        this.extraSelection.add(index);
+      }
+      return;
+    }
+    if (primary != null && event.shiftKey) {
+      const list = this.objectsIn(group).map((object) => object.index);
+      const from = list.indexOf(primary);
+      const to = list.indexOf(index);
+      if (from >= 0 && to >= 0) {
+        const range = list.slice(Math.min(from, to), Math.max(from, to) + 1);
+        this.extraSelection = new Set(range.filter((entry) => entry !== primary));
+        return;
+      }
+    }
+    this.extraSelection.clear();
+    void this.selectObject(index);
+  }
+
+  selectedObjects(): OdEntry[] {
+    return this.document().objects.filter((object) =>
+      object.index === this.selectedIndex || this.extraSelection.has(object.index));
+  }
+
+  cloneDialog(): void {
+    this.menu = null;
+    this.cloneSources = this.selectedObjects();
+  }
+
   async openObjectMenu(event: MouseEvent, index: number | null): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
-    if (index != null && index !== this.selectedIndex) {
+    if (index != null && this.extraSelection.has(index)) {
+      if (this.dirty && !(await this.guard())) {
+        return;
+      }
+    } else if (index != null && index !== this.selectedIndex) {
+      this.extraSelection.clear();
       if (!(await this.guard())) {
         return;
       }
@@ -719,6 +767,7 @@ export class ObjectDictionaryComponent {
       return;
     }
     this.showAdd = false;
+    this.extraSelection.clear();
     this.selectedIndex = parsed;
     this.selectedSubIndex = null;
     this.loadDraft();
@@ -727,14 +776,15 @@ export class ObjectDictionaryComponent {
 
   deleteSelected(): void {
     this.menu = null;
-    const object = this.selected();
-    if (!object) {
+    const objects = this.selectedObjects();
+    if (objects.length === 0) {
       return;
     }
-    if (!confirm('Do you really want to delete the selected 1 items?')) {
+    if (!confirm(`Do you really want to delete the selected ${objects.length} items?`)) {
       return;
     }
-    deleteObject(this.document(), object.index);
+    objects.forEach((object) => deleteObject(this.document(), object.index));
+    this.extraSelection.clear();
     this.selectedIndex = this.document().objects[0]?.index ?? null;
     this.selectedSubIndex = null;
     this.loadDraft();
@@ -747,8 +797,9 @@ export class ObjectDictionaryComponent {
     if (!object) {
       return;
     }
-    object.disabled = !object.disabled;
-    this.draftDisabled = object.disabled;
+    const disabled = !object.disabled;
+    this.selectedObjects().forEach((entry) => (entry.disabled = disabled));
+    this.draftDisabled = disabled;
     this.baseline = this.snapshot();
     this.changed.emit();
   }
