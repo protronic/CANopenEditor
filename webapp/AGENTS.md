@@ -136,6 +136,9 @@ The "TX PDO Mapping" tab comes before the "RX PDO Mapping" tab. The following ap
 
 In the "Object Dictionary" tab, the sub-objects of the PDO mapping objects "TPDO mapping parameter"
 and "RPDO mapping parameter" display the mapped object in the format
-`object-index/sub-index/name (bit width)`. Changes in the PDO tab update these labels immediately;
+`mapping-index object-index/sub-index/name`, e.g. `0x02 0x0005/00/Dummy UInt8`. The mapping index is
+the sub-index within "TPDO mapping parameter" or "RPDO mapping parameter"; it keeps the name unique
+when a PDO contains objects with the same name. The bit width is not part of the label.
+Changes in the PDO tab update these labels immediately;
 there is no refresh button. When the project is saved, the labels replace names such as
 "Application object 1" in the project file.

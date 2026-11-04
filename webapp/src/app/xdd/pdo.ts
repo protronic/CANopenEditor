@@ -159,8 +159,11 @@ export function isMappingObject(index: number): boolean {
   return (index >= 0x1600 && index < 0x1800) || (index >= 0x1a00 && index < 0x1c00);
 }
 
-/** `0xIIII/SS/name (bits)` for a mapping entry value, or null if it maps nothing. */
-export function mappingTargetLabel(document: DeviceDocument, raw: string): string | null {
+/**
+ * `0xMM 0xIIII/SS/name` for the mapping entry in sub-index MM, or null if it maps nothing.
+ * The leading sub-index keeps the name unique when a PDO maps objects with the same name.
+ */
+export function mappingTargetLabel(document: DeviceDocument, mappingSubIndex: number, raw: string): string | null {
   const decoded = decodeMapping(raw);
   if (!decoded || (decoded.index === 0 && decoded.subIndex === 0 && decoded.bits === 0)) {
     return null;
@@ -170,7 +173,7 @@ export function mappingTargetLabel(document: DeviceDocument, raw: string): strin
   const name = DUMMY_NAMES[decoded.index]
     ?? (decoded.subIndex === 0 && object?.objectType === 'VAR' ? object.name : sub?.name || object?.name)
     ?? '';
-  return `0x${hex4(decoded.index)}/${hex2(decoded.subIndex)}/${name} (${decoded.bits})`;
+  return `0x${hex2(mappingSubIndex)} 0x${hex4(decoded.index)}/${hex2(decoded.subIndex)}/${name}`;
 }
 
 /** Names each mapping sub-object after the object it maps, as shown in the object dictionary. */
@@ -180,7 +183,7 @@ export function syncMappingNames(document: DeviceDocument, mapIndex?: number): v
       continue;
     }
     for (const sub of map.subObjects) {
-      const label = sub.subIndex > 0 ? mappingTargetLabel(document, sub.defaultValue) : null;
+      const label = sub.subIndex > 0 ? mappingTargetLabel(document, sub.subIndex, sub.defaultValue) : null;
       if (label) {
         sub.name = label;
       }
@@ -606,4 +609,5 @@ export function removeMapping(
   if (sub0) {
     sub0.defaultValue = String(mapped.length);
   }
+  syncMappingNames(document, map.index);
 }

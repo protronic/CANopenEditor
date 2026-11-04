@@ -892,7 +892,7 @@ export class ObjectDictionaryComponent {
     if (!isMappingObject(parent.index) || entry.subIndex === 0) {
       return null;
     }
-    return mappingTargetLabel(this.document(), entry.defaultValue);
+    return mappingTargetLabel(this.document(), entry.subIndex, entry.defaultValue);
   }
 
   private sdoLabel(entry: OdEntry): string {
