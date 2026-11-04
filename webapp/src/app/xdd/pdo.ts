@@ -111,21 +111,6 @@ export function encodeMapping(index: number, subIndex: number, bits: number): st
   return `0x${value.toString(16).toUpperCase().padStart(8, '0')}`;
 }
 
-/** Bit widths of the empty cells that follow the mapped objects, each ending on a byte boundary. */
-export function emptySpans(used: number): number[] {
-  const spans: number[] = [];
-  let bit = Math.min(64, Math.max(0, Math.floor(used)));
-  while (bit < 64) {
-    let span = (64 - bit) % 8;
-    if (span === 0) {
-      span = Math.min(8, 64 - bit);
-    }
-    spans.push(span);
-    bit += span;
-  }
-  return spans;
-}
-
 /** Width stored for a newly chosen object: the datatype width, capped by the free bits in the PDO. */
 export function fitMappingBits(entryBits: number, usedBits: number, replacedBits = 0): number {
   const capacity = 64 - (usedBits - Math.max(0, replacedBits));

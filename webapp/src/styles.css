@@ -684,12 +684,17 @@ app-pdo-view {
   white-space: nowrap;
 }
 
-.available td.bits { white-space: nowrap; }
+.available .steps {
+  width: 4.2rem;
+  min-width: 4.2rem;
+  padding-top: 0;
+  padding-bottom: 0;
+}
 
-.available td.bits button.step {
+.available td.steps button.step {
   width: 1.3rem;
   height: 1.15rem;
-  margin: 0 0.3rem;
+  margin: 0 0.15rem;
   padding: 0;
   line-height: 1;
   font-weight: 700;
@@ -820,7 +825,13 @@ app-pdo-view {
 
 .map-row .bit-track > span.b { background: lemonchiffon; }
 
-.map-row .bit-track > span.empty { background: lightgray; color: #333; }
+.map-row .bit-track > span.empty {
+  max-width: none;
+  background: transparent;
+  color: #666;
+  border: 0;
+  border-radius: 0;
+}
 
 .map-row .bit-track > span.picked {
   background: #0a64c8;
@@ -831,6 +842,10 @@ app-pdo-view {
 .available tbody tr { cursor: pointer; }
 
 .available tbody tr:hover td { background: #f0ece3; }
+
+.available tbody.locked tr { cursor: default; }
+
+.available tbody.locked tr:hover td { background: transparent; }
 
 .available tbody tr.selected td { background: #0a64c8; color: white; }
 

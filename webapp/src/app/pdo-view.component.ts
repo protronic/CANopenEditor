@@ -12,7 +12,6 @@ import {
   byteMappingBits,
   commBase,
   dummyName,
-  emptySpans,
   fitMappingBits,
   isBitwiseMapping,
   mappableEntries,
@@ -55,24 +54,27 @@ interface MapBlock {
                   <th>Name</th>
                   <th>Datatype</th>
                   <th>Bits</th>
+                  @if (bitwise()) {
+                    <th class="steps"></th>
+                  }
                 </tr>
               </thead>
-              <tbody>
+              <tbody [class.locked]="!hasPick()">
                 @for (entry of mappable(); track entry.key) {
                   <tr [class.selected]="entry.key === listSelection()" (click)="pickEntry(entry)">
                     <td class="mono">0x{{ hex(entry.index) }}</td>
                     <td class="mono">0x{{ hexByte(entry.subIndex) }}</td>
                     <td>{{ entry.name }}</td>
                     <td>{{ entry.dataType }}</td>
-                    <td class="bits">
-                      @if (bitwise() && entry.key === listSelection()) {
-                        <button type="button" class="step" (click)="$event.stopPropagation(); stepBits(entry, -1)">-</button>
-                        <span>{{ shownBits(entry) }}</span>
-                        <button type="button" class="step" (click)="$event.stopPropagation(); stepBits(entry, 1)">+</button>
-                      } @else {
-                        {{ shownBits(entry) }}
-                      }
-                    </td>
+                    <td>{{ shownBits(entry) }}</td>
+                    @if (bitwise()) {
+                      <td class="steps">
+                        @if (entry.key === listSelection()) {
+                          <button type="button" class="step" (click)="$event.stopPropagation(); stepBits(entry, -1)">-</button>
+                          <button type="button" class="step" (click)="$event.stopPropagation(); stepBits(entry, 1)">+</button>
+                        }
+                      </td>
+                    }
                   </tr>
                 }
               </tbody>
@@ -196,7 +198,6 @@ export class PdoViewComponent {
   menu: { x: number; y: number; slot: number; subIndex: number } | null = null;
   pickedCell: { slot: number; key: string } | null = null;
   listKey: string | null = null;
-  private readonly pendingBits = new Map<string, number>();
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly mapScroll = viewChild<ElementRef<HTMLElement>>('mapScroll');
   readonly bitNumbers = Array.from({ length: 64 }, (_, index) => index);
@@ -226,6 +227,10 @@ export class PdoViewComponent {
   }
 
   select(slot: PdoSlot): void {
+    if (this.pickedCell && this.pickedCell.slot !== slot.slot) {
+      this.pickedCell = null;
+      this.listKey = null;
+    }
     this.selectedSlot = slot.slot;
     this.formError = '';
   }
@@ -307,27 +312,22 @@ export class PdoViewComponent {
       return byteMappingBits(entry.bits);
     }
     const picked = this.pickedBlock();
-    if (picked?.block.value === entry.key) {
-      return picked.block.bits;
-    }
-    return this.pendingBits.get(entry.key) ?? defaultBits(entry);
+    return picked?.block.value === entry.key ? picked.block.bits : defaultBits(entry);
   }
 
   stepBits(entry: MappableEntry, step: number): void {
     const picked = this.pickedBlock();
     const subIndex = picked?.block.value === entry.key ? picked.block.subIndex : null;
-    if (picked && subIndex != null) {
-      const { slot, block } = picked;
-      const capacity = 64 - (usedBits(slot) - block.bits);
-      const next = Math.min(maxBits(entry), capacity, Math.max(1, block.bits + step));
-      if (next !== block.bits) {
-        setMappingEntry(this.document(), slot.direction, slot.slot, subIndex, entry.index, entry.subIndex, next);
-        this.changed.emit();
-      }
+    if (!picked || subIndex == null) {
       return;
     }
-    const current = this.pendingBits.get(entry.key) ?? defaultBits(entry);
-    this.pendingBits.set(entry.key, Math.min(maxBits(entry), Math.max(1, current + step)));
+    const { slot, block } = picked;
+    const capacity = 64 - (usedBits(slot) - block.bits);
+    const next = Math.min(maxBits(entry), capacity, Math.max(1, block.bits + step));
+    if (next !== block.bits) {
+      setMappingEntry(this.document(), slot.direction, slot.slot, subIndex, entry.index, entry.subIndex, next);
+      this.changed.emit();
+    }
   }
 
   blocks(slot: PdoSlot): MapBlock[] {
@@ -350,17 +350,15 @@ export class PdoViewComponent {
       });
       used += span;
     });
-    let bit = used;
-    for (const span of emptySpans(used)) {
+    if (used < 64) {
       blocks.push({
-        key: `${slot.commIndex}-empty-${bit}`,
-        bits: span,
+        key: `${slot.commIndex}-empty`,
+        bits: 64 - used,
         label: 'Empty',
         kind: 'empty',
         subIndex: null,
         value: '',
       });
-      bit += span;
     }
     return blocks;
   }
@@ -381,16 +379,19 @@ export class PdoViewComponent {
   }
 
   listSelection(): string | null {
-    return this.pickedBlock()?.block.value || this.listKey;
+    return this.pickedBlock()?.block.value || null;
+  }
+
+  hasPick(): boolean {
+    return this.pickedBlock() != null;
   }
 
   pickEntry(entry: MappableEntry): void {
-    this.listKey = entry.key;
     const picked = this.pickedBlock();
     if (!picked) {
-      this.formError = 'Select an element in the PDO first.';
       return;
     }
+    this.listKey = entry.key;
     const { slot, block } = picked;
     if (block.value === entry.key) {
       this.formError = '';
@@ -502,9 +503,7 @@ export class PdoViewComponent {
 
   private applyMapping(slot: PdoSlot, subIndex: number | null, entry: MappableEntry): number | null {
     const replaced = subIndex == null ? 0 : slot.mappings.find((row) => row.subIndex === subIndex)?.bits ?? 0;
-    const wanted = isBitwiseMapping(this.document(), slot)
-      ? this.pendingBits.get(entry.key) ?? defaultBits(entry)
-      : byteMappingBits(entry.bits);
+    const wanted = isBitwiseMapping(this.document(), slot) ? defaultBits(entry) : byteMappingBits(entry.bits);
     const bits = fitMappingBits(wanted, usedBits(slot), replaced > 0 ? replaced : 0);
     if (bits <= 0) {
       this.formError = 'The object does not fit into the PDO.';

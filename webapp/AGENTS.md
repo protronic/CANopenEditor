@@ -77,7 +77,9 @@ The following applies to both the "TX PDO Mapping" and the "RX PDO Mapping" tab.
 - Each object in a PDO row starts and ends exactly on bit boundaries. The bit and byte header
   cells use the same 64-bit grid as the mapped objects. Odd byte header cells use a different
   background color.
-- Selecting a PDO highlights it with a frame drawn around the whole row.
+- Selecting a PDO highlights it with a frame drawn around the whole row. Selecting a PDO that was
+  not selected before clears an existing object selection in the other PDOs.
+- The free bits after the mapped objects are shown as a single "Empty" element without a gray box.
 - The COB and Index columns are shown in hexadecimal (e.g. `0xC0000180`, `0x1800`). The COB value
   matches the "COB" field in "Communication parameters" without an optional `$NODEID+` prefix.
 
@@ -87,6 +89,7 @@ The following applies to both the "TX PDO Mapping" and the "RX PDO Mapping" tab.
   the PDO, then select the corresponding object in the list. Selecting a PDO element that is
   already assigned automatically selects the matching object in the list and scrolls it to
   roughly the middle of the visible list.
+- If no element is selected in the PDO, no object can be selected in the list.
 - The list always starts with the following dummy objects, which can always be selected:
 
 | Name         | Object index | Sub-index |
@@ -107,9 +110,11 @@ The following applies to both the "TX PDO Mapping" and the "RX PDO Mapping" tab.
   - If "Bitwise mapping" is not checked, every object occupies the width of its datatype rounded
     up to a multiple of 8 bits (at least 8 bits, at most 64 bits). BOOLEAN occupies 8 bits.
   - If "Bitwise mapping" is checked, the selected object in "Available Objects for PDO" shows a
-    "-" button left and a "+" button right of its number of bits to adjust the number of bits
-    used. The default value is the width of its datatype. The width of the selected object in
-    the graphical PDO overview is updated immediately.
+    "-" and a "+" button next to its number of bits to adjust the number of bits used. The
+    buttons are placed in an extra column that is reserved as long as the checkbox is checked,
+    so the column widths stay constant when switching between objects. The default value is the
+    width of its datatype. The width of the selected object in the graphical PDO overview is
+    updated immediately.
 - "Event Timer" is editable in both tabs, including "RX PDO Mapping".
 
 #### Object Dictionary

@@ -4,7 +4,6 @@ import {
   addMapping,
   addPdo,
   byteMappingBits,
-  emptySpans,
   fitMappingBits,
   isBitwiseMapping,
   isMappingObject,
@@ -62,26 +61,6 @@ describe('mappingTargetLabel', () => {
     expect(isMappingObject(0x1600)).toBe(true);
     expect(isMappingObject(0x1bff)).toBe(true);
     expect(isMappingObject(0x1800)).toBe(false);
-  });
-});
-
-describe('emptySpans', () => {
-  it('fills a free PDO with byte-sized cells', () => {
-    expect(emptySpans(0)).toEqual([8, 8, 8, 8, 8, 8, 8, 8]);
-  });
-
-  it('aligns the first empty cell to the next byte boundary', () => {
-    expect(emptySpans(12)).toEqual([4, 8, 8, 8, 8, 8, 8]);
-    expect(emptySpans(12).reduce((sum, span) => sum + span, 0)).toBe(52);
-  });
-
-  it('returns no cells when the PDO is full', () => {
-    expect(emptySpans(64)).toEqual([]);
-    expect(emptySpans(80)).toEqual([]);
-  });
-
-  it('keeps a trailing partial byte', () => {
-    expect(emptySpans(63)).toEqual([1]);
   });
 });
 
