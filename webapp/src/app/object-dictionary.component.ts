@@ -295,6 +295,7 @@ type MenuKind = 'object' | 'sub';
 })
 export class ObjectDictionaryComponent {
   readonly document = input.required<DeviceDocument>();
+  readonly revision = input(0);
   readonly changed = output<void>();
 
   readonly groups = [

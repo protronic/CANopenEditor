@@ -12,6 +12,8 @@ export interface OpenDevice {
   fileName: string;
   dirty: boolean;
   document: DeviceDocument;
+  /** Counts changes to the document, so views recompute derived data only after a change. */
+  revision: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -70,7 +72,7 @@ export class ProjectStore {
   }
 
   touch(id: string): void {
-    this.devices.update((list) => list.map((device) => device.id === id ? { ...device, dirty: true } : device));
+    this.devices.update((list) => list.map((device) => device.id === id ? { ...device, dirty: true, revision: device.revision + 1 } : device));
     this.status.set(null);
   }
 
@@ -99,7 +101,7 @@ export class ProjectStore {
 
   markSaved(id: string, fileName: string): void {
     this.devices.update((list) => list.map((device) => (
-      device.id === id ? { ...device, dirty: false, fileName } : device
+      device.id === id ? { ...device, dirty: false, fileName, revision: device.revision + 1 } : device
     )));
     this.status.set(`${fileName} written.`);
   }
@@ -115,6 +117,7 @@ export class ProjectStore {
       fileName,
       dirty,
       document,
+      revision: 0,
     };
   }
 }

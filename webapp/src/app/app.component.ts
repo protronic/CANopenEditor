@@ -68,13 +68,13 @@ type EditorTab = 'info' | 'od' | 'rx' | 'tx';
               <app-device-info [document]="device.document" (changed)="store.touch(device.id)" />
             </div>
             <div class="pane" [hidden]="tab() !== 'od'">
-              <app-object-dictionary [document]="device.document" (changed)="store.touch(device.id)" />
+              <app-object-dictionary [document]="device.document" [revision]="device.revision" (changed)="store.touch(device.id)" />
             </div>
             <div class="pane" [hidden]="tab() !== 'rx'">
-              <app-pdo-view direction="rx" [document]="device.document" (changed)="store.touch(device.id)" />
+              <app-pdo-view direction="rx" [document]="device.document" [revision]="device.revision" (changed)="store.touch(device.id)" />
             </div>
             <div class="pane" [hidden]="tab() !== 'tx'">
-              <app-pdo-view direction="tx" [document]="device.document" (changed)="store.touch(device.id)" />
+              <app-pdo-view direction="tx" [document]="device.document" [revision]="device.revision" (changed)="store.touch(device.id)" />
             </div>
           } @else {
             <section class="empty">

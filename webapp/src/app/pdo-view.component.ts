@@ -1,6 +1,6 @@
-import { Component, ElementRef, HostListener, inject, input, output, viewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, computed, inject, input, output, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { DeviceDocument, hex2, hex4 } from './model/device';
+import { DeviceDocument, OdEntry, hex2, hex4 } from './model/device';
 import { DialogService } from './state/dialog.service';
 import {
   MappableEntry,
@@ -193,6 +193,7 @@ interface MapBlock {
 export class PdoViewComponent {
   readonly document = input.required<DeviceDocument>();
   readonly direction = input.required<PdoDirection>();
+  readonly revision = input(0);
   readonly changed = output<void>();
   selectedSlot: number | null = null;
   zoomLevel = 1;
@@ -207,6 +208,21 @@ export class PdoViewComponent {
   readonly hex = hex4;
   readonly hexByte = hex2;
   readonly maxBits = maxBits;
+  /** Bumped after edits in this view, before the parent passes the next revision. */
+  private readonly edits = signal(0);
+  private readonly view = computed(() => {
+    this.revision();
+    this.edits();
+    const document = this.document();
+    const slots = pdoSlots(document, this.direction());
+    const objects = new Map(document.objects.map((object) => [object.index, object]));
+    return { slots, blocks: new Map(slots.map((slot) => [slot.slot, slotBlocks(slot, objects)])) };
+  });
+  private readonly mappableList = computed(() => {
+    this.revision();
+    this.edits();
+    return mappableEntries(this.document(), this.direction());
+  });
 
   @HostListener('document:click')
   closeMenu(): void {
@@ -214,7 +230,7 @@ export class PdoViewComponent {
   }
 
   slots(): PdoSlot[] {
-    return pdoSlots(this.document(), this.direction());
+    return this.view().slots;
   }
 
   activeSlot(): number | null {
@@ -222,7 +238,7 @@ export class PdoViewComponent {
   }
 
   mappable(): MappableEntry[] {
-    return mappableEntries(this.document(), this.direction());
+    return this.mappableList();
   }
 
   selected(): PdoSlot | null {
@@ -281,7 +297,7 @@ export class PdoViewComponent {
     this.pickedCell = null;
     this.listKey = null;
     input.value = this.indexText(value);
-    this.changed.emit();
+    this.commit();
   }
 
   invalid(): boolean {
@@ -306,7 +322,7 @@ export class PdoViewComponent {
       box.checked = !box.checked;
       return;
     }
-    this.changed.emit();
+    this.commit();
   }
 
   shownBits(entry: MappableEntry): number {
@@ -328,41 +344,12 @@ export class PdoViewComponent {
     const next = Math.min(maxBits(entry), capacity, Math.max(1, block.bits + step));
     if (next !== block.bits) {
       setMappingEntry(this.document(), slot.direction, slot.slot, subIndex, entry.index, entry.subIndex, next);
-      this.changed.emit();
+      this.commit();
     }
   }
 
   blocks(slot: PdoSlot): MapBlock[] {
-    const blocks: MapBlock[] = [];
-    let used = 0;
-    slot.mappings.forEach((row, index) => {
-      const bits = row.bits && row.bits > 0 ? row.bits : 0;
-      if (bits === 0 || used >= 64) {
-        return;
-      }
-      const span = Math.min(bits, 64 - used);
-      const value = row.index != null && row.entrySubIndex != null ? `${row.index}:${row.entrySubIndex}` : '';
-      blocks.push({
-        key: `${slot.commIndex}-${row.subIndex}`,
-        bits: span,
-        label: this.blockLabel(row),
-        kind: index % 2 === 0 ? 'a' : 'b',
-        subIndex: row.subIndex,
-        value,
-      });
-      used += span;
-    });
-    if (used < 64) {
-      blocks.push({
-        key: `${slot.commIndex}-empty`,
-        bits: 64 - used,
-        label: 'Empty',
-        kind: 'empty',
-        subIndex: null,
-        value: '',
-      });
-    }
-    return blocks;
+    return this.view().blocks.get(slot.slot) ?? [];
   }
 
   isPicked(slot: PdoSlot, block: MapBlock): boolean {
@@ -430,7 +417,7 @@ export class PdoViewComponent {
       return;
     }
     setPdoField(this.document(), slot.direction, slot.slot, name, value);
-    this.changed.emit();
+    this.commit();
   }
 
   setInvalid(invalid: boolean): void {
@@ -448,9 +435,10 @@ export class PdoViewComponent {
     const error = addPdo(this.document(), this.direction());
     this.warn(error);
     if (!error) {
+      this.refresh();
       const slots = this.slots();
       this.selectedSlot = slots[slots.length - 1]?.slot ?? null;
-      this.changed.emit();
+      this.commit();
     }
   }
 
@@ -460,12 +448,13 @@ export class PdoViewComponent {
       return;
     }
     removePdo(this.document(), slot.direction, slot.slot);
+    this.refresh();
     this.selectedSlot = this.slots()[0]?.slot ?? null;
-    this.changed.emit();
+    this.commit();
   }
 
   save(): void {
-    this.changed.emit();
+    this.commit();
   }
 
   openMenu(event: MouseEvent, slot: PdoSlot, block: MapBlock): void {
@@ -497,7 +486,7 @@ export class PdoViewComponent {
       this.pickedCell = { slot: slot.slot, key: `${slot.commIndex}-${target}` };
       this.listKey = `${INSERT_DUMMY}:0`;
       requestAnimationFrame(() => this.centerListSelection());
-      this.changed.emit();
+      this.commit();
     }
   }
 
@@ -509,7 +498,7 @@ export class PdoViewComponent {
     }
     removeMapping(this.document(), this.direction(), menu.slot, menu.subIndex);
     this.pickedCell = null;
-    this.changed.emit();
+    this.commit();
   }
 
   zoom(step: number): void {
@@ -539,6 +528,7 @@ export class PdoViewComponent {
         this.warn(error);
         return null;
       }
+      this.refresh();
       const updated = this.slots().find((item) => item.slot === slot.slot);
       target = updated?.mappings[updated.mappings.length - 1]?.subIndex ?? null;
       if (target == null) {
@@ -546,24 +536,23 @@ export class PdoViewComponent {
       }
     }
     setMappingEntry(this.document(), slot.direction, slot.slot, target, entry.index, entry.subIndex, bits);
-    this.changed.emit();
+    this.commit();
     return target;
+  }
+
+  private refresh(): void {
+    this.edits.update((value) => value + 1);
+  }
+
+  private commit(): void {
+    this.refresh();
+    this.changed.emit();
   }
 
   private warn(text: string | null): void {
     if (text) {
       void this.dialogs.warning(text);
     }
-  }
-
-  private blockLabel(row: MappingRow): string {
-    if (row.index == null || row.entrySubIndex == null) {
-      return row.label;
-    }
-    const object = this.document().objects.find((entry) => entry.index === row.index);
-    const sub = object?.subObjects.find((entry) => entry.subIndex === row.entrySubIndex);
-    const name = dummyName(row.index) ?? (row.entrySubIndex === 0 ? object?.name : sub?.name || object?.name);
-    return `0x${hex4(row.index)}/${hex2(row.entrySubIndex)}/${name ?? ''}`.replace(/\/$/, '');
   }
 }
 
@@ -603,4 +592,47 @@ function parseCob(raw: string): number | null {
 function parseHex(raw: string): number | null {
   const text = raw.trim();
   return /^(0x)?[0-9a-f]{1,4}$/i.test(text) ? Number.parseInt(text.replace(/^0x/i, ''), 16) : null;
+}
+
+function slotBlocks(slot: PdoSlot, objects: Map<number, OdEntry>): MapBlock[] {
+  const blocks: MapBlock[] = [];
+  let used = 0;
+  slot.mappings.forEach((row, index) => {
+    const bits = row.bits && row.bits > 0 ? row.bits : 0;
+    if (bits === 0 || used >= 64) {
+      return;
+    }
+    const span = Math.min(bits, 64 - used);
+    const value = row.index != null && row.entrySubIndex != null ? `${row.index}:${row.entrySubIndex}` : '';
+    blocks.push({
+      key: `${slot.commIndex}-${row.subIndex}`,
+      bits: span,
+      label: blockLabel(row, objects),
+      kind: index % 2 === 0 ? 'a' : 'b',
+      subIndex: row.subIndex,
+      value,
+    });
+    used += span;
+  });
+  if (used < 64) {
+    blocks.push({
+      key: `${slot.commIndex}-empty`,
+      bits: 64 - used,
+      label: 'Empty',
+      kind: 'empty',
+      subIndex: null,
+      value: '',
+    });
+  }
+  return blocks;
+}
+
+function blockLabel(row: MappingRow, objects: Map<number, OdEntry>): string {
+  if (row.index == null || row.entrySubIndex == null) {
+    return row.label;
+  }
+  const object = objects.get(row.index);
+  const sub = object?.subObjects.find((entry) => entry.subIndex === row.entrySubIndex);
+  const name = dummyName(row.index) ?? (row.entrySubIndex === 0 ? object?.name : sub?.name || object?.name);
+  return `0x${hex4(row.index)}/${hex2(row.entrySubIndex)}/${name ?? ''}`.replace(/\/$/, '');
 }

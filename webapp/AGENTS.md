@@ -148,3 +148,11 @@ when a PDO contains objects with the same name. The bit width is not part of the
 Changes in the PDO tab update these labels immediately;
 there is no refresh button. When the project is saved, the labels replace names such as
 "Application object 1" in the project file.
+
+### Performance
+
+Projects with many PDOs (e.g. 50 RPDOs with 10 to 20 mapped objects each) must stay responsive:
+selecting a PDO, a mapped object, or an object dictionary entry takes well below 100 ms. All tabs
+stay rendered and are only hidden, so template bindings must not rebuild data from the whole
+document. Derived data such as the PDO list, the graphical PDO cells, and the list of mappable
+objects is computed once per document revision; every change increments the revision of the device.
