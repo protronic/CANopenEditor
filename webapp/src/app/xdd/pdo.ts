@@ -405,8 +405,14 @@ export function removePdo(document: DeviceDocument, direction: PdoDirection, slo
   const commIndex = commBase(direction) + slot;
   const mappingIndex = mapBase(direction) + slot;
   document.objects = document.objects.filter((object) => object.index !== commIndex && object.index !== mappingIndex);
+  bitwiseFlags.get(document)?.delete(commIndex);
   updatePdoCount(document, direction);
 }
+
+const ADDABLE_SUB: Partial<Record<PdoField, { name: string; dataType: OdEntry['dataType'] }>> = {
+  eventTimer: { name: 'Event timer', dataType: 'UNSIGNED16' },
+  syncStart: { name: 'Sync start value', dataType: 'UNSIGNED8' },
+};
 
 export function setPdoField(
   document: DeviceDocument,
@@ -418,15 +424,110 @@ export function setPdoField(
   const index = commBase(direction) + slot;
   const subIndex = FIELD_SUB[field];
   const object = findObject(document, index);
-  if (field === 'syncStart' && object && !object.subObjects.some((sub) => sub.subIndex === subIndex)) {
-    object.subObjects.push(communicationSub(index, subIndex, 'Sync start value', 'UNSIGNED8', 'readWrite', value));
+  const addable = ADDABLE_SUB[field];
+  if (addable && object && !object.subObjects.some((sub) => sub.subIndex === subIndex)) {
+    object.subObjects.push(communicationSub(index, subIndex, addable.name, addable.dataType, 'readWrite', value));
     object.subObjects.sort((a, b) => a.subIndex - b.subIndex);
     const count = object.subObjects.find((sub) => sub.subIndex === 0);
     if (count) {
-      count.defaultValue = String(subIndex);
+      count.defaultValue = String(Math.max(...object.subObjects.map((sub) => sub.subIndex)));
     }
   }
   setSubValue(document, index, subIndex, value);
+}
+
+/** Moves a PDO to another communication index; the mapping index always follows at +0x200. */
+export function movePdo(document: DeviceDocument, direction: PdoDirection, slot: number, commIndex: number): string | null {
+  const base = commBase(direction);
+  if (!Number.isInteger(commIndex) || commIndex < base || commIndex >= base + 0x200) {
+    return `The communication index must be between 0x${hex4(base)} and 0x${hex4(base + 0x1ff)}.`;
+  }
+  const from = base + slot;
+  if (commIndex === from) {
+    return null;
+  }
+  const mapTo = commIndex + 0x200;
+  if (findObject(document, commIndex) || findObject(document, mapTo)) {
+    return `Index 0x${hex4(commIndex)} or 0x${hex4(mapTo)} is already in use.`;
+  }
+  for (const [oldIndex, newIndex] of [[from, commIndex], [mapBase(direction) + slot, mapTo]]) {
+    const object = findObject(document, oldIndex);
+    if (object) {
+      object.index = newIndex;
+      object.subObjects.forEach((sub) => (sub.index = newIndex));
+    }
+  }
+  const flags = bitwiseFlags.get(document);
+  if (flags?.has(from)) {
+    flags.set(commIndex, flags.get(from)!);
+    flags.delete(from);
+  }
+  sortDocument(document);
+  return null;
+}
+
+/** Width of an object in a PDO without bitwise mapping: whole bytes, at least 8 and at most 64 bits. */
+export function byteMappingBits(bits: number): number {
+  return Math.min(64, Math.max(8, Math.ceil(bits / 8) * 8));
+}
+
+/** Datatype width of a mappable object, or null if the document does not contain it. */
+export function objectMappingBits(document: DeviceDocument, index: number, subIndex: number): number | null {
+  const dummy = DUMMY_OBJECTS.find((entry) => entry.index === index);
+  if (dummy) {
+    return bitLength(dummy.dataType);
+  }
+  const object = findObject(document, index);
+  if (!object) {
+    return null;
+  }
+  if (subIndex === 0 && object.objectType === 'VAR') {
+    return mappingBits(object.dataType, object.defaultValue);
+  }
+  const sub = object.subObjects.find((entry) => entry.subIndex === subIndex);
+  if (!sub) {
+    return null;
+  }
+  return mappingBits(sub.dataType !== 'UNKNOWN' ? sub.dataType : object.dataType, sub.defaultValue);
+}
+
+const bitwiseFlags = new WeakMap<DeviceDocument, Map<number, boolean>>();
+
+/** Bitwise mapping is a setting of the editor; without one, a PDO with a non-byte width counts as bitwise. */
+export function isBitwiseMapping(document: DeviceDocument, slot: PdoSlot): boolean {
+  return bitwiseFlags.get(document)?.get(slot.commIndex)
+    ?? slot.mappings.some((row) => row.bits != null && row.bits % 8 !== 0);
+}
+
+export function setBitwiseMapping(
+  document: DeviceDocument,
+  direction: PdoDirection,
+  slot: number,
+  bitwise: boolean,
+): string | null {
+  const current = pdoSlots(document, direction).find((item) => item.slot === slot);
+  if (!current) {
+    return null;
+  }
+  if (!bitwise) {
+    const rows = current.mappings.filter((row) => row.index != null && row.entrySubIndex != null && row.bits);
+    const widths = rows.map((row) => byteMappingBits(objectMappingBits(document, row.index!, row.entrySubIndex!) ?? row.bits!));
+    if (widths.reduce((sum, bits) => sum + bits, 0) > 64) {
+      return 'The objects do not fit into the PDO without bitwise mapping.';
+    }
+    rows.forEach((row, position) => {
+      if (row.bits !== widths[position]) {
+        setMappingEntry(document, direction, slot, row.subIndex, row.index!, row.entrySubIndex!, widths[position]);
+      }
+    });
+  }
+  let flags = bitwiseFlags.get(document);
+  if (!flags) {
+    flags = new Map();
+    bitwiseFlags.set(document, flags);
+  }
+  flags.set(current.commIndex, bitwise);
+  return null;
 }
 
 export function setMappingRaw(

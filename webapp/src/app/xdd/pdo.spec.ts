@@ -3,12 +3,18 @@ import { bitLength, createEntry, createEmptyDocument } from '../model/device';
 import {
   addMapping,
   addPdo,
+  byteMappingBits,
   emptySpans,
   fitMappingBits,
+  isBitwiseMapping,
   isMappingObject,
   mappableEntries,
   mappingTargetLabel,
+  movePdo,
+  pdoSlots,
+  setBitwiseMapping,
   setMappingEntry,
+  setPdoField,
   syncMappingNames,
 } from './pdo';
 
@@ -137,5 +143,58 @@ describe('mappableEntries', () => {
           [0x0007, 0, 'Dummy UInt32', 32],
         ]);
     }
+  });
+});
+
+describe('PDO settings', () => {
+  function project() {
+    const document = createEmptyDocument();
+    document.objects.push(
+      createEntry({ index: 0x2100, name: 'Flag', objectType: 'VAR', dataType: 'BOOLEAN', pdoMapping: 'optional' }),
+      createEntry({ index: 0x2200, name: 'Wert', objectType: 'VAR', dataType: 'INTEGER16', pdoMapping: 'optional' }),
+    );
+    addPdo(document, 'rx');
+    return document;
+  }
+
+  it('rounds widths up to whole bytes without bitwise mapping', () => {
+    expect(byteMappingBits(1)).toBe(8);
+    expect(byteMappingBits(0)).toBe(8);
+    expect(byteMappingBits(12)).toBe(16);
+    expect(byteMappingBits(24)).toBe(24);
+    expect(byteMappingBits(80)).toBe(64);
+  });
+
+  it('switches to whole bytes when bitwise mapping is turned off', () => {
+    const document = project();
+    addMapping(document, 'rx', 0);
+    addMapping(document, 'rx', 0);
+    setMappingEntry(document, 'rx', 0, 1, 0x2100, 0, 1);
+    setMappingEntry(document, 'rx', 0, 2, 0x2200, 0, 5);
+    expect(isBitwiseMapping(document, pdoSlots(document, 'rx')[0])).toBe(true);
+
+    expect(setBitwiseMapping(document, 'rx', 0, false)).toBeNull();
+    const slot = pdoSlots(document, 'rx')[0];
+    expect(isBitwiseMapping(document, slot)).toBe(false);
+    expect(slot.mappings.map((row) => row.bits)).toEqual([8, 16]);
+  });
+
+  it('moves communication and mapping objects together', () => {
+    const document = project();
+    expect(movePdo(document, 'rx', 0, 0x1405)).toBeNull();
+    expect(document.objects.map((object) => object.index)).toEqual(expect.arrayContaining([0x1405, 0x1605]));
+    expect(document.objects.some((object) => object.index === 0x1400 || object.index === 0x1600)).toBe(false);
+    expect(document.objects.find((object) => object.index === 0x1605)!.subObjects.every((sub) => sub.index === 0x1605)).toBe(true);
+    expect(movePdo(document, 'rx', 5, 0x1800)).toContain('0x1400');
+  });
+
+  it('adds a missing event timer to an RPDO', () => {
+    const document = project();
+    const comm = document.objects.find((object) => object.index === 0x1400)!;
+    comm.subObjects = comm.subObjects.filter((sub) => sub.subIndex < 3);
+    comm.subObjects[0].defaultValue = '2';
+    setPdoField(document, 'rx', 0, 'eventTimer', '100');
+    expect(pdoSlots(document, 'rx')[0].eventTimer).toBe('100');
+    expect(comm.subObjects[0].defaultValue).toBe('5');
   });
 });

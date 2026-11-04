@@ -9,13 +9,18 @@ import {
   PdoSlot,
   addMapping,
   addPdo,
+  byteMappingBits,
+  commBase,
   dummyName,
   emptySpans,
   fitMappingBits,
+  isBitwiseMapping,
   mappableEntries,
+  movePdo,
   pdoSlots,
   removeMapping,
   removePdo,
+  setBitwiseMapping,
   setMappingEntry,
   setPdoField,
 } from './xdd/pdo';
@@ -59,7 +64,15 @@ interface MapBlock {
                     <td class="mono">0x{{ hexByte(entry.subIndex) }}</td>
                     <td>{{ entry.name }}</td>
                     <td>{{ entry.dataType }}</td>
-                    <td>{{ entry.bits }}</td>
+                    <td class="bits">
+                      @if (bitwise() && entry.key === listSelection()) {
+                        <button type="button" class="step" (click)="$event.stopPropagation(); stepBits(entry, -1)">-</button>
+                        <span>{{ shownBits(entry) }}</span>
+                        <button type="button" class="step" (click)="$event.stopPropagation(); stepBits(entry, 1)">+</button>
+                      } @else {
+                        {{ shownBits(entry) }}
+                      }
+                    </td>
                   </tr>
                 }
               </tbody>
@@ -72,14 +85,23 @@ interface MapBlock {
           <div class="comm-grid">
             <div class="comm-fields">
               <label class="info-line">Communication
-                <input readonly [value]="selected() ? indexText(selected()!.commIndex) : ''" />
+                <input #commInput [disabled]="!selected()" [value]="selected() ? indexText(selected()!.commIndex) : ''"
+                  (change)="moveIndex(commInput, 0)" />
               </label>
               <label class="info-line">Mapping
-                <input readonly [value]="selected() ? indexText(selected()!.mapIndex) : ''" />
+                <input #mapInput [disabled]="!selected()" [value]="selected() ? indexText(selected()!.mapIndex) : ''"
+                  (change)="moveIndex(mapInput, 512)" />
               </label>
               <label class="info-line">COB
-                <input [disabled]="!selected()" [ngModel]="selected()?.cobId ?? ''" (ngModelChange)="field('cobId', $event)" />
+                <input #cobInput [disabled]="!selected()" [value]="cobText(selected()?.cobId ?? '')" (change)="setCob(cobInput)" />
               </label>
+              <div class="info-line">
+                <span></span>
+                <label class="check">
+                  <input type="checkbox" [disabled]="!selected()" [ngModel]="invalid()" (ngModelChange)="setInvalid($event)" />
+                  Invalid
+                </label>
+              </div>
               <label class="info-line">Type
                 <input [disabled]="!selected()" [ngModel]="selected()?.transmission ?? ''" (ngModelChange)="field('transmission', $event)" />
               </label>
@@ -87,15 +109,16 @@ interface MapBlock {
                 <input [disabled]="!selected() || direction() === 'rx'" [ngModel]="selected()?.inhibit ?? ''" (ngModelChange)="field('inhibit', $event)" />
               </label>
               <label class="info-line">Event Timer
-                <input [disabled]="!selected() || direction() === 'rx'" [ngModel]="selected()?.eventTimer ?? ''" (ngModelChange)="field('eventTimer', $event)" />
+                <input [disabled]="!selected()" [ngModel]="selected()?.eventTimer ?? ''" (ngModelChange)="field('eventTimer', $event)" />
               </label>
-              <div class="sync-row">
-                <label class="info-line">Sync start
-                  <input [disabled]="!selected() || direction() === 'rx'" [ngModel]="selected()?.syncStart ?? ''" (ngModelChange)="field('syncStart', $event)" />
-                </label>
-                <label class="check invalid">
-                  <input type="checkbox" [disabled]="!selected()" [ngModel]="invalid()" (ngModelChange)="setInvalid($event)" />
-                  Invalid
+              <label class="info-line">Sync start
+                <input [disabled]="!selected() || direction() === 'rx'" [ngModel]="selected()?.syncStart ?? ''" (ngModelChange)="field('syncStart', $event)" />
+              </label>
+              <div class="info-line">
+                <span></span>
+                <label class="check">
+                  <input #bitwiseBox type="checkbox" [disabled]="!selected()" [checked]="bitwise()" (change)="setBitwise(bitwiseBox)" />
+                  Bitwise mapping
                 </label>
               </div>
             </div>
@@ -132,8 +155,8 @@ interface MapBlock {
         @for (slot of slots(); track slot.commIndex) {
           <div class="map-row" [class.selected]="slot.slot === activeSlot()" (click)="select(slot)">
             <span>{{ slot.slot + 1 }}</span>
-            <span class="mono">{{ cobHex(slot.cobId) }}</span>
-            <span class="mono">{{ hex(slot.commIndex) }}</span>
+            <span class="mono">{{ cobGraph(slot.cobId) }}</span>
+            <span class="mono">{{ indexText(slot.commIndex) }}</span>
             <span class="bit-track">
               @for (block of blocks(slot); track block.key) {
                 <span
@@ -173,6 +196,7 @@ export class PdoViewComponent {
   menu: { x: number; y: number; slot: number; subIndex: number } | null = null;
   pickedCell: { slot: number; key: string } | null = null;
   listKey: string | null = null;
+  private readonly pendingBits = new Map<string, number>();
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly mapScroll = viewChild<ElementRef<HTMLElement>>('mapScroll');
   readonly bitNumbers = Array.from({ length: 64 }, (_, index) => index);
@@ -210,18 +234,100 @@ export class PdoViewComponent {
     return `0x${hex4(index)}`;
   }
 
-  cobHex(raw: string): string {
-    const value = parseCob(raw);
-    if (value == null) {
-      return raw;
+  cobText(raw: string): string {
+    const cob = splitCob(raw);
+    return cob.prefix + this.cobGraph(raw);
+  }
+
+  cobGraph(raw: string): string {
+    const cob = splitCob(raw);
+    return cob.value == null ? cob.rest : `0x${cob.value.toString(16).toUpperCase()}`;
+  }
+
+  setCob(input: HTMLInputElement): void {
+    const text = this.cobText(input.value);
+    this.field('cobId', text);
+    input.value = text;
+  }
+
+  moveIndex(input: HTMLInputElement, offset: number): void {
+    const slot = this.selected();
+    if (!slot) {
+      return;
     }
-    return (value & 0x7fffffff).toString(16).toUpperCase();
+    const value = parseHex(input.value);
+    const base = commBase(slot.direction) + offset;
+    let error: string | null;
+    if (value == null) {
+      error = 'Enter the index as a hexadecimal number.';
+    } else if (value < base || value >= base + 0x200) {
+      error = `The ${offset ? 'mapping' : 'communication'} index must be between ${this.indexText(base)} and ${this.indexText(base + 0x1ff)}.`;
+    } else {
+      error = movePdo(this.document(), slot.direction, slot.slot, value - offset);
+    }
+    this.formError = error ?? '';
+    if (error != null || value == null) {
+      input.value = this.indexText(slot.commIndex + offset);
+      return;
+    }
+    this.selectedSlot = value - base;
+    this.pickedCell = null;
+    this.listKey = null;
+    input.value = this.indexText(value);
+    this.changed.emit();
   }
 
   invalid(): boolean {
     const slot = this.selected();
     const value = slot ? parseCob(slot.cobId) : null;
     return value != null && (value & 0x80000000) !== 0;
+  }
+
+  bitwise(): boolean {
+    const slot = this.selected();
+    return slot ? isBitwiseMapping(this.document(), slot) : false;
+  }
+
+  setBitwise(box: HTMLInputElement): void {
+    const slot = this.selected();
+    if (!slot) {
+      return;
+    }
+    const error = setBitwiseMapping(this.document(), slot.direction, slot.slot, box.checked);
+    this.formError = error ?? '';
+    if (error) {
+      box.checked = !box.checked;
+      return;
+    }
+    this.changed.emit();
+  }
+
+  shownBits(entry: MappableEntry): number {
+    if (!this.bitwise()) {
+      return byteMappingBits(entry.bits);
+    }
+    const picked = this.pickedBlock();
+    if (picked?.block.value === entry.key) {
+      return picked.block.bits;
+    }
+    return this.pendingBits.get(entry.key) ?? defaultBits(entry);
+  }
+
+  stepBits(entry: MappableEntry, step: number): void {
+    const picked = this.pickedBlock();
+    const subIndex = picked?.block.value === entry.key ? picked.block.subIndex : null;
+    if (picked && subIndex != null) {
+      const { slot, block } = picked;
+      const capacity = 64 - (usedBits(slot) - block.bits);
+      const next = Math.min(maxBits(entry), capacity, Math.max(1, block.bits + step));
+      if (next !== block.bits) {
+        setMappingEntry(this.document(), slot.direction, slot.slot, subIndex, entry.index, entry.subIndex, next);
+        this.changed.emit();
+      }
+      return;
+    }
+    const current = this.pendingBits.get(entry.key) ?? defaultBits(entry);
+    this.pendingBits.set(entry.key, Math.min(maxBits(entry), Math.max(1, current + step)));
   }
 
   blocks(slot: PdoSlot): MapBlock[] {
@@ -330,9 +436,10 @@ export class PdoViewComponent {
     if (!slot) {
       return;
     }
-    const value = parseCob(slot.cobId) ?? 0;
+    const cob = splitCob(slot.cobId);
+    const value = cob.value ?? 0;
     const next = invalid ? (value | 0x80000000) : (value & 0x7fffffff);
-    this.field('cobId', `0x${(next >>> 0).toString(16).toUpperCase().padStart(8, '0')}`);
+    this.field('cobId', `${cob.prefix}0x${(next >>> 0).toString(16).toUpperCase()}`);
   }
 
   create(): void {
@@ -394,9 +501,11 @@ export class PdoViewComponent {
   }
 
   private applyMapping(slot: PdoSlot, subIndex: number | null, entry: MappableEntry): number | null {
-    const used = slot.mappings.reduce((sum, row) => sum + (row.bits && row.bits > 0 ? row.bits : 0), 0);
     const replaced = subIndex == null ? 0 : slot.mappings.find((row) => row.subIndex === subIndex)?.bits ?? 0;
-    const bits = fitMappingBits(entry.bits, used, replaced > 0 ? replaced : 0);
+    const wanted = isBitwiseMapping(this.document(), slot)
+      ? this.pendingBits.get(entry.key) ?? defaultBits(entry)
+      : byteMappingBits(entry.bits);
+    const bits = fitMappingBits(wanted, usedBits(slot), replaced > 0 ? replaced : 0);
     if (bits <= 0) {
       this.formError = 'The object does not fit into the PDO.';
       return null;
@@ -431,18 +540,36 @@ export class PdoViewComponent {
   }
 }
 
-function parseCob(raw: string): number | null {
+function usedBits(slot: PdoSlot): number {
+  return slot.mappings.reduce((sum, row) => sum + (row.bits && row.bits > 0 ? row.bits : 0), 0);
+}
+
+function defaultBits(entry: MappableEntry): number {
+  return entry.bits > 0 ? Math.min(64, entry.bits) : 8;
+}
+
+function maxBits(entry: MappableEntry): number {
+  return entry.bits > 0 ? Math.min(64, entry.bits) : 64;
+}
+
+function splitCob(raw: string): { prefix: string; rest: string; value: number | null } {
   const text = raw.trim();
-  const node = /^\$NODEID\+0x([0-9a-f]+)$/i.exec(text);
-  if (node) {
-    return Number.parseInt(node[1], 16);
+  const node = /^\$NODEID\s*\+\s*(.*)$/i.exec(text);
+  const rest = node ? node[1] : text;
+  let value: number | null = null;
+  if (/^0x[0-9a-f]+$/i.test(rest)) {
+    value = Number.parseInt(rest, 16);
+  } else if (/^\d+$/.test(rest)) {
+    value = Number.parseInt(rest, 10);
   }
-  if (/^0x[0-9a-f]+$/i.test(text)) {
-    const value = Number.parseInt(text, 16);
-    return Number.isFinite(value) ? value : null;
-  }
-  if (/^\d+$/.test(text)) {
-    return Number.parseInt(text, 10);
-  }
-  return null;
+  return { prefix: node ? '$NODEID+' : '', rest, value: value != null && value <= 0xffffffff ? value : null };
+}
+
+function parseCob(raw: string): number | null {
+  return splitCob(raw).value;
+}
+
+function parseHex(raw: string): number | null {
+  const text = raw.trim();
+  return /^(0x)?[0-9a-f]{1,4}$/i.test(text) ? Number.parseInt(text.replace(/^0x/i, ''), 16) : null;
 }

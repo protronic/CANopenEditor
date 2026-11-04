@@ -660,13 +660,6 @@ app-pdo-view {
 
 .comm-fields .info-line { grid-template-columns: 7.4rem minmax(0, 1fr); }
 
-.sync-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.7rem;
-}
-
 .comm-actions,
 .zoom-row {
   display: flex;
@@ -683,10 +676,27 @@ app-pdo-view {
   padding: 0.35rem 0.7rem;
 }
 
-label.check.invalid {
+.comm-fields .info-line > label.check {
+  display: flex;
   flex-direction: row;
-  color: var(--ink);
+  align-items: center;
+  gap: 0.35rem;
   white-space: nowrap;
+}
+
+.available td.bits { white-space: nowrap; }
+
+.available td.bits button.step {
+  width: 1.3rem;
+  height: 1.15rem;
+  margin: 0 0.3rem;
+  padding: 0;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--ink);
+  background: #f3f3f3;
+  border: 1px solid #b7b0a4;
+  border-radius: 3px;
 }
 
 .map-scroll {
@@ -701,11 +711,11 @@ label.check.invalid {
 .map-head,
 .map-bytes,
 .map-row {
-  --byte-span: max(0px, calc((100cqi - 10.5rem - 2px) * var(--zoom, 1)));
+  --byte-span: max(0px, calc((100cqi - 11.9rem - 2px) * var(--zoom, 1)));
   display: grid;
-  grid-template-columns: 2.5rem 4.4rem 3.6rem var(--byte-span);
+  grid-template-columns: 2.5rem 5.6rem 3.8rem var(--byte-span);
   align-items: stretch;
-  width: calc(10.5rem + var(--byte-span));
+  width: calc(11.9rem + var(--byte-span));
 }
 
 .map-head > span:not(.bit-track),
@@ -739,7 +749,7 @@ label.check.invalid {
 
 .map-head > span:nth-child(3),
 .map-bytes > span:nth-child(3),
-.map-row > span:nth-child(3) { left: 6.9rem; }
+.map-row > span:nth-child(3) { left: 8.1rem; }
 
 .map-bytes > span:nth-child(-n + 3) { background: white; }
 
@@ -831,5 +841,5 @@ label.check.invalid {
   .od-groups { min-height: 22rem; border-right: 0; border-bottom: 1px solid var(--line); }
   .object-settings { grid-template-columns: 1fr; }
   .object-settings .span-2, .save-row { grid-column: auto; }
-  .info-layout, .info-split, .pdo-top, .comm-grid, .sync-row { grid-template-columns: 1fr; }
+  .info-layout, .info-split, .pdo-top, .comm-grid { grid-template-columns: 1fr; }
 }
