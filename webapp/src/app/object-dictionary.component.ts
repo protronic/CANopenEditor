@@ -1,4 +1,4 @@
-import { Component, HostListener, effect, input, output } from '@angular/core';
+import { Component, HostListener, effect, inject, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   AccessType,
@@ -21,6 +21,7 @@ import {
   parseUserIndex,
 } from './model/device';
 import { CloneObjectsComponent } from './clone-objects.component';
+import { DialogService } from './state/dialog.service';
 import { isMappingObject, mappingTargetLabel } from './xdd/pdo';
 
 type PendingChoice = 'yes' | 'no' | 'cancel';
@@ -103,9 +104,6 @@ type MenuKind = 'object' | 'sub';
         </div>
 
         <div class="od-form">
-          @if (indexError) {
-            <p class="error">{{ indexError }}</p>
-          }
           <div class="od-id-row">
             <label class="od-line compact">
               <span>Index</span>
@@ -267,9 +265,6 @@ type MenuKind = 'object' | 'sub';
             <label class="check"><input type="radio" name="addType" value="ARRAY" [(ngModel)]="addType" /> ARRAY</label>
             <label class="check"><input type="radio" name="addType" value="RECORD" [(ngModel)]="addType" /> RECORD</label>
           </fieldset>
-          @if (formError) {
-            <p class="error">{{ formError }}</p>
-          }
           <div class="modal-actions">
             <button type="submit">Create</button>
             <button type="button" class="quiet" (click)="showAdd = false">Cancel</button>
@@ -322,8 +317,6 @@ export class ObjectDictionaryComponent {
   dirty = false;
   autosave = false;
   showAdd = false;
-  formError = '';
-  indexError = '';
   addIndex = '2000';
   addName = 'New Object';
   addType: ObjectTypeName = 'VAR';
@@ -351,6 +344,7 @@ export class ObjectDictionaryComponent {
   draftDisabled = false;
   draftFlags = false;
 
+  private readonly dialogs = inject(DialogService);
   private extraCounts: string[] = [];
   private extraStorage: string[] = [];
   private baseline = '';
@@ -368,7 +362,6 @@ export class ObjectDictionaryComponent {
         this.cloneSources = [];
         this.menu = null;
         this.showAdd = false;
-        this.indexError = '';
         this.loadDraft();
       }
     });
@@ -565,7 +558,6 @@ export class ObjectDictionaryComponent {
     }
     this.selectedIndex = index;
     this.selectedSubIndex = null;
-    this.indexError = '';
     this.loadDraft();
   }
 
@@ -713,7 +705,6 @@ export class ObjectDictionaryComponent {
     this.addIndex = hex4(next);
     this.addName = 'New Object';
     this.addType = 'VAR';
-    this.formError = '';
     this.showAdd = true;
   }
 
@@ -721,12 +712,12 @@ export class ObjectDictionaryComponent {
     event.preventDefault();
     const parsed = parseUserIndex(this.addIndex);
     if (parsed == null) {
-      this.formError = 'Enter the index as a hex value between 0 and FFFF.';
+      void this.dialogs.warning('Enter the index as a hex value between 0 and FFFF.');
       return;
     }
     const name = this.addName.trim();
     if (!name) {
-      this.formError = 'Please specify a name';
+      void this.dialogs.warning('Please specify a name');
       return;
     }
     const entry = createEntry({
@@ -763,7 +754,7 @@ export class ObjectDictionaryComponent {
     }
     const error = addObject(this.document(), entry);
     if (error) {
-      this.formError = error;
+      void this.dialogs.warning(error);
       return;
     }
     this.showAdd = false;
@@ -774,13 +765,13 @@ export class ObjectDictionaryComponent {
     this.changed.emit();
   }
 
-  deleteSelected(): void {
+  async deleteSelected(): Promise<void> {
     this.menu = null;
     const objects = this.selectedObjects();
     if (objects.length === 0) {
       return;
     }
-    if (!confirm(`Do you really want to delete the selected ${objects.length} items?`)) {
+    if (!(await this.dialogs.confirm(`Do you really want to delete the selected ${objects.length} items?`))) {
       return;
     }
     objects.forEach((object) => deleteObject(this.document(), object.index));
@@ -811,8 +802,8 @@ export class ObjectDictionaryComponent {
       return;
     }
     const error = addSubObject(this.document(), object.index);
-    this.indexError = error ?? '';
     if (error) {
+      void this.dialogs.warning(error);
       return;
     }
     this.selectedSubIndex = object.subObjects[object.subObjects.length - 1]?.subIndex ?? null;

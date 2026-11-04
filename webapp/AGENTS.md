@@ -33,6 +33,12 @@ file information, object dictionary, baud rates, and network features are not pr
 The web UI should replicate the CANopenEditor EDSEditorGUI with the older WinForms interface.
 All labels within the UI remain in their original English language and are not translated.
 
+The start page offers the buttons "New", "Open", and "Open example XDD". The header does not show a
+notice that a file was opened.
+
+Questions to the user use an in-app overlay window with "OK" and "Cancel" instead of `confirm()`.
+Errors and warnings use an in-app overlay window that must be acknowledged with "OK".
+
 ### Layout
 
 The following images show the prescribed layout for each tab.

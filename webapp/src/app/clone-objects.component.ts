@@ -1,6 +1,7 @@
 import { Component, OnInit, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { OdEntry, hex4 } from './model/device';
+import { DialogService } from './state/dialog.service';
 import { ProjectStore } from './state/project.store';
 import { CloneRow, buildCloneRows } from './xdd/clone';
 import { parseOffsets } from './xdd/profiles';
@@ -76,7 +77,7 @@ export class CloneObjectsComponent implements OnInit {
   offsetText = '1';
   private readonly unchecked = new Set<number>();
 
-  constructor(readonly store: ProjectStore) {
+  constructor(readonly store: ProjectStore, private readonly dialogs: DialogService) {
     this.targetId = store.selectedId() ?? store.devices()[0]?.id ?? '';
   }
 
@@ -118,7 +119,7 @@ export class CloneObjectsComponent implements OnInit {
     const rows = this.rows().filter((row) => !row.conflict && this.isChecked(row));
     const count = this.store.cloneInto(this.targetId, rows, this.offsets());
     if (count == null) {
-      this.message.set('Select a target device.');
+      void this.dialogs.warning('Select a target device.');
       return;
     }
     const target = this.store.devices().find((device) => device.id === this.targetId);

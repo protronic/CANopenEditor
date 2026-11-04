@@ -1,6 +1,7 @@
 import { Component, ElementRef, HostListener, inject, input, output, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DeviceDocument, hex2, hex4 } from './model/device';
+import { DialogService } from './state/dialog.service';
 import {
   MappableEntry,
   MappingRow,
@@ -41,9 +42,6 @@ interface MapBlock {
   imports: [FormsModule],
   template: `
     <div class="pdo-layout">
-      @if (formError) {
-        <p class="error">{{ formError }}</p>
-      }
       <div class="pdo-top">
         <fieldset class="available">
           <legend>Available Objects for PDO</legend>
@@ -196,12 +194,12 @@ export class PdoViewComponent {
   readonly document = input.required<DeviceDocument>();
   readonly direction = input.required<PdoDirection>();
   readonly changed = output<void>();
-  formError = '';
   selectedSlot: number | null = null;
   zoomLevel = 1;
   menu: { x: number; y: number; slot: number; subIndex: number } | null = null;
   pickedCell: { slot: number; key: string } | null = null;
   listKey: string | null = null;
+  private readonly dialogs = inject(DialogService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly mapScroll = viewChild<ElementRef<HTMLElement>>('mapScroll');
   readonly bitNumbers = Array.from({ length: 64 }, (_, index) => index);
@@ -237,7 +235,6 @@ export class PdoViewComponent {
       this.listKey = null;
     }
     this.selectedSlot = slot.slot;
-    this.formError = '';
   }
 
   indexText(index: number): string {
@@ -275,7 +272,7 @@ export class PdoViewComponent {
     } else {
       error = movePdo(this.document(), slot.direction, slot.slot, value - offset);
     }
-    this.formError = error ?? '';
+    this.warn(error);
     if (error != null || value == null) {
       input.value = this.indexText(slot.commIndex + offset);
       return;
@@ -304,7 +301,7 @@ export class PdoViewComponent {
       return;
     }
     const error = setBitwiseMapping(this.document(), slot.direction, slot.slot, box.checked);
-    this.formError = error ?? '';
+    this.warn(error);
     if (error) {
       box.checked = !box.checked;
       return;
@@ -399,7 +396,6 @@ export class PdoViewComponent {
     this.listKey = entry.key;
     const { slot, block } = picked;
     if (block.value === entry.key) {
-      this.formError = '';
       return;
     }
     const target = this.applyMapping(slot, block.subIndex, entry);
@@ -450,7 +446,7 @@ export class PdoViewComponent {
 
   create(): void {
     const error = addPdo(this.document(), this.direction());
-    this.formError = error ?? '';
+    this.warn(error);
     if (!error) {
       const slots = this.slots();
       this.selectedSlot = slots[slots.length - 1]?.slot ?? null;
@@ -458,9 +454,9 @@ export class PdoViewComponent {
     }
   }
 
-  remove(): void {
+  async remove(): Promise<void> {
     const slot = this.selected();
-    if (!slot || !confirm('Delete PDO?')) {
+    if (!slot || !(await this.dialogs.confirm('Delete PDO?'))) {
       return;
     }
     removePdo(this.document(), slot.direction, slot.slot);
@@ -469,7 +465,6 @@ export class PdoViewComponent {
   }
 
   save(): void {
-    this.formError = '';
     this.changed.emit();
   }
 
@@ -491,13 +486,13 @@ export class PdoViewComponent {
       return;
     }
     if (fitMappingBits(INSERT_DUMMY_BITS, usedBits(slot)) < INSERT_DUMMY_BITS) {
-      this.formError = 'The object does not fit into the PDO.';
+      this.warn('The object does not fit into the PDO.');
       return;
     }
     const target = menu.subIndex + (after ? 1 : 0);
     const raw = encodeMapping(INSERT_DUMMY, 0, INSERT_DUMMY_BITS);
     const error = insertMapping(this.document(), slot.direction, slot.slot, target, raw);
-    this.formError = error ?? '';
+    this.warn(error);
     if (!error) {
       this.pickedCell = { slot: slot.slot, key: `${slot.commIndex}-${target}` };
       this.listKey = `${INSERT_DUMMY}:0`;
@@ -534,14 +529,14 @@ export class PdoViewComponent {
     const wanted = isBitwiseMapping(this.document(), slot) ? defaultBits(entry) : byteMappingBits(entry.bits);
     const bits = fitMappingBits(wanted, usedBits(slot), replaced > 0 ? replaced : 0);
     if (bits <= 0) {
-      this.formError = 'The object does not fit into the PDO.';
+      this.warn('The object does not fit into the PDO.');
       return null;
     }
     let target = subIndex;
     if (target == null) {
       const error = addMapping(this.document(), slot.direction, slot.slot);
       if (error) {
-        this.formError = error;
+        this.warn(error);
         return null;
       }
       const updated = this.slots().find((item) => item.slot === slot.slot);
@@ -551,9 +546,14 @@ export class PdoViewComponent {
       }
     }
     setMappingEntry(this.document(), slot.direction, slot.slot, target, entry.index, entry.subIndex, bits);
-    this.formError = '';
     this.changed.emit();
     return target;
+  }
+
+  private warn(text: string | null): void {
+    if (text) {
+      void this.dialogs.warning(text);
+    }
   }
 
   private blockLabel(row: MappingRow): string {

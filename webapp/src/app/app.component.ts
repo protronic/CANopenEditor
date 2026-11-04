@@ -1,8 +1,10 @@
 import { Component, signal } from '@angular/core';
 import { DeviceInfoComponent } from './device-info.component';
+import { DialogHostComponent } from './dialog-host.component';
 import { InsertProfileComponent } from './insert-profile.component';
 import { ObjectDictionaryComponent } from './object-dictionary.component';
 import { PdoViewComponent } from './pdo-view.component';
+import { DialogService } from './state/dialog.service';
 import { OpenDevice, ProjectStore } from './state/project.store';
 
 type EditorTab = 'info' | 'od' | 'rx' | 'tx';
@@ -10,7 +12,7 @@ type EditorTab = 'info' | 'od' | 'rx' | 'tx';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [DeviceInfoComponent, InsertProfileComponent, ObjectDictionaryComponent, PdoViewComponent],
+  imports: [DialogHostComponent, DeviceInfoComponent, InsertProfileComponent, ObjectDictionaryComponent, PdoViewComponent],
   template: `
     <div class="shell">
       <header class="top">
@@ -31,9 +33,7 @@ type EditorTab = 'info' | 'od' | 'rx' | 'tx';
         </div>
       </header>
 
-      @if (store.error(); as error) {
-        <p class="banner error">{{ error }}</p>
-      } @else if (store.status()) {
+      @if (store.status()) {
         <p class="banner">{{ store.status() }}</p>
       }
 
@@ -83,6 +83,7 @@ type EditorTab = 'info' | 'od' | 'rx' | 'tx';
               <p>Only the <strong>XDD</strong> file format is read and written.</p>
               <div class="actions">
                 <button type="button" (click)="store.newDevice()">New</button>
+                <button type="button" (click)="picker.click()">Open</button>
                 <button type="button" (click)="loadExample()">Open example XDD</button>
               </div>
             </section>
@@ -92,6 +93,7 @@ type EditorTab = 'info' | 'od' | 'rx' | 'tx';
       @if (profileOpen()) {
         <app-insert-profile (closed)="profileOpen.set(false)" (inserted)="tab.set('od')" />
       }
+      <app-dialog-host />
     </div>
   `,
 })
@@ -99,7 +101,7 @@ export class AppComponent {
   readonly tab = signal<EditorTab>('info');
   readonly profileOpen = signal(false);
 
-  constructor(readonly store: ProjectStore) {}
+  constructor(readonly store: ProjectStore, private readonly dialogs: DialogService) {}
 
   openFile(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -109,7 +111,7 @@ export class AppComponent {
       return;
     }
     if (!file.name.toLowerCase().endsWith('.xdd')) {
-      this.store.error.set('Only XDD files are read. Other formats are not imported or exported.');
+      void this.dialogs.error('Only XDD files are read. Other formats are not imported or exported.');
       return;
     }
     const reader = new FileReader();
@@ -117,7 +119,7 @@ export class AppComponent {
       this.store.openXml(file.name, String(reader.result ?? ''));
     };
     reader.onerror = () => {
-      this.store.error.set('The file could not be read.');
+      void this.dialogs.error('The file could not be read.');
     };
     reader.readAsText(file);
   }
@@ -138,10 +140,10 @@ export class AppComponent {
     this.store.markSaved(device.id, result.fileName);
   }
 
-  close(device: OpenDevice, event: Event): void {
+  async close(device: OpenDevice, event: Event): Promise<void> {
     event.stopPropagation();
     const name = device.document.productName || device.fileName;
-    if (device.dirty && !confirm(`"${name}" has unsaved changes. Close file?`)) {
+    if (device.dirty && !(await this.dialogs.confirm(`"${name}" has unsaved changes. Close file?`))) {
       return;
     }
     this.store.close(device.id);
@@ -155,7 +157,7 @@ export class AppComponent {
       }
       this.store.openXml('minimal_project.xdd', await response.text());
     } catch {
-      this.store.error.set('The example XDD could not be loaded.');
+      void this.dialogs.error('The example XDD could not be loaded.');
     }
   }
 }

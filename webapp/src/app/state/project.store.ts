@@ -1,8 +1,9 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { DeviceDocument, ensureXddName, formatDate, formatTime } from '../model/device';
 import { createEmptyDocument } from '../model/device';
 import { parseXdd, writeXdd } from '../xdd/xdd-codec';
 import { CloneRow, cloneObjects } from '../xdd/clone';
+import { DialogService } from './dialog.service';
 import { InsertRow, insertSelected } from '../xdd/profiles';
 import { pdoSlots, syncMappingNames } from '../xdd/pdo';
 
@@ -17,20 +18,19 @@ export interface OpenDevice {
 export class ProjectStore {
   readonly devices = signal<OpenDevice[]>([]);
   readonly selectedId = signal<string | null>(null);
-  readonly error = signal<string | null>(null);
   readonly status = signal<string | null>(null);
+
+  private readonly dialogs = inject(DialogService);
 
   readonly selected = computed(() => this.devices().find((device) => device.id === this.selectedId()) ?? null);
 
   select(id: string): void {
     this.selectedId.set(id);
-    this.error.set(null);
   }
 
   newDevice(): void {
     this.add(this.create(createEmptyDocument(), 'project.xdd', true));
     this.status.set('New device created.');
-    this.error.set(null);
   }
 
   openXml(fileName: string, xml: string): void {
@@ -39,11 +39,9 @@ export class ProjectStore {
       const safeName = ensureXddName(fileName, document.productName);
       document.fileName = safeName;
       this.add(this.create(document, safeName, false));
-      this.status.set(`${safeName} opened.`);
-      this.error.set(null);
+      this.status.set(null);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'The XDD file could not be read.';
-      this.error.set(message);
+      void this.dialogs.error(error instanceof Error ? error.message : 'The XDD file could not be read.');
     }
   }
 
@@ -104,7 +102,6 @@ export class ProjectStore {
       device.id === id ? { ...device, dirty: false, fileName } : device
     )));
     this.status.set(`${fileName} written.`);
-    this.error.set(null);
   }
 
   private add(device: OpenDevice): void {

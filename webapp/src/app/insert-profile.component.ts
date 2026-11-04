@@ -1,6 +1,7 @@
 import { Component, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DeviceDocument, hex4 } from './model/device';
+import { DialogService } from './state/dialog.service';
 import { ProjectStore } from './state/project.store';
 import { parseXdd } from './xdd/xdd-codec';
 import {
@@ -91,7 +92,7 @@ export class InsertProfileComponent {
   private readonly cache = new Map<string, DeviceDocument>();
   private readonly selection = new Map<string, boolean>();
 
-  constructor(readonly store: ProjectStore) {
+  constructor(readonly store: ProjectStore, private readonly dialogs: DialogService) {
     this.targetId = store.selectedId() ?? store.devices()[0]?.id ?? '';
   }
 
@@ -125,7 +126,7 @@ export class InsertProfileComponent {
         this.cache.set(file, parseXdd(await response.text()));
       } catch (error) {
         this.picked.delete(file);
-        this.message.set(error instanceof Error ? error.message : `${file} could not be loaded.`);
+        void this.dialogs.error(error instanceof Error ? error.message : `${file} could not be loaded.`);
       } finally {
         this.busy.set(false);
       }
@@ -163,23 +164,23 @@ export class InsertProfileComponent {
     this.rebuild(false);
   }
 
-  insert(): void {
+  async insert(): Promise<void> {
     const rows = this.rows();
     const conflicts = rows.filter((row) => row.selected && row.conflict);
     let overwrite = false;
     if (conflicts.length > 0) {
       const names = conflicts.map((row) => `${indexLabel(row.indexes)} ${row.entry.name}`).join(', ');
-      overwrite = confirm(conflicts.length === 1
+      overwrite = await this.dialogs.confirm(conflicts.length === 1
         ? `${names} already exists. Overwrite the existing object?`
         : `These objects already exist: ${names}. Overwrite them?`);
       if (!overwrite && !rows.some((row) => row.selected && !row.conflict)) {
-        this.message.set('Existing objects were kept.');
+        void this.dialogs.warning('Existing objects were kept.');
         return;
       }
     }
     const count = this.store.insertObjects(this.targetId, rows, overwrite);
     if (count == null) {
-      this.message.set('Select a target device.');
+      void this.dialogs.warning('Select a target device.');
       return;
     }
     const names = [...this.picked].join(', ');
