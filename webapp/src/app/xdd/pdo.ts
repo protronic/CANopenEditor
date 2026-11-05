@@ -317,7 +317,7 @@ export function mappableEntries(document: DeviceDocument, direction?: PdoDirecti
 function defaultCobId(direction: PdoDirection, slot: number): string {
   const table = direction === 'rx' ? [0x200, 0x300, 0x400, 0x500] : [0x180, 0x280, 0x380, 0x480];
   if (slot < table.length) {
-    return `$NODEID+0x${table[slot].toString(16)}`;
+    return `$NODEID+0x${((direction === 'tx' ? 0x40000000 : 0) + table[slot]).toString(16).toUpperCase()}`;
   }
   return '0x80000000';
 }
@@ -374,14 +374,21 @@ export function addPdo(document: DeviceDocument, direction: PdoDirection): strin
       dataType: 'UNKNOWN',
       access: 'readWrite',
       pdoMapping: 'no',
-      subObjects: [
-        communicationSub(commIndex, 0, 'Highest sub-index supported', 'UNSIGNED8', 'const', '5'),
-        communicationSub(commIndex, 1, 'COB-ID', 'UNSIGNED32', 'readWrite', defaultCobId(direction, slot)),
-        communicationSub(commIndex, 2, 'Transmission type', 'UNSIGNED8', 'readWrite', '255'),
-        communicationSub(commIndex, 3, 'Inhibit time', 'UNSIGNED16', 'readWrite', '0'),
-        communicationSub(commIndex, 4, 'Compatibility entry', 'UNSIGNED8', 'readWrite', '0'),
-        communicationSub(commIndex, 5, 'Event timer', 'UNSIGNED16', 'readWrite', '0'),
-      ],
+      subObjects: receive
+        ? [
+          communicationSub(commIndex, 0, 'Highest sub-index supported', 'UNSIGNED8', 'const', '0x05'),
+          communicationSub(commIndex, 1, 'COB-ID used by RPDO', 'UNSIGNED32', 'readWrite', defaultCobId(direction, slot)),
+          communicationSub(commIndex, 2, 'Transmission type', 'UNSIGNED8', 'readWrite', '255'),
+          communicationSub(commIndex, 5, 'Event timer', 'UNSIGNED16', 'readWrite', '0'),
+        ]
+        : [
+          communicationSub(commIndex, 0, 'Highest sub-index supported', 'UNSIGNED8', 'const', '0x06'),
+          communicationSub(commIndex, 1, 'COB-ID used by TPDO', 'UNSIGNED32', 'readWrite', defaultCobId(direction, slot)),
+          communicationSub(commIndex, 2, 'Transmission type', 'UNSIGNED8', 'readWrite', '255'),
+          communicationSub(commIndex, 3, 'Inhibit time', 'UNSIGNED16', 'readWrite', '0'),
+          communicationSub(commIndex, 5, 'Event timer', 'UNSIGNED16', 'readWrite', '0'),
+          communicationSub(commIndex, 6, 'SYNC start value', 'UNSIGNED8', 'readWrite', '0'),
+        ],
     }),
     createEntry({
       index: mappingIndex,
@@ -391,7 +398,7 @@ export function addPdo(document: DeviceDocument, direction: PdoDirection): strin
       access: 'readWrite',
       pdoMapping: 'no',
       subObjects: [
-        communicationSub(mappingIndex, 0, 'Number of mapped objects', 'UNSIGNED8', 'readWrite', '0'),
+        communicationSub(mappingIndex, 0, 'Number of mapped application objects in PDO', 'UNSIGNED8', 'readWrite', '0'),
       ],
     }),
   );
@@ -410,7 +417,7 @@ export function removePdo(document: DeviceDocument, direction: PdoDirection, slo
 
 const ADDABLE_SUB: Partial<Record<PdoField, { name: string; dataType: OdEntry['dataType'] }>> = {
   eventTimer: { name: 'Event timer', dataType: 'UNSIGNED16' },
-  syncStart: { name: 'Sync start value', dataType: 'UNSIGNED8' },
+  syncStart: { name: 'SYNC start value', dataType: 'UNSIGNED8' },
 };
 
 export function setPdoField(
@@ -463,6 +470,95 @@ export function movePdo(document: DeviceDocument, direction: PdoDirection, slot:
   }
   sortDocument(document);
   return null;
+}
+
+export interface CobId {
+  value: number;
+  /** `$NODEID+` before the number, if present. */
+  before: string;
+  /** `+$NODEID` after the number, if present. */
+  after: string;
+  /** Hex digits of the number, kept when the value changes. */
+  digits: number;
+}
+
+/** Parses a COB-ID such as `0x180`, `$NODEID+0x80000500` or `0x40000180+$NODEID`. */
+export function parseCobId(raw: string): CobId | null {
+  const match = /^\s*(\$NODEID\s*\+\s*)?(0x[0-9a-f]+|\d+)(\s*\+\s*\$NODEID)?\s*$/i.exec(raw);
+  if (!match || (match[1] && match[3])) {
+    return null;
+  }
+  const hex = /^0x/i.test(match[2]);
+  const value = hex ? Number.parseInt(match[2].slice(2), 16) : Number(match[2]);
+  if (!(value <= 0xffffffff)) {
+    return null;
+  }
+  return {
+    value,
+    before: match[1] ? '$NODEID+' : '',
+    after: match[3] ? '+$NODEID' : '',
+    digits: hex ? match[2].length - 2 : 0,
+  };
+}
+
+export function formatCobId(cob: CobId, value = cob.value): string {
+  return `${cob.before}0x${(value >>> 0).toString(16).toUpperCase().padStart(cob.digits, '0')}${cob.after}`;
+}
+
+/** Bit 31 of the COB-ID: if set, the PDO does not exist / is not valid. */
+export const COB_INVALID = 0x80000000;
+
+/** Sets or clears bits of a COB-ID and keeps the CAN-ID and `$NODEID`; null if it is no plain COB-ID. */
+export function setCobBits(raw: string, mask: number, on: boolean): string | null {
+  const cob = parseCobId(raw);
+  if (!cob) {
+    return null;
+  }
+  const value = on ? (cob.value | mask) >>> 0 : (cob.value & ~mask) >>> 0;
+  return formatCobId(cob, value);
+}
+
+/**
+ * Checks a COB-ID against CiA 301 (comments of `DS301_profile.xpd`): bit 31 invalid, for a TPDO bit 30
+ * "no RTR allowed", bits 0..10 the 11-bit CAN-ID, all other bits 0.
+ */
+export function cobIdIssue(raw: string, direction: PdoDirection): string | null {
+  const cob = parseCobId(raw);
+  if (!cob) {
+    return `COB "${raw.trim()}" is no valid COB-ID. Use a number, optionally with $NODEID+ before or +$NODEID after it.`;
+  }
+  const reserved = direction === 'rx' ? 0x7ffff800 : 0x3ffff800;
+  if ((cob.value & reserved) !== 0) {
+    return direction === 'rx'
+      ? 'COB-ID used by RPDO: bits 11-30 must be 0 (bit 31: PDO not valid, bits 0-10: 11-bit CAN-ID).'
+      : 'COB-ID used by TPDO: bits 11-29 must be 0 (bit 31: PDO not valid, bit 30: no RTR allowed, bits 0-10: 11-bit CAN-ID).';
+  }
+  return null;
+}
+
+function parseInteger(raw: string): number {
+  const text = raw.trim();
+  return /^0x[0-9a-f]+$/i.test(text) ? Number.parseInt(text, 16) : /^\d+$/.test(text) ? Number(text) : Number.NaN;
+}
+
+/** Checks a communication parameter against the ranges in the comments of `DS301_profile.xpd`. */
+export function pdoFieldIssue(field: Exclude<PdoField, 'cobId'>, raw: string): string | null {
+  const value = parseInteger(raw);
+  switch (field) {
+    case 'transmission':
+      if (!(value >= 0 && value <= 255)) {
+        return 'Transmission type must be a number from 0 to 255.';
+      }
+      return value >= 241 && value <= 253
+        ? `Transmission type ${value} is not used (allowed: 0-240 synchronous, 254/255 event-driven).`
+        : null;
+    case 'inhibit':
+      return value >= 0 && value <= 0xffff ? null : 'Inhibit time (multiple of 100 µs) must be a number from 0 to 65535.';
+    case 'eventTimer':
+      return value >= 0 && value <= 0xffff ? null : 'Event timer (ms) must be a number from 0 to 65535.';
+    case 'syncStart':
+      return value >= 0 && value <= 240 ? null : 'SYNC start value must be a number from 0 to 240.';
+  }
 }
 
 /** Width of an object in a PDO without bitwise mapping: whole bytes, at least 8 and at most 64 bits. */

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { bitLength, createEntry, createEmptyDocument } from '../model/device';
 import {
+  COB_INVALID,
+  cobIdIssue,
+  parseCobId,
+  pdoFieldIssue,
+  setCobBits,
   addMapping,
   addPdo,
   checkMappingObject,
@@ -315,6 +320,63 @@ describe('checkMappingObject', () => {
     const { document, map } = project();
     setBitwiseMapping(document, 'tx', 0, false);
     expect(checkMappingObject(document, map, 2, '0x21010001')).toContain('whole bytes');
+  });
+});
+
+describe('COB-ID', () => {
+  it('parses $NODEID before or after the number', () => {
+    expect(parseCobId('$NODEID+0x80000500')).toEqual({ value: 0x80000500, before: '$NODEID+', after: '', digits: 8 });
+    expect(parseCobId('0x40000180+$NODEID')).toEqual({ value: 0x40000180, before: '', after: '+$NODEID', digits: 8 });
+    expect(parseCobId('384')?.value).toBe(0x180);
+    expect(parseCobId('$NODEID+0x180+$NODEID')).toBeNull();
+    expect(parseCobId('abc')).toBeNull();
+  });
+
+  it('sets only bit 31 for Invalid and keeps CAN-ID and $NODEID', () => {
+    expect(setCobBits('0x40000180+$NODEID', COB_INVALID, true)).toBe('0xC0000180+$NODEID');
+    expect(setCobBits('$NODEID+0x80000500', COB_INVALID, false)).toBe('$NODEID+0x00000500');
+    expect(setCobBits('$NODEID+0x180', COB_INVALID, true)).toBe('$NODEID+0x80000180');
+    expect(setCobBits('0x180', COB_INVALID, false)).toBe('0x180');
+    expect(setCobBits('abc', COB_INVALID, true)).toBeNull();
+  });
+
+  it('checks the reserved bits of RPDO and TPDO', () => {
+    expect(cobIdIssue('$NODEID+0x80000200', 'rx')).toBeNull();
+    expect(cobIdIssue('0x40000200', 'rx')).toContain('bits 11-30');
+    expect(cobIdIssue('$NODEID+0xC0000180', 'tx')).toBeNull();
+    expect(cobIdIssue('0x20000180', 'tx')).toContain('bits 11-29');
+    expect(cobIdIssue('0x800', 'tx')).toContain('bits 11-29');
+    expect(cobIdIssue('xyz', 'tx')).toContain('no valid COB-ID');
+  });
+});
+
+describe('pdoFieldIssue', () => {
+  it('follows the ranges of the DS301 profile', () => {
+    expect(pdoFieldIssue('transmission', '240')).toBeNull();
+    expect(pdoFieldIssue('transmission', '254')).toBeNull();
+    expect(pdoFieldIssue('transmission', '241')).toContain('not used');
+    expect(pdoFieldIssue('transmission', '256')).toContain('0 to 255');
+    expect(pdoFieldIssue('syncStart', '240')).toBeNull();
+    expect(pdoFieldIssue('syncStart', '241')).toContain('0 to 240');
+    expect(pdoFieldIssue('inhibit', '0x10')).toBeNull();
+    expect(pdoFieldIssue('eventTimer', '65536')).toContain('0 to 65535');
+    expect(pdoFieldIssue('eventTimer', '')).toContain('0 to 65535');
+  });
+});
+
+describe('addPdo', () => {
+  it('creates the communication objects like DS301_profile.xpd', () => {
+    const document = createEmptyDocument();
+    addPdo(document, 'rx');
+    addPdo(document, 'tx');
+    const rx = document.objects.find((object) => object.index === 0x1400)!;
+    const tx = document.objects.find((object) => object.index === 0x1800)!;
+    expect(rx.subObjects.map((sub) => sub.subIndex)).toEqual([0, 1, 2, 5]);
+    expect(rx.subObjects[1].name).toBe('COB-ID used by RPDO');
+    expect(rx.subObjects[1].defaultValue).toBe('$NODEID+0x200');
+    expect(tx.subObjects.map((sub) => sub.subIndex)).toEqual([0, 1, 2, 3, 5, 6]);
+    expect(tx.subObjects[1].defaultValue).toBe('$NODEID+0x40000180');
+    expect(tx.subObjects[0].defaultValue).toBe('0x06');
   });
 });
 

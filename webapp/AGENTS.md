@@ -192,6 +192,21 @@ The "TX PDO Mapping" tab comes before the "RX PDO Mapping" tab. The following ap
     updated immediately. BOOLEAN objects occupy at most one bit, so they show no "-" and "+" buttons.
     When the checkbox is checked, mapped objects wider than their datatype shrink to that width.
 - "Event Timer" is editable in both tabs, including "RX PDO Mapping".
+- The communication parameters follow the comments of `DS301_profile.xpd` (CiA 301):
+  - COB-ID: bit 31 = PDO does not exist / is not valid; for a TPDO bit 30 = no RTR allowed;
+    bits 0..10 = 11-bit CAN-ID; all other bits (RPDO 11..30, TPDO 11..29) must be 0. `$NODEID` may
+    stand before (`$NODEID+0x180`) or after (`0x180+$NODEID`) the number and keeps its position.
+  - "Invalid" sets or clears only bit 31; CAN-ID, other bits, `$NODEID` and the number of hex digits
+    stay unchanged. A COB that is no plain number (with optional `$NODEID`) is not changed; a warning
+    is shown instead.
+  - Type (transmission type): 0..240 synchronous, 241..253 not used, 254/255 event-driven.
+  - Inhibit time in multiples of 100 µs and Event timer in ms: 0..65535. SYNC start value: 0..240.
+  - Values outside these rules show a warning when the field is left; the value is kept.
+- "Add new PDO" creates the objects like `DS301_profile.xpd`: RPDO sub-indices 0x00 (0x05),
+  0x01 "COB-ID used by RPDO", 0x02, 0x05; TPDO 0x00 (0x06), 0x01 "COB-ID used by TPDO", 0x02, 0x03,
+  0x05, 0x06 "SYNC start value"; mapping sub-index 0x00 "Number of mapped application objects in PDO".
+  The first four PDOs get `$NODEID+0x200`..`0x500` (RPDO) and `$NODEID+0x40000180`..`0x40000480`
+  (TPDO, no RTR); further PDOs start invalid (`0x80000000`). Transmission type is 255.
 
 #### Saving PDO changes
 

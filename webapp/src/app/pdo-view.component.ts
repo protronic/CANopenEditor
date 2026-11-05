@@ -35,6 +35,12 @@ import {
   setMappingEntry,
   setPdoField,
   syncPdoDraft,
+  COB_INVALID,
+  cobIdIssue,
+  formatCobId,
+  parseCobId,
+  pdoFieldIssue,
+  setCobBits,
 } from './xdd/pdo';
 
 interface MapBlock {
@@ -115,16 +121,16 @@ interface MapBlock {
                 </label>
               </div>
               <label class="info-line">Type
-                <input [disabled]="!selected()" [ngModel]="selected()?.transmission ?? ''" (ngModelChange)="field('transmission', $event)" />
+                <input [disabled]="!selected()" [ngModel]="selected()?.transmission ?? ''" (ngModelChange)="field('transmission', $event)" (change)="checkField('transmission', $any($event.target).value)" />
               </label>
               <label class="info-line">Inhibit
-                <input [disabled]="!selected() || direction() === 'rx'" [ngModel]="selected()?.inhibit ?? ''" (ngModelChange)="field('inhibit', $event)" />
+                <input [disabled]="!selected() || direction() === 'rx'" [ngModel]="selected()?.inhibit ?? ''" (ngModelChange)="field('inhibit', $event)" (change)="checkField('inhibit', $any($event.target).value)" />
               </label>
               <label class="info-line">Event Timer
-                <input [disabled]="!selected()" [ngModel]="selected()?.eventTimer ?? ''" (ngModelChange)="field('eventTimer', $event)" />
+                <input [disabled]="!selected()" [ngModel]="selected()?.eventTimer ?? ''" (ngModelChange)="field('eventTimer', $event)" (change)="checkField('eventTimer', $any($event.target).value)" />
               </label>
               <label class="info-line">Sync start
-                <input [disabled]="!selected() || direction() === 'rx'" [ngModel]="selected()?.syncStart ?? ''" (ngModelChange)="field('syncStart', $event)" />
+                <input [disabled]="!selected() || direction() === 'rx'" [ngModel]="selected()?.syncStart ?? ''" (ngModelChange)="field('syncStart', $event)" (change)="checkField('syncStart', $any($event.target).value)" />
               </label>
               <div class="info-line">
                 <span></span>
@@ -340,24 +346,29 @@ export class PdoViewComponent {
   }
 
   cobText(raw: string): string {
-    const cob = splitCob(raw);
-    return cob.prefix + (cob.value == null ? cob.rest : `0x${cob.value.toString(16).toUpperCase()}`);
+    const cob = parseCobId(raw);
+    return cob ? formatCobId(cob) : raw.trim();
   }
 
   /** Full 32-bit COB-ID for the PDO rows, without $NODEID. */
   cobGraph(raw: string): string {
-    const rest = raw.replace(/\s*\+?\s*\$NODEID\s*\+?\s*/gi, '').trim();
-    const value = /^0x[0-9a-f]+$/i.test(rest) ? Number.parseInt(rest, 16) : /^\d+$/.test(rest) ? Number(rest) : Number.NaN;
-    if (!Number.isFinite(value) || value > 0xffffffff) {
-      return rest;
-    }
-    return `0x${value.toString(16).toUpperCase().padStart(8, '0')}`;
+    const cob = parseCobId(raw);
+    return cob ? `0x${cob.value.toString(16).toUpperCase().padStart(8, '0')}` : raw.replace(/\s*\+?\s*\$NODEID\s*\+?\s*/gi, '').trim();
   }
 
   setCob(input: HTMLInputElement): void {
+    const slot = this.selected();
     const text = this.cobText(input.value);
     this.field('cobId', text);
     input.value = text;
+    if (slot) {
+      this.warn(cobIdIssue(text, slot.direction));
+    }
+  }
+
+  /** Warns about values outside the ranges of CiA 301; the value is kept. */
+  checkField(name: Exclude<PdoField, 'cobId'>, value: string): void {
+    this.warn(pdoFieldIssue(name, value));
   }
 
   moveIndex(input: HTMLInputElement, offset: number): void {
@@ -394,8 +405,8 @@ export class PdoViewComponent {
 
   invalid(): boolean {
     const slot = this.selected();
-    const value = slot ? parseCob(slot.cobId) : null;
-    return value != null && (value & 0x80000000) !== 0;
+    const cob = slot ? parseCobId(slot.cobId) : null;
+    return cob != null && (cob.value & COB_INVALID) !== 0;
   }
 
   bitwise(): boolean {
@@ -523,10 +534,13 @@ export class PdoViewComponent {
     if (!slot) {
       return;
     }
-    const cob = splitCob(slot.cobId);
-    const value = cob.value ?? 0;
-    const next = invalid ? (value | 0x80000000) : (value & 0x7fffffff);
-    this.field('cobId', `${cob.prefix}0x${(next >>> 0).toString(16).toUpperCase()}`);
+    const next = setCobBits(slot.cobId, COB_INVALID, invalid);
+    if (next == null) {
+      this.warn(cobIdIssue(slot.cobId, slot.direction));
+      this.refresh();
+      return;
+    }
+    this.field('cobId', next);
   }
 
   async create(): Promise<void> {
@@ -774,23 +788,6 @@ function defaultBits(entry: MappableEntry): number {
 
 function maxBits(entry: MappableEntry): number {
   return entry.bits > 0 ? Math.min(64, entry.bits) : 64;
-}
-
-function splitCob(raw: string): { prefix: string; rest: string; value: number | null } {
-  const text = raw.trim();
-  const node = /^\$NODEID\s*\+\s*(.*)$/i.exec(text);
-  const rest = node ? node[1] : text;
-  let value: number | null = null;
-  if (/^0x[0-9a-f]+$/i.test(rest)) {
-    value = Number.parseInt(rest, 16);
-  } else if (/^\d+$/.test(rest)) {
-    value = Number.parseInt(rest, 10);
-  }
-  return { prefix: node ? '$NODEID+' : '', rest, value: value != null && value <= 0xffffffff ? value : null };
-}
-
-function parseCob(raw: string): number | null {
-  return splitCob(raw).value;
 }
 
 function parseHex(raw: string): number | null {
