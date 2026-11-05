@@ -734,7 +734,8 @@ export function checkMappingObject(document: DeviceDocument, map: OdEntry, subIn
     return 'The number of mapped objects must be between 0 and 64.';
   }
   const commIndex = map.index - 0x200;
-  const bytesOnly = bitwiseFlags.get(document)?.get(commIndex) === false;
+  const bitwise = bitwiseFlags.get(document)?.get(commIndex);
+  const bytesOnly = bitwise === false;
   let total = 0;
   for (let entry = 1; entry <= count; entry += 1) {
     const sub = map.subObjects.find((item) => item.subIndex === entry);
@@ -757,8 +758,11 @@ export function checkMappingObject(document: DeviceDocument, map: OdEntry, subIn
     if (typeBits == null) {
       return `Mapping entry ${entry}: object ${target} does not exist.`;
     }
-    if (typeBits > 0 && decoded.bits > Math.min(64, typeBits)) {
-      return `Mapping entry ${entry}: ${decoded.bits} bits exceed the width of ${target} (${typeBits} bits).`;
+    // Without bitwise mapping an object occupies whole bytes, e.g. BOOLEAN 8 bits.
+    const byteBits = Math.ceil(typeBits / 8) * 8;
+    const maxBits = bitwise !== true && decoded.bits % 8 === 0 ? byteBits : typeBits;
+    if (typeBits > 0 && decoded.bits > Math.min(64, maxBits)) {
+      return `Mapping entry ${entry}: ${decoded.bits} bits exceed the width of ${target} (${maxBits} bits).`;
     }
     if (bytesOnly && decoded.bits % 8 !== 0) {
       return `Mapping entry ${entry}: ${decoded.bits} bits are not whole bytes, but "Bitwise mapping" is off for this PDO.`;

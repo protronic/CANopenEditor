@@ -323,6 +323,16 @@ describe('checkMappingObject', () => {
     setBitwiseMapping(document, 'tx', 0, false);
     expect(checkMappingObject(document, map, 2, '0x21010001')).toContain('whole bytes');
   });
+
+  it('accepts a BOOLEAN with 8 bits unless bitwise mapping is on', () => {
+    const { document, map } = project();
+    expect(checkMappingObject(document, map, 2, '0x21010008')).toBeNull();
+    setBitwiseMapping(document, 'tx', 0, false);
+    expect(checkMappingObject(document, map, 2, '0x21010008')).toBeNull();
+    expect(checkMappingObject(document, map, 2, '0x21010010')).toContain('exceed the width');
+    setBitwiseMapping(document, 'tx', 0, true);
+    expect(checkMappingObject(document, map, 2, '0x21010008')).toContain('exceed the width');
+  });
 });
 
 describe('COB-ID', () => {
