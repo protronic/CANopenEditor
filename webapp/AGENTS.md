@@ -142,6 +142,39 @@ The "TX PDO Mapping" tab comes before the "RX PDO Mapping" tab. The following ap
     When the checkbox is checked, mapped objects wider than their datatype shrink to that width.
 - "Event Timer" is editable in both tabs, including "RX PDO Mapping".
 
+#### Saving PDO changes
+
+Changes to a PDO in "TX PDO Mapping" and "RX PDO Mapping" must be saved explicitly, as in the
+"Object Dictionary" tab. This covers the communication parameters, the indices, "Bitwise mapping",
+and the mapped objects (assigning, bit width, "Insert Item before/after", "Remove Item"). Unsaved
+changes are kept in a draft of the PDO; the communication object and the PDO mapping object in the
+object dictionary are updated only when the PDO is saved. While the selected PDO has unsaved
+changes, the "Save" button is highlighted. Selecting another PDO, or "Add new PDO", then shows the
+question "Unsaved changes": "Yes" discards the changes (including a moved index), "No" saves them,
+"Cancel" stays on the PDO. With "Autosave changes" checked, changes are saved without the question.
+"Delete PDO" deletes the PDO after its own confirmation.
+
+#### Unsaved changes in both tabs
+
+Changes in the "Object Dictionary" tab are written to the object only with "Save Changes" (or by
+"Autosave changes"); until then the PDO tabs show the saved state. In the other direction, the
+"Object Dictionary" tab shows the saved state of a PDO until it is saved in its PDO tab.
+
+- Saving a PDO while the "Object Dictionary" tab has unsaved changes on its communication or mapping
+  object shows a warning that asks whether these changes shall be overwritten. "OK" discards them and
+  saves the PDO, "Cancel" keeps both and does not save.
+- Saving an object in the "Object Dictionary" tab while a PDO tab has unsaved changes on that object
+  shows the same warning. "OK" discards the PDO changes and saves the object, "Cancel" does not save.
+
+Before a sub-object of a PDO mapping object is saved in the "Object Dictionary" tab, the mapping is
+checked for consistency; on an error a warning is shown and nothing is saved:
+
+- the number of mapped objects (sub-index 0x00) is between 0 and 64, and all counted entries exist;
+- every used entry is a valid mapping value and refers to an existing object or dummy object;
+- the bit width of an entry does not exceed the width of the datatype of the mapped object;
+- all used entries together fit into the 64 bits of the PDO;
+- without "Bitwise mapping", all bit widths are whole bytes.
+
 #### Object Dictionary
 
 In the "Object Dictionary" tab, the sub-objects of the PDO mapping objects "TPDO mapping parameter"
@@ -159,10 +192,13 @@ of the entry changes. When entries move because an item is inserted or removed, 
 follow the new mapping index, edited names move unchanged with their entry. Names of existing
 projects, e.g. "Application object 1", stay unchanged until the mapped object changes.
 
-The button "Reset Names" in "Communication parameters" of the tabs "TX PDO Mapping" and "RX PDO Mapping"
-gives all used mapping entries of that tab the generated name again, after a confirmation in the
-overlay window. Edited names are overwritten; unused entries keep their name. The other tab is not
-changed.
+In the "Object Dictionary" tab, the button "Reset Name" appears right of the "Name" input field
+when a PDO mapping object (0x1600–0x17FF or 0x1A00–0x1BFF) is selected; the input field is shortened
+so that the button is right-aligned with the fields below. The button is enabled only for active
+entries: sub-index 0x01 and higher, counted by sub-index 0x00, mapping an object, and in a mapping
+object that is enabled. For deactivated entries it is disabled. It puts the generated name of the selected entry into the "Name" field,
+based on its default value, without a question. Like any other edit it must be saved with
+"Save Changes". An unused entry keeps its name.
 
 ### Performance
 

@@ -176,27 +176,6 @@ export function mappingTargetLabel(document: DeviceDocument, mappingSubIndex: nu
   return `${mappingSubIndex} - 0x${hex4(decoded.index)}/${hex2(decoded.subIndex)}/${name}`;
 }
 
-/** Gives every used mapping entry of the direction its generated name; returns the number of renamed entries. */
-export function resetMappingNames(document: DeviceDocument, direction: PdoDirection): number {
-  let renamed = 0;
-  for (const map of document.objects) {
-    if (map.index < mapBase(direction) || map.index >= mapBase(direction) + 0x200) {
-      continue;
-    }
-    const count = mappingCount(map);
-    for (const sub of map.subObjects) {
-      const label = sub.subIndex > 0 && sub.subIndex <= count
-        ? mappingTargetLabel(document, sub.subIndex, sub.defaultValue)
-        : null;
-      if (label && sub.name !== label) {
-        sub.name = label;
-        renamed += 1;
-      }
-    }
-  }
-  return renamed;
-}
-
 /** True if both mapping values refer to the same object; the bit width does not matter. */
 export function sameMappingTarget(a: string, b: string): boolean {
   const first = decodeMapping(a);
@@ -239,6 +218,11 @@ function mappingCount(map: OdEntry | undefined): number {
   }
   const value = /^0x/i.test(raw) ? Number.parseInt(raw, 16) : Number.parseInt(raw, 10);
   return Number.isFinite(value) ? value : 0;
+}
+
+/** True if the entry is counted by sub-index 0x00 of the mapping object. */
+export function isMappingEntryCounted(map: OdEntry, subIndex: number): boolean {
+  return subIndex > 0 && subIndex <= mappingCount(map);
 }
 
 export function pdoSlots(document: DeviceDocument, direction: PdoDirection): PdoSlot[] {
@@ -545,6 +529,146 @@ export function setBitwiseMapping(
     bitwiseFlags.set(document, flags);
   }
   flags.set(current.commIndex, bitwise);
+  return null;
+}
+
+/**
+ * Unsaved edits of one PDO: a copy of the document that shares all objects except the communication
+ * and mapping object of the PDO. `commIndex` is where the PDO is in the draft (it may be moved).
+ */
+export interface PdoDraft {
+  document: DeviceDocument;
+  direction: PdoDirection;
+  originalCommIndex: number;
+  commIndex: number;
+}
+
+function mapOffset(direction: PdoDirection): number {
+  return mapBase(direction) - commBase(direction);
+}
+
+function pdoState(document: DeviceDocument, direction: PdoDirection, commIndex: number): string {
+  return JSON.stringify({
+    commIndex,
+    comm: findObject(document, commIndex) ?? null,
+    map: findObject(document, commIndex + mapOffset(direction)) ?? null,
+    bitwise: bitwiseFlags.get(document)?.get(commIndex) ?? null,
+  });
+}
+
+export function createPdoDraft(document: DeviceDocument, direction: PdoDirection, slot: number): PdoDraft {
+  const commIndex = commBase(direction) + slot;
+  const copied = new Set([commIndex, commIndex + mapOffset(direction)]);
+  const draft: DeviceDocument = {
+    ...document,
+    objects: document.objects.map((object) => (copied.has(object.index) ? structuredClone(object) : object)),
+  };
+  bitwiseFlags.set(draft, new Map(bitwiseFlags.get(document) ?? []));
+  return { document: draft, direction, originalCommIndex: commIndex, commIndex };
+}
+
+/** Indices of the communication and mapping object of the PDO, before and after a move. */
+export function pdoDraftIndices(draft: PdoDraft): number[] {
+  const offset = mapOffset(draft.direction);
+  return [...new Set([draft.originalCommIndex, draft.originalCommIndex + offset, draft.commIndex, draft.commIndex + offset])];
+}
+
+/** Takes over objects that were added, removed, or replaced in the document since the draft was made. */
+export function syncPdoDraft(document: DeviceDocument, draft: PdoDraft): void {
+  const own = new Set(pdoDraftIndices(draft));
+  const offset = mapOffset(draft.direction);
+  const edited = [draft.commIndex, draft.commIndex + offset]
+    .map((index) => findObject(draft.document, index))
+    .filter((object): object is OdEntry => object != null);
+  draft.document.objects = [...document.objects.filter((object) => !own.has(object.index)), ...edited]
+    .sort((a, b) => a.index - b.index);
+}
+
+export function pdoDraftChanged(document: DeviceDocument, draft: PdoDraft): boolean {
+  return pdoState(draft.document, draft.direction, draft.commIndex)
+    !== pdoState(document, draft.direction, draft.originalCommIndex);
+}
+
+/** Writes the draft into the document. */
+export function commitPdoDraft(document: DeviceDocument, draft: PdoDraft): string | null {
+  const offset = mapOffset(draft.direction);
+  const target = [draft.commIndex, draft.commIndex + offset];
+  const original = new Set([draft.originalCommIndex, draft.originalCommIndex + offset]);
+  const taken = target.find((index) => !original.has(index) && findObject(document, index));
+  if (taken != null) {
+    return `Index 0x${hex4(taken)} is already in use.`;
+  }
+  const replaced = new Set([...original, ...target]);
+  const edited = target
+    .map((index) => findObject(draft.document, index))
+    .filter((object): object is OdEntry => object != null);
+  document.objects = [...document.objects.filter((object) => !replaced.has(object.index)), ...edited];
+  sortDocument(document);
+  let flags = bitwiseFlags.get(document);
+  if (!flags) {
+    flags = new Map();
+    bitwiseFlags.set(document, flags);
+  }
+  flags.delete(draft.originalCommIndex);
+  const bitwise = bitwiseFlags.get(draft.document)?.get(draft.commIndex);
+  if (bitwise != null) {
+    flags.set(draft.commIndex, bitwise);
+  }
+  return null;
+}
+
+/**
+ * Checks a mapping object after an edit of one of its sub-objects: every used entry must refer to an
+ * existing object, fit its datatype, and all entries together must fit into the 64 bits of a PDO.
+ */
+export function checkMappingObject(document: DeviceDocument, map: OdEntry, subIndex: number, value: string): string | null {
+  if (!isMappingObject(map.index)) {
+    return null;
+  }
+  const valueOf = (sub: OdEntry) => (sub.subIndex === subIndex ? value : sub.defaultValue);
+  const sub0 = map.subObjects.find((sub) => sub.subIndex === 0);
+  const countText = sub0 ? valueOf(sub0).trim() : '';
+  const count = !countText
+    ? map.subObjects.filter((sub) => sub.subIndex > 0).length
+    : /^0x/i.test(countText) ? Number.parseInt(countText, 16) : Number.parseInt(countText, 10);
+  if (!Number.isInteger(count) || count < 0 || count > 64) {
+    return 'The number of mapped objects must be between 0 and 64.';
+  }
+  const commIndex = map.index - 0x200;
+  const bytesOnly = bitwiseFlags.get(document)?.get(commIndex) === false;
+  let total = 0;
+  for (let entry = 1; entry <= count; entry += 1) {
+    const sub = map.subObjects.find((item) => item.subIndex === entry);
+    if (!sub) {
+      return `Mapping entry ${entry} does not exist, but ${count} objects are mapped.`;
+    }
+    const raw = valueOf(sub);
+    const decoded = decodeMapping(raw);
+    if (!decoded) {
+      if (raw.trim().includes('$')) {
+        continue;
+      }
+      return `Mapping entry ${entry}: "${raw}" is not a valid mapping value.`;
+    }
+    if (decoded.bits === 0) {
+      continue;
+    }
+    const typeBits = objectMappingBits(document, decoded.index, decoded.subIndex);
+    const target = `0x${hex4(decoded.index)}/${hex2(decoded.subIndex)}`;
+    if (typeBits == null) {
+      return `Mapping entry ${entry}: object ${target} does not exist.`;
+    }
+    if (typeBits > 0 && decoded.bits > Math.min(64, typeBits)) {
+      return `Mapping entry ${entry}: ${decoded.bits} bits exceed the width of ${target} (${typeBits} bits).`;
+    }
+    if (bytesOnly && decoded.bits % 8 !== 0) {
+      return `Mapping entry ${entry}: ${decoded.bits} bits are not whole bytes, but "Bitwise mapping" is off for this PDO.`;
+    }
+    total += decoded.bits;
+  }
+  if (total > 64) {
+    return `The mapped objects need ${total} bits, but a PDO holds at most 64 bits.`;
+  }
   return null;
 }
 

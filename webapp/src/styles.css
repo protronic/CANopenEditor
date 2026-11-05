@@ -356,6 +356,12 @@ button.collapse {
 
 .od .peach { background: #ffdab9; }
 
+.od-name-row { display: flex; align-items: center; gap: 0.45rem; }
+
+.od-name-row > .od-line { flex: 1; }
+
+.od-name-row > button { flex: none; }
+
 .od-description { flex: 1; align-items: stretch; min-height: 4.5rem; }
 
 .od-description textarea {
@@ -407,7 +413,8 @@ button.collapse {
   padding: 0.4rem 0.85rem;
 }
 
-.od button.system.dirty {
+.od button.system.dirty,
+.pdo-layout button.system.dirty {
   background: tomato;
   color: white;
   border-color: #d4503a;

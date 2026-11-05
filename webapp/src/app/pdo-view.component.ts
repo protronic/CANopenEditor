@@ -1,15 +1,19 @@
-import { Component, ElementRef, HostListener, computed, inject, input, output, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, computed, effect, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DeviceDocument, OdEntry, hex2, hex4 } from './model/device';
 import { DialogService } from './state/dialog.service';
+import { UnsavedEditsService } from './state/unsaved-edits.service';
 import {
   MappableEntry,
   MappingRow,
+  PdoDraft,
   PdoDirection,
   PdoField,
   PdoSlot,
   addMapping,
   addPdo,
+  commitPdoDraft,
+  createPdoDraft,
   byteMappingBits,
   commBase,
   dummyName,
@@ -19,13 +23,15 @@ import {
   isBitwiseMapping,
   mappableEntries,
   movePdo,
+  pdoDraftChanged,
+  pdoDraftIndices,
   pdoSlots,
   removeMapping,
   removePdo,
-  resetMappingNames,
   setBitwiseMapping,
   setMappingEntry,
   setPdoField,
+  syncPdoDraft,
 } from './xdd/pdo';
 
 interface MapBlock {
@@ -128,8 +134,11 @@ interface MapBlock {
             <div class="comm-actions">
               <button type="button" class="system" (click)="create()">Add new PDO</button>
               <button type="button" class="system" (click)="remove()" [disabled]="!selected()">Delete PDO</button>
-              <button type="button" class="system" (click)="save()" [disabled]="!selected()">Save</button>
-              <button type="button" class="system" (click)="resetNames()" [disabled]="!selected()">Reset Names</button>
+              <button type="button" class="system" [class.dirty]="dirty" (click)="save()" [disabled]="!selected()">Save</button>
+              <label class="od-check autosave">
+                <input type="checkbox" [(ngModel)]="autosave" />
+                <span>Autosave changes</span>
+              </label>
             </div>
           </div>
         </fieldset>
@@ -190,6 +199,21 @@ interface MapBlock {
         <button type="button" (click)="removeBlock()">Remove Item</button>
       </div>
     }
+
+    @if (pending) {
+      <div class="modal-back">
+        <div class="modal">
+          <h3>Unsaved changes</h3>
+          <p>Unsaved changes on PDO {{ pendingLabel }}. Do you wish to switch PDO and loose your changes?</p>
+          <p>Yes = Lose changes. No = Save. Cancel = Go back and stay on the PDO.</p>
+          <div class="modal-actions">
+            <button type="button" (click)="resolvePending('yes')">Yes</button>
+            <button type="button" (click)="resolvePending('no')">No</button>
+            <button type="button" class="quiet" (click)="resolvePending('cancel')">Cancel</button>
+          </div>
+        </div>
+      </div>
+    }
   `,
 })
 export class PdoViewComponent {
@@ -202,6 +226,16 @@ export class PdoViewComponent {
   menu: { x: number; y: number; slot: number; subIndex: number } | null = null;
   pickedCell: { slot: number; key: string } | null = null;
   listKey: string | null = null;
+  /** The selected PDO has edits that are not saved yet. */
+  dirty = false;
+  autosave = false;
+  pending = false;
+  pendingLabel = '';
+  /** Unsaved edits of the selected PDO; the document is changed only when they are saved. */
+  private readonly draft = signal<PdoDraft | null>(null);
+  private readonly unsaved = inject(UnsavedEditsService);
+  private pendingResolve: ((choice: 'yes' | 'no' | 'cancel') => void) | null = null;
+  private seen: DeviceDocument | null = null;
   private readonly dialogs = inject(DialogService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly mapScroll = viewChild<ElementRef<HTMLElement>>('mapScroll');
@@ -215,7 +249,11 @@ export class PdoViewComponent {
   private readonly view = computed(() => {
     this.revision();
     this.edits();
-    const document = this.document();
+    const draft = this.draft();
+    if (draft) {
+      syncPdoDraft(this.document(), draft);
+    }
+    const document = draft?.document ?? this.document();
     const slots = pdoSlots(document, this.direction());
     const objects = new Map(document.objects.map((object) => [object.index, object]));
     return { slots, blocks: new Map(slots.map((slot) => [slot.slot, slotBlocks(slot, objects)])) };
@@ -225,6 +263,16 @@ export class PdoViewComponent {
     this.edits();
     return mappableEntries(this.document(), this.direction());
   });
+
+  constructor() {
+    effect(() => {
+      const document = this.document();
+      if (document !== this.seen) {
+        this.seen = document;
+        untracked(() => this.discard());
+      }
+    });
+  }
 
   @HostListener('document:click')
   closeMenu(): void {
@@ -247,12 +295,19 @@ export class PdoViewComponent {
     return this.slots().find((slot) => slot.slot === this.selectedSlot) ?? this.slots()[0] ?? null;
   }
 
-  select(slot: PdoSlot): void {
+  async select(slot: PdoSlot): Promise<boolean> {
+    if (this.pending) {
+      return false;
+    }
+    if (slot.slot !== this.activeSlot() && !(await this.guard())) {
+      return false;
+    }
     if (this.pickedCell && this.pickedCell.slot !== slot.slot) {
       this.pickedCell = null;
       this.listKey = null;
     }
     this.selectedSlot = slot.slot;
+    return true;
   }
 
   indexText(index: number): string {
@@ -288,7 +343,8 @@ export class PdoViewComponent {
     } else if (value < base || value >= base + 0x200) {
       error = `The ${offset ? 'mapping' : 'communication'} index must be between ${this.indexText(base)} and ${this.indexText(base + 0x1ff)}.`;
     } else {
-      error = movePdo(this.document(), slot.direction, slot.slot, value - offset);
+      this.begin(slot);
+      error = movePdo(this.doc(), slot.direction, slot.slot, value - offset);
     }
     this.warn(error);
     if (error != null || value == null) {
@@ -296,10 +352,14 @@ export class PdoViewComponent {
       return;
     }
     this.selectedSlot = value - base;
+    const draft = this.draft();
+    if (draft) {
+      draft.commIndex = value - offset;
+    }
     this.pickedCell = null;
     this.listKey = null;
     input.value = this.indexText(value);
-    this.commit();
+    this.edited();
   }
 
   invalid(): boolean {
@@ -310,7 +370,7 @@ export class PdoViewComponent {
 
   bitwise(): boolean {
     const slot = this.selected();
-    return slot ? isBitwiseMapping(this.document(), slot) : false;
+    return slot ? isBitwiseMapping(this.doc(), slot) : false;
   }
 
   setBitwise(box: HTMLInputElement): void {
@@ -318,13 +378,14 @@ export class PdoViewComponent {
     if (!slot) {
       return;
     }
-    const error = setBitwiseMapping(this.document(), slot.direction, slot.slot, box.checked);
+    this.begin(slot);
+    const error = setBitwiseMapping(this.doc(), slot.direction, slot.slot, box.checked);
     this.warn(error);
     if (error) {
       box.checked = !box.checked;
       return;
     }
-    this.commit();
+    this.edited();
   }
 
   shownBits(entry: MappableEntry): number {
@@ -345,8 +406,9 @@ export class PdoViewComponent {
     const capacity = 64 - (usedBits(slot) - block.bits);
     const next = Math.min(maxBits(entry), capacity, Math.max(1, block.bits + step));
     if (next !== block.bits) {
-      setMappingEntry(this.document(), slot.direction, slot.slot, subIndex, entry.index, entry.subIndex, next);
-      this.commit();
+      this.begin(slot);
+      setMappingEntry(this.doc(), slot.direction, slot.slot, subIndex, entry.index, entry.subIndex, next);
+      this.edited();
     }
   }
 
@@ -358,8 +420,10 @@ export class PdoViewComponent {
     return this.pickedCell?.slot === slot.slot && this.pickedCell.key === block.key;
   }
 
-  selectCell(slot: PdoSlot, block: MapBlock): void {
-    this.select(slot);
+  async selectCell(slot: PdoSlot, block: MapBlock): Promise<boolean> {
+    if (!(await this.select(slot))) {
+      return false;
+    }
     this.pickedCell = { slot: slot.slot, key: block.key };
     if (block.value) {
       this.listKey = block.value;
@@ -367,6 +431,7 @@ export class PdoViewComponent {
     } else {
       this.listKey = null;
     }
+    return true;
   }
 
   listSelection(): string | null {
@@ -418,8 +483,9 @@ export class PdoViewComponent {
     if (!slot) {
       return;
     }
-    setPdoField(this.document(), slot.direction, slot.slot, name, value);
-    this.commit();
+    this.begin(slot);
+    setPdoField(this.doc(), slot.direction, slot.slot, name, value);
+    this.edited();
   }
 
   setInvalid(invalid: boolean): void {
@@ -433,14 +499,17 @@ export class PdoViewComponent {
     this.field('cobId', `${cob.prefix}0x${(next >>> 0).toString(16).toUpperCase()}`);
   }
 
-  create(): void {
+  async create(): Promise<void> {
+    if (!(await this.guard())) {
+      return;
+    }
     const error = addPdo(this.document(), this.direction());
     this.warn(error);
     if (!error) {
       this.refresh();
       const slots = this.slots();
       this.selectedSlot = slots[slots.length - 1]?.slot ?? null;
-      this.commit();
+      this.changed.emit();
     }
   }
 
@@ -449,34 +518,120 @@ export class PdoViewComponent {
     if (!slot || !(await this.dialogs.confirm('Delete PDO?'))) {
       return;
     }
+    this.discard();
     removePdo(this.document(), slot.direction, slot.slot);
     this.refresh();
     this.selectedSlot = this.slots()[0]?.slot ?? null;
-    this.commit();
+    this.changed.emit();
   }
 
-  async resetNames(): Promise<void> {
-    const question = 'Reset the names of all mapping entries in this tab to "mapping-index - index/sub-index/name"? Edited names are overwritten.';
-    if (!(await this.dialogs.confirm(question))) {
-      return;
+  /** Writes the edits of the selected PDO into the document; false if they were not saved. */
+  async save(): Promise<boolean> {
+    const draft = this.draft();
+    if (!draft || !pdoDraftChanged(this.document(), draft)) {
+      this.discard();
+      return true;
     }
-    if (resetMappingNames(this.document(), this.direction()) > 0) {
-      this.commit();
+    for (const edit of this.unsaved.conflicts(this.owner(), this.document(), pdoDraftIndices(draft))) {
+      if (!(await this.dialogs.confirm(`${edit.label} has unsaved changes. Overwrite them?`, 'Warning'))) {
+        return false;
+      }
+      edit.discard();
+    }
+    const error = commitPdoDraft(this.document(), draft);
+    if (error) {
+      this.warn(error);
+      return false;
+    }
+    this.draft.set(null);
+    this.dirty = false;
+    this.unsaved.set(this.owner(), null);
+    this.refresh();
+    this.changed.emit();
+    return true;
+  }
+
+  resolvePending(choice: 'yes' | 'no' | 'cancel'): void {
+    this.pending = false;
+    this.pendingResolve?.(choice);
+    this.pendingResolve = null;
+  }
+
+  /** Drops the unsaved edits of the selected PDO. */
+  discard(): void {
+    const draft = this.draft();
+    if (draft) {
+      this.selectedSlot = draft.originalCommIndex - commBase(draft.direction);
+      this.pickedCell = null;
+      this.listKey = null;
+    }
+    this.draft.set(null);
+    this.dirty = false;
+    this.unsaved.set(this.owner(), null);
+    this.refresh();
+  }
+
+  private owner(): string {
+    return `pdo-${this.direction()}`;
+  }
+
+  private doc(): DeviceDocument {
+    return this.draft()?.document ?? this.document();
+  }
+
+  /** Starts a draft before the first unsaved edit of the PDO. */
+  private begin(slot: PdoSlot): void {
+    if (!this.draft()) {
+      this.draft.set(createPdoDraft(this.document(), slot.direction, slot.slot));
     }
   }
 
-  save(): void {
-    this.commit();
+  private edited(): void {
+    this.refresh();
+    const draft = this.draft();
+    this.dirty = draft != null && pdoDraftChanged(this.document(), draft);
+    const tab = this.direction() === 'tx' ? 'TX PDO Mapping' : 'RX PDO Mapping';
+    this.unsaved.set(this.owner(), draft && this.dirty ? {
+      document: this.document(),
+      indices: pdoDraftIndices(draft),
+      label: `PDO ${this.indexText(draft.originalCommIndex)} in "${tab}"`,
+      discard: () => this.discard(),
+    } : null);
   }
 
-  openMenu(event: MouseEvent, slot: PdoSlot, block: MapBlock): void {
+  /** Asks what to do with unsaved edits; false means stay on the PDO. */
+  private async guard(): Promise<boolean> {
+    const draft = this.draft();
+    if (!this.dirty || !draft) {
+      this.discard();
+      return true;
+    }
+    if (this.autosave) {
+      return this.save();
+    }
+    this.pendingLabel = this.indexText(draft.originalCommIndex);
+    this.pending = true;
+    const choice = await new Promise<'yes' | 'no' | 'cancel'>((resolve) => {
+      this.pendingResolve = resolve;
+    });
+    if (choice === 'cancel') {
+      return false;
+    }
+    if (choice === 'yes') {
+      this.discard();
+      return true;
+    }
+    return this.save();
+  }
+
+  async openMenu(event: MouseEvent, slot: PdoSlot, block: MapBlock): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
-    if (block.subIndex == null) {
+    const subIndex = block.subIndex;
+    if (subIndex == null || !(await this.selectCell(slot, block))) {
       return;
     }
-    this.selectCell(slot, block);
-    this.menu = { x: event.clientX, y: event.clientY, slot: slot.slot, subIndex: block.subIndex };
+    this.menu = { x: event.clientX, y: event.clientY, slot: slot.slot, subIndex };
   }
 
   insertBlock(after: boolean): void {
@@ -492,13 +647,14 @@ export class PdoViewComponent {
     }
     const target = menu.subIndex + (after ? 1 : 0);
     const raw = encodeMapping(INSERT_DUMMY, 0, INSERT_DUMMY_BITS);
-    const error = insertMapping(this.document(), slot.direction, slot.slot, target, raw);
+    this.begin(slot);
+    const error = insertMapping(this.doc(), slot.direction, slot.slot, target, raw);
     this.warn(error);
     if (!error) {
       this.pickedCell = { slot: slot.slot, key: `${slot.commIndex}-${target}` };
       this.listKey = `${INSERT_DUMMY}:0`;
       requestAnimationFrame(() => this.centerListSelection());
-      this.commit();
+      this.edited();
     }
   }
 
@@ -508,9 +664,13 @@ export class PdoViewComponent {
     if (!menu) {
       return;
     }
-    removeMapping(this.document(), this.direction(), menu.slot, menu.subIndex);
+    const slot = this.slots().find((item) => item.slot === menu.slot);
+    if (slot) {
+      this.begin(slot);
+    }
+    removeMapping(this.doc(), this.direction(), menu.slot, menu.subIndex);
     this.pickedCell = null;
-    this.commit();
+    this.edited();
   }
 
   zoom(step: number): void {
@@ -527,15 +687,16 @@ export class PdoViewComponent {
 
   private applyMapping(slot: PdoSlot, subIndex: number | null, entry: MappableEntry): number | null {
     const replaced = subIndex == null ? 0 : slot.mappings.find((row) => row.subIndex === subIndex)?.bits ?? 0;
-    const wanted = isBitwiseMapping(this.document(), slot) ? defaultBits(entry) : byteMappingBits(entry.bits);
+    const wanted = isBitwiseMapping(this.doc(), slot) ? defaultBits(entry) : byteMappingBits(entry.bits);
     const bits = fitMappingBits(wanted, usedBits(slot), replaced > 0 ? replaced : 0);
     if (bits <= 0) {
       this.warn('The object does not fit into the PDO.');
       return null;
     }
+    this.begin(slot);
     let target = subIndex;
     if (target == null) {
-      const error = addMapping(this.document(), slot.direction, slot.slot);
+      const error = addMapping(this.doc(), slot.direction, slot.slot);
       if (error) {
         this.warn(error);
         return null;
@@ -547,18 +708,13 @@ export class PdoViewComponent {
         return null;
       }
     }
-    setMappingEntry(this.document(), slot.direction, slot.slot, target, entry.index, entry.subIndex, bits);
-    this.commit();
+    setMappingEntry(this.doc(), slot.direction, slot.slot, target, entry.index, entry.subIndex, bits);
+    this.edited();
     return target;
   }
 
   private refresh(): void {
     this.edits.update((value) => value + 1);
-  }
-
-  private commit(): void {
-    this.refresh();
-    this.changed.emit();
   }
 
   private warn(text: string | null): void {

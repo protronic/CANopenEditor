@@ -3,17 +3,21 @@ import { bitLength, createEntry, createEmptyDocument } from '../model/device';
 import {
   addMapping,
   addPdo,
+  checkMappingObject,
+  commitPdoDraft,
+  createPdoDraft,
   byteMappingBits,
   fitMappingBits,
   insertMapping,
   isBitwiseMapping,
+  isMappingEntryCounted,
   isMappingObject,
   mappableEntries,
   mappingTargetLabel,
   movePdo,
+  pdoDraftChanged,
   pdoSlots,
   removeMapping,
-  resetMappingNames,
   sameMappingTarget,
   setBitwiseMapping,
   setMappingEntry,
@@ -227,24 +231,97 @@ describe('PDO settings', () => {
   });
 });
 
-describe('resetMappingNames', () => {
-  it('restores the generated names of used entries in one direction only', () => {
+describe('PDO draft', () => {
+  function project() {
     const document = createEmptyDocument();
     document.objects.push(createEntry({ index: 0x2100, name: 'Flag', objectType: 'VAR', dataType: 'BOOLEAN', pdoMapping: 'optional' }));
     addPdo(document, 'rx');
-    addPdo(document, 'tx');
-    for (const direction of ['rx', 'tx'] as const) {
-      addMapping(document, direction, 0);
-      setMappingEntry(document, direction, 0, 1, 0x2100, 0, 1);
-    }
-    const rxMap = document.objects.find((object) => object.index === 0x1600)!;
-    const txMap = document.objects.find((object) => object.index === 0x1a00)!;
-    rxMap.subObjects[1].name = 'Eigener Name';
-    txMap.subObjects[1].name = 'Eigener Name';
-    rxMap.subObjects.push(createEntry({ index: 0x1600, subIndex: 2, name: 'Application object 2', defaultValue: '0x00000000' }));
+    return document;
+  }
 
-    expect(resetMappingNames(document, 'rx')).toBe(1);
-    expect(rxMap.subObjects.map((sub) => sub.name)).toEqual(['Number of mapped objects', '1 - 0x2100/00/Flag', 'Application object 2']);
-    expect(txMap.subObjects[1].name).toBe('Eigener Name');
+  it('keeps the document unchanged until the draft is committed', () => {
+    const document = project();
+    const draft = createPdoDraft(document, 'rx', 0);
+    expect(pdoDraftChanged(document, draft)).toBe(false);
+
+    addMapping(draft.document, 'rx', 0);
+    setMappingEntry(draft.document, 'rx', 0, 1, 0x2100, 0, 1);
+    setBitwiseMapping(draft.document, 'rx', 0, true);
+    setPdoField(draft.document, 'rx', 0, 'eventTimer', '250');
+    expect(pdoDraftChanged(document, draft)).toBe(true);
+    expect(pdoSlots(document, 'rx')[0].mappings).toEqual([]);
+    expect(pdoSlots(document, 'rx')[0].eventTimer).toBe('0');
+
+    expect(commitPdoDraft(document, draft)).toBeNull();
+    const slot = pdoSlots(document, 'rx')[0];
+    expect(slot.mappings.map((row) => row.raw)).toEqual(['0x21000001']);
+    expect(slot.eventTimer).toBe('250');
+    expect(isBitwiseMapping(document, slot)).toBe(true);
+  });
+
+  it('commits a moved PDO to its new index', () => {
+    const document = project();
+    const draft = createPdoDraft(document, 'rx', 0);
+    movePdo(draft.document, 'rx', 0, 0x1405);
+    draft.commIndex = 0x1405;
+    expect(pdoSlots(document, 'rx').map((slot) => slot.commIndex)).toEqual([0x1400]);
+
+    expect(commitPdoDraft(document, draft)).toBeNull();
+    expect(pdoSlots(document, 'rx').map((slot) => [slot.commIndex, slot.mapIndex])).toEqual([[0x1405, 0x1605]]);
+  });
+});
+
+describe('checkMappingObject', () => {
+  function project() {
+    const document = createEmptyDocument();
+    document.objects.push(
+      createEntry({ index: 0x2100, name: 'Wert', objectType: 'VAR', dataType: 'UNSIGNED32', pdoMapping: 'optional' }),
+      createEntry({ index: 0x2101, name: 'Flag', objectType: 'VAR', dataType: 'BOOLEAN', pdoMapping: 'optional' }),
+    );
+    addPdo(document, 'tx');
+    addMapping(document, 'tx', 0);
+    addMapping(document, 'tx', 0);
+    setMappingEntry(document, 'tx', 0, 1, 0x2100, 0, 32);
+    setMappingEntry(document, 'tx', 0, 2, 0x2100, 0, 32);
+    return { document, map: document.objects.find((object) => object.index === 0x1a00)! };
+  }
+
+  it('accepts a consistent mapping', () => {
+    const { document, map } = project();
+    expect(checkMappingObject(document, map, 2, '0x21010001')).toBeNull();
+  });
+
+  it('rejects entries that do not fit into the PDO or the datatype', () => {
+    const { document, map } = project();
+    expect(checkMappingObject(document, map, 2, '0x21000028')).toContain('exceed the width');
+    map.subObjects.find((sub) => sub.subIndex === 2)!.defaultValue = '0x21010001';
+    expect(checkMappingObject(document, map, 2, '0x21000020')).toBeNull();
+    addMapping(document, 'tx', 0);
+    setMappingEntry(document, 'tx', 0, 3, 0x2100, 0, 32);
+    expect(checkMappingObject(document, map, 2, '0x21000020')).toContain('at most 64 bits');
+  });
+
+  it('rejects missing objects, invalid values and a wrong count', () => {
+    const { document, map } = project();
+    expect(checkMappingObject(document, map, 2, '0x30000008')).toContain('does not exist');
+    expect(checkMappingObject(document, map, 2, 'xyz')).toContain('not a valid');
+    expect(checkMappingObject(document, map, 0, '5')).toContain('does not exist');
+  });
+
+  it('requires whole bytes when bitwise mapping is off', () => {
+    const { document, map } = project();
+    setBitwiseMapping(document, 'tx', 0, false);
+    expect(checkMappingObject(document, map, 2, '0x21010001')).toContain('whole bytes');
+  });
+});
+
+describe('isMappingEntryCounted', () => {
+  it('counts only the entries up to sub-index 0x00', () => {
+    const document = createEmptyDocument();
+    addPdo(document, 'tx');
+    addMapping(document, 'tx', 0);
+    const map = document.objects.find((object) => object.index === 0x1a00)!;
+    map.subObjects.push(createEntry({ index: 0x1a00, subIndex: 2, name: 'Application object 2', defaultValue: '0x00000000' }));
+    expect([0, 1, 2].map((subIndex) => isMappingEntryCounted(map, subIndex))).toEqual([false, true, false]);
   });
 });

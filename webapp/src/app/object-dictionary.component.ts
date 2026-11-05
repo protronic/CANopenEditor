@@ -1,4 +1,4 @@
-import { Component, HostListener, effect, inject, input, output } from '@angular/core';
+import { Component, HostListener, effect, inject, input, output, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   AccessType,
@@ -22,7 +22,8 @@ import {
 } from './model/device';
 import { CloneObjectsComponent } from './clone-objects.component';
 import { DialogService } from './state/dialog.service';
-import { isMappingObject, mappingTargetLabel, sameMappingTarget } from './xdd/pdo';
+import { checkMappingObject, isMappingEntryCounted, isMappingObject, mappingTargetLabel, sameMappingTarget } from './xdd/pdo';
+import { UnsavedEditsService } from './state/unsaved-edits.service';
 
 type PendingChoice = 'yes' | 'no' | 'cancel';
 type MenuKind = 'object' | 'sub';
@@ -114,10 +115,15 @@ type MenuKind = 'object' | 'sub';
               <input readonly [value]="subText()" />
             </label>
           </div>
-          <label class="od-line">
-            <span>Name</span>
-            <input [ngModel]="draftName" (ngModelChange)="setDraft('name', $event)" [disabled]="!editing()" />
-          </label>
+          <div class="od-name-row">
+            <label class="od-line">
+              <span>Name</span>
+              <input [ngModel]="draftName" (ngModelChange)="setDraft('name', $event)" [disabled]="!editing()" />
+            </label>
+            @if (mappingSelected()) {
+              <button type="button" class="system" (click)="resetName()" [disabled]="!canResetName">Reset Name</button>
+            }
+          </div>
           <label class="od-line">
             <span>Denotation</span>
             <input class="peach" [ngModel]="draftDenotation" (ngModelChange)="setDraft('denotation', $event)" [disabled]="!editing()" />
@@ -346,6 +352,7 @@ export class ObjectDictionaryComponent {
   draftFlags = false;
 
   private readonly dialogs = inject(DialogService);
+  private readonly unsaved = inject(UnsavedEditsService);
   private extraCounts: string[] = [];
   private extraStorage: string[] = [];
   private baseline = '';
@@ -355,16 +362,21 @@ export class ObjectDictionaryComponent {
   constructor() {
     effect(() => {
       const document = this.document();
-      if (document !== this.seen) {
-        this.seen = document;
-        this.selectedIndex = document.objects[0]?.index ?? null;
-        this.selectedSubIndex = null;
-        this.extraSelection.clear();
-        this.cloneSources = [];
-        this.menu = null;
-        this.showAdd = false;
-        this.loadDraft();
-      }
+      this.revision();
+      untracked(() => {
+        if (document !== this.seen) {
+          this.seen = document;
+          this.selectedIndex = document.objects[0]?.index ?? null;
+          this.selectedSubIndex = null;
+          this.extraSelection.clear();
+          this.cloneSources = [];
+          this.menu = null;
+          this.showAdd = false;
+          this.loadDraft();
+        } else if (!this.dirty) {
+          this.loadDraft();
+        }
+      });
     });
   }
 
@@ -600,6 +612,31 @@ export class ObjectDictionaryComponent {
       object.index === this.selectedIndex || this.extraSelection.has(object.index));
   }
 
+  mappingSelected(): boolean {
+    return this.selectedIndex != null && isMappingObject(this.selectedIndex);
+  }
+
+  /** Only for active entries: counted by sub-index 0x00, mapping an object, in an enabled mapping object. */
+  get canResetName(): boolean {
+    const map = this.selected();
+    const subIndex = this.selectedSubIndex;
+    return map != null && isMappingObject(map.index) && !map.disabled && subIndex != null
+      && isMappingEntryCounted(map, subIndex)
+      && mappingTargetLabel(this.document(), subIndex, this.draftDefault) != null;
+  }
+
+  /** Puts the generated name of the selected mapping entry into the name field. */
+  resetName(): void {
+    if (!this.canResetName) {
+      return;
+    }
+    const label = mappingTargetLabel(this.document(), this.selectedSubIndex!, this.draftDefault);
+    if (!label) {
+      return;
+    }
+    this.setDraft('name', label);
+  }
+
   cloneDialog(): void {
     this.menu = null;
     this.cloneSources = this.selectedObjects();
@@ -653,7 +690,7 @@ export class ObjectDictionaryComponent {
       case 'access': this.draftAccess = value as AccessType; break;
       case 'pdo': this.draftPdo = value as PdoMapping; break;
       case 'srdo': this.draftSrdo = value as SrdoAccess; break;
-      case 'default': this.draftDefault = String(value); break;
+      case 'default': this.setDefault(String(value)); break;
       case 'actual': this.draftActual = String(value); break;
       case 'low': this.draftLow = String(value); break;
       case 'high': this.draftHigh = String(value); break;
@@ -693,14 +730,39 @@ export class ObjectDictionaryComponent {
     this.applyDraft();
   }
 
-  saveChanges(): void {
-    this.applyDraft();
+  /** Writes the draft into the object; false if it was not saved. */
+  async saveChanges(): Promise<boolean> {
+    const entry = this.editing();
+    const parent = this.selected();
+    if (!entry || !parent || !this.dirty) {
+      return true;
+    }
+    if (entry !== parent && entry.objectType === 'VAR') {
+      const error = checkMappingObject(this.document(), parent, entry.subIndex, this.draftDefault);
+      if (error) {
+        void this.dialogs.warning(error);
+        return false;
+      }
+    }
+    for (const edit of this.unsaved.conflicts('od', this.document(), [parent.index])) {
+      if (!(await this.dialogs.confirm(`${edit.label} has unsaved changes. Overwrite them?`, 'Warning'))) {
+        return false;
+      }
+      edit.discard();
+    }
+    this.writeDraft(entry, parent);
     this.dirty = false;
     this.baseline = this.snapshot();
+    this.reportUnsaved();
+    this.changed.emit();
+    return true;
   }
 
-  addObjectDialog(): void {
+  async addObjectDialog(): Promise<void> {
     this.menu = null;
+    if (!(await this.guard())) {
+      return;
+    }
     const current = this.selectedIndex;
     const next = current == null ? 0x2000 : Math.min(0xffff, current + 1);
     this.addIndex = hex4(next);
@@ -783,21 +845,26 @@ export class ObjectDictionaryComponent {
     this.changed.emit();
   }
 
-  toggleSelected(): void {
+  async toggleSelected(): Promise<void> {
     this.menu = null;
+    if (!(await this.guard())) {
+      return;
+    }
     const object = this.selected();
     if (!object) {
       return;
     }
     const disabled = !object.disabled;
     this.selectedObjects().forEach((entry) => (entry.disabled = disabled));
-    this.draftDisabled = disabled;
-    this.baseline = this.snapshot();
+    this.loadDraft();
     this.changed.emit();
   }
 
-  addSub(): void {
+  async addSub(): Promise<void> {
     this.menu = null;
+    if (!(await this.guard())) {
+      return;
+    }
     const object = this.selected();
     if (!object) {
       return;
@@ -812,8 +879,11 @@ export class ObjectDictionaryComponent {
     this.changed.emit();
   }
 
-  removeSub(shiftUp: boolean): void {
+  async removeSub(shiftUp: boolean): Promise<void> {
     this.menu = null;
+    if (!(await this.guard())) {
+      return;
+    }
     const object = this.selected();
     const subIndex = this.selectedSubIndex;
     if (!object || subIndex == null || subIndex === 0) {
@@ -920,6 +990,7 @@ export class ObjectDictionaryComponent {
       this.draftDisabled = false;
       this.draftFlags = false;
       this.baseline = this.snapshot();
+      this.reportUnsaved();
       return;
     }
     this.draftName = entry.name;
@@ -940,18 +1011,36 @@ export class ObjectDictionaryComponent {
     this.draftDisabled = parent.disabled;
     this.draftFlags = parent.flagsPdo;
     this.baseline = this.snapshot();
+    this.reportUnsaved();
   }
 
+  /** Draft edits change the object only when they are saved. */
   private applyDraft(): void {
-    const entry = this.editing();
+    this.dirty = this.snapshot() !== this.baseline;
+    this.reportUnsaved();
+  }
+
+  /** A new default value of a mapping entry that maps another object also gives it the generated name. */
+  private setDefault(value: string): void {
     const parent = this.selected();
-    if (!entry || !parent) {
-      return;
+    const sub = this.selectedSub();
+    if (parent && sub && sub.subIndex > 0 && isMappingObject(parent.index) && !sameMappingTarget(this.draftDefault, value)) {
+      this.draftName = mappingTargetLabel(this.document(), sub.subIndex, value) ?? this.draftName;
     }
-    if (entry !== parent && isMappingObject(parent.index) && entry.subIndex > 0
-      && !sameMappingTarget(entry.defaultValue, this.draftDefault)) {
-      this.draftName = mappingTargetLabel(this.document(), entry.subIndex, this.draftDefault) ?? this.draftName;
-    }
+    this.draftDefault = value;
+  }
+
+  private reportUnsaved(): void {
+    const entry = this.editing();
+    this.unsaved.set('od', this.dirty && entry ? {
+      document: this.document(),
+      indices: [entry.index],
+      label: `Index 0x${hex4(entry.index)}/${hex2(this.selectedSub()?.subIndex ?? 0)} in "Object Dictionary"`,
+      discard: () => this.loadDraft(),
+    } : null);
+  }
+
+  private writeDraft(entry: OdEntry, parent: OdEntry): void {
     entry.name = this.draftName;
     entry.denotation = this.draftDenotation;
     entry.description = this.draftDescription;
@@ -972,8 +1061,6 @@ export class ObjectDictionaryComponent {
       parent.disabled = this.draftDisabled;
       parent.flagsPdo = this.draftFlags;
     }
-    this.dirty = this.snapshot() !== this.baseline;
-    this.changed.emit();
   }
 
   private snapshot(): string {
@@ -1002,9 +1089,7 @@ export class ObjectDictionaryComponent {
       return true;
     }
     if (this.autosave) {
-      this.dirty = false;
-      this.baseline = this.snapshot();
-      return true;
+      return this.saveChanges();
     }
     const entry = this.editing();
     this.pendingLabel = entry
@@ -1018,51 +1103,9 @@ export class ObjectDictionaryComponent {
       return false;
     }
     if (choice === 'yes') {
-      this.restoreBaseline();
+      this.loadDraft();
+      return true;
     }
-    this.dirty = false;
-    this.baseline = this.snapshot();
-    return true;
-  }
-
-  private restoreBaseline(): void {
-    const saved = this.baseline;
-    const parsed = JSON.parse(saved) as {
-      name: string;
-      denotation: string;
-      description: string;
-      dataType: DataTypeName;
-      access: AccessType;
-      pdo: PdoMapping;
-      srdo: SrdoAccess;
-      defaultValue: string;
-      actual: string;
-      low: string;
-      high: string;
-      stringLen: number;
-      count: string;
-      storage: string;
-      disabled: boolean;
-      flags: boolean;
-    };
-    this.draftName = parsed.name;
-    this.draftDenotation = parsed.denotation;
-    this.draftDescription = parsed.description;
-    this.draftDataType = parsed.dataType;
-    this.draftAccess = parsed.access;
-    this.draftPdo = parsed.pdo;
-    this.draftSrdo = parsed.srdo;
-    this.draftDefault = parsed.defaultValue;
-    this.draftActual = parsed.actual;
-    this.draftLow = parsed.low;
-    this.draftHigh = parsed.high;
-    this.draftStringLen = parsed.stringLen;
-    this.draftCount = parsed.count;
-    this.draftStorage = parsed.storage;
-    this.draftDisabled = parsed.disabled;
-    this.draftFlags = parsed.flags;
-    this.applyDraft();
-    this.dirty = false;
-    this.baseline = saved;
+    return this.saveChanges();
   }
 }
