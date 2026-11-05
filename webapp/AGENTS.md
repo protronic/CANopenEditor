@@ -71,6 +71,12 @@ opens a context menu with "Add...", "Clone...", "Delete...", and "Toggle". "Clon
   listed, but without a checkbox, and its conflicting index is highlighted. It is not cloned.
 - A trailing number in the object name is shifted by the offset, as in the desktop editor.
 
+"Add..." proposes the index from the mouse position when the menu was opened: the next free index
+after the object under the mouse pointer, within the parameter range of its list (communication
+0x1000–0x1FFF, manufacturer 0x2000–0x5FFF, device profile 0x6000–0xFFFF). Right-clicking the empty
+area of a list uses the next free index after its last object, or the first index of the range if
+the list has no objects.
+
 #### Tab "TX PDO Mapping"
 
 ![Tab TX PDO Mapping](images/Template_Tab_TX_PDO_Mapping.png)

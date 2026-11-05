@@ -345,6 +345,38 @@ export function parseUserIndex(raw: string): number | null {
   return Number.parseInt(match[1], 16);
 }
 
+export type ObjectGroupId = 'communication' | 'manufacturer' | 'profile';
+
+export const OBJECT_GROUP_RANGES: Record<ObjectGroupId, readonly [number, number]> = {
+  communication: [0x1000, 0x1fff],
+  manufacturer: [0x2000, 0x5fff],
+  profile: [0x6000, 0xffff],
+};
+
+/**
+ * Next free index in the group's range after `after`, or after the last object of the range
+ * when `after` is null. Starts at the first index of the range if it holds no objects and wraps
+ * around to its start when the end is reached.
+ */
+export function nextFreeIndex(objects: readonly OdEntry[], group: ObjectGroupId, after: number | null): number {
+  const [start, end] = OBJECT_GROUP_RANGES[group];
+  const used = new Set(objects.map((object) => object.index));
+  const inRange = [...used].filter((index) => index >= start && index <= end);
+  const anchor = after ?? (inRange.length ? Math.max(...inRange) : start - 1);
+  const from = Math.min(end + 1, Math.max(start, anchor + 1));
+  for (let index = from; index <= end; index++) {
+    if (!used.has(index)) {
+      return index;
+    }
+  }
+  for (let index = start; index < from; index++) {
+    if (!used.has(index)) {
+      return index;
+    }
+  }
+  return start;
+}
+
 export function objectGroup(index: number): string {
   if (index >= 0x1000 && index < 0x2000) {
     return 'Communication Specific Parameters';

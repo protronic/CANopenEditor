@@ -18,6 +18,8 @@ import {
   hex2,
   refreshSubZero,
   hex4,
+  nextFreeIndex,
+  ObjectGroupId,
   parseUserIndex,
 } from './model/device';
 import { CloneObjectsComponent } from './clone-objects.component';
@@ -36,7 +38,7 @@ type MenuKind = 'object' | 'sub';
     <div class="od">
       <div class="od-groups">
         @for (group of groups; track group.title) {
-          <section class="od-group" [class.collapsed]="isCollapsed(group.id)" (contextmenu)="openObjectMenu($event, null)">
+          <section class="od-group" [class.collapsed]="isCollapsed(group.id)" (contextmenu)="openObjectMenu($event, null, group.id)">
             <h3>
               <button type="button" class="collapse" (click)="toggleGroup(group.id, $event)" [attr.aria-expanded]="!isCollapsed(group.id)">{{ isCollapsed(group.id) ? '▸' : '▾' }}</button>
               {{ group.title }}
@@ -46,8 +48,8 @@ type MenuKind = 'object' | 'sub';
               <table>
                 <thead>
                   <tr>
-                    <th (click)="openObjectMenu($event, null)">Index</th>
-                    <th (click)="openObjectMenu($event, null)">Name</th>
+                    <th (click)="openObjectMenu($event, null, group.id)">Index</th>
+                    <th (click)="openObjectMenu($event, null, group.id)">Name</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -56,7 +58,7 @@ type MenuKind = 'object' | 'sub';
                       [class.selected]="object.index === selectedIndex || extraSelection.has(object.index)"
                       [class.disabled]="object.disabled"
                       (click)="clickObject($event, group.id, object.index)"
-                      (contextmenu)="openObjectMenu($event, object.index)">
+                      (contextmenu)="openObjectMenu($event, object.index, group.id)">
                       <td class="mono">0x{{ hex(object.index) }}</td>
                       <td>{{ object.name }}</td>
                     </tr>
@@ -328,6 +330,8 @@ export class ObjectDictionaryComponent {
   addName = 'New Object';
   addType: ObjectTypeName = 'VAR';
   menu: { x: number; y: number; kind: MenuKind } | null = null;
+  /** Group and object under the mouse pointer when the object menu was opened. */
+  private menuAnchor: { group: ObjectGroupId; index: number | null } | null = null;
   /** Objects selected with Ctrl or Shift in addition to the edited object. */
   extraSelection = new Set<number>();
   cloneSources: OdEntry[] = [];
@@ -642,9 +646,10 @@ export class ObjectDictionaryComponent {
     this.cloneSources = this.selectedObjects();
   }
 
-  async openObjectMenu(event: MouseEvent, index: number | null): Promise<void> {
+  async openObjectMenu(event: MouseEvent, index: number | null, group: ObjectGroupId): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
+    this.menuAnchor = { group, index };
     if (index != null && this.extraSelection.has(index)) {
       if (this.dirty && !(await this.guard())) {
         return;
@@ -763,9 +768,8 @@ export class ObjectDictionaryComponent {
     if (!(await this.guard())) {
       return;
     }
-    const current = this.selectedIndex;
-    const next = current == null ? 0x2000 : Math.min(0xffff, current + 1);
-    this.addIndex = hex4(next);
+    const anchor = this.menuAnchor ?? { group: 'manufacturer' as const, index: null };
+    this.addIndex = hex4(nextFreeIndex(this.document().objects, anchor.group, anchor.index));
     this.addName = 'New Object';
     this.addType = 'VAR';
     this.showAdd = true;
