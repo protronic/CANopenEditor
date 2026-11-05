@@ -122,9 +122,6 @@ export class CloneObjectsComponent implements OnInit {
       void this.dialogs.warning('Select a target device.');
       return;
     }
-    const target = this.store.devices().find((device) => device.id === this.targetId);
-    const name = target?.document.productName || 'Unnamed';
-    this.store.status.set(count === 1 ? `${name}: 1 object cloned.` : `${name}: ${count} objects cloned.`);
     this.cloned.emit();
     this.closed.emit();
   }

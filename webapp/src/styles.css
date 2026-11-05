@@ -124,16 +124,7 @@ label {
   border-color: #3e4d4a;
 }
 
-.banner {
-  margin: 0;
-  padding: 0.45rem 1rem;
-  background: #e7f2f1;
-  color: var(--teal);
-}
-
-.banner.error, .error { color: var(--danger); }
-
-.banner.error { background: #f8e8e4; }
+.error { color: var(--danger); }
 
 .workspace {
   flex: 1;

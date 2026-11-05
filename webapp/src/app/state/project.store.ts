@@ -20,7 +20,6 @@ export interface OpenDevice {
 export class ProjectStore {
   readonly devices = signal<OpenDevice[]>([]);
   readonly selectedId = signal<string | null>(null);
-  readonly status = signal<string | null>(null);
 
   private readonly dialogs = inject(DialogService);
 
@@ -32,7 +31,6 @@ export class ProjectStore {
 
   newDevice(): void {
     this.add(this.create(createEmptyDocument(), 'project.xdd', true));
-    this.status.set('New device created.');
   }
 
   openXml(fileName: string, xml: string): void {
@@ -41,7 +39,6 @@ export class ProjectStore {
       const safeName = ensureXddName(fileName, document.productName);
       document.fileName = safeName;
       this.add(this.create(document, safeName, false));
-      this.status.set(null);
     } catch (error) {
       void this.dialogs.error(error instanceof Error ? error.message : 'The XDD file could not be read.');
     }
@@ -73,7 +70,6 @@ export class ProjectStore {
 
   touch(id: string): void {
     this.devices.update((list) => list.map((device) => device.id === id ? { ...device, dirty: true, revision: device.revision + 1 } : device));
-    this.status.set(null);
   }
 
   close(id: string): void {
@@ -102,7 +98,6 @@ export class ProjectStore {
     this.devices.update((list) => list.map((device) => (
       device.id === id ? { ...device, dirty: false, fileName, revision: device.revision + 1 } : device
     )));
-    this.status.set(null);
   }
 
   private add(device: OpenDevice): void {

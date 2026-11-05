@@ -183,8 +183,6 @@ export class InsertProfileComponent {
       void this.dialogs.warning('Select a target device.');
       return;
     }
-    const names = [...this.picked].join(', ');
-    this.store.status.set(count === 1 ? `${names}: 1 object inserted.` : `${names}: ${count} objects inserted.`);
     this.inserted.emit();
     this.closed.emit();
   }
