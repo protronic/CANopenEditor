@@ -291,6 +291,19 @@ button.collapse {
   z-index: 1;
 }
 
+.od th .th-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem;
+}
+
+.od th .th-action button.system {
+  padding: 0 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
 .od th, .od td {
   border-bottom: 1px solid #e4ddd0;
   padding: 0.16rem 0.35rem;

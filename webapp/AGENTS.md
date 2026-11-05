@@ -250,6 +250,13 @@ object that is enabled. For deactivated entries it is disabled. It puts the gene
 based on its default value, without a question. Like any other edit it must be saved with
 "Save Changes". An unused entry keeps its name.
 
+For a selected PDO mapping object, the header "Name" of the sub-object table contains the button
+"Reset all". It resets the names of all active entries (same rules as "Reset Name") to the naming
+scheme. Unsaved edits in the Object Dictionary are handled first by the usual "Unsaved changes"
+question; then a warning asks for confirmation ("OK"/"Cancel"), and unsaved edits of the same PDO in
+the PDO tab need the usual overwrite confirmation. The new names are applied to the device at once,
+without "Save Changes".
+
 ### Performance
 
 Projects with many PDOs (e.g. 50 RPDOs with 10 to 20 mapped objects each) must stay responsive:

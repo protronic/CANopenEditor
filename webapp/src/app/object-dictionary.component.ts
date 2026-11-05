@@ -92,7 +92,14 @@ interface OdViewState {
             <thead>
               <tr>
                 <th>Sub</th>
-                <th>Name</th>
+                <th>
+                  <span class="th-action">
+                    Name
+                    @if (mappingSelected()) {
+                      <button type="button" class="system" (click)="resetAllNames()" [disabled]="!canResetAll" title="Reset the names of all mapping entries to the naming scheme">Reset all</button>
+                    }
+                  </span>
+                </th>
                 <th>Obj Type</th>
                 <th>Data Type</th>
                 <th>SDO</th>
@@ -678,6 +685,53 @@ export class ObjectDictionaryComponent {
       return;
     }
     this.setDraft('name', label);
+  }
+
+  /** Mapping entries whose name differs from the naming scheme, with the generated name. */
+  private resettableNames(): { sub: OdEntry; label: string }[] {
+    const map = this.selected();
+    if (!map || !isMappingObject(map.index) || map.disabled) {
+      return [];
+    }
+    return map.subObjects
+      .filter((sub) => isMappingEntryCounted(map, sub.subIndex))
+      .map((sub) => ({ sub, label: mappingTargetLabel(this.document(), sub.subIndex, sub.defaultValue) }))
+      .filter((item): item is { sub: OdEntry; label: string } => item.label != null);
+  }
+
+  get canResetAll(): boolean {
+    return this.resettableNames().length > 0;
+  }
+
+  /** Resets the names of all active mapping entries and applies them without "Save Changes". */
+  async resetAllNames(): Promise<void> {
+    const map = this.selected();
+    if (!map || !this.canResetAll || !(await this.guard())) {
+      return;
+    }
+    const ok = await this.dialogs.confirm(
+      `Reset the names of all mapping entries of 0x${hex4(map.index)} to "Mapping index - Index/Subindex/Name"?\n\n`
+        + 'Names changed by hand are lost. The change is applied immediately.',
+      'Warning',
+    );
+    if (!ok) {
+      return;
+    }
+    for (const edit of this.unsaved.conflicts('od', this.document(), [map.index])) {
+      if (!(await this.dialogs.confirm(`${edit.label} has unsaved changes. Overwrite them?`, 'Warning'))) {
+        return;
+      }
+      edit.discard();
+    }
+    const items = this.resettableNames();
+    if (items.every(({ sub, label }) => sub.name === label)) {
+      return;
+    }
+    for (const { sub, label } of items) {
+      sub.name = label;
+    }
+    this.loadDraft();
+    this.changed.emit();
   }
 
   cloneDialog(): void {
