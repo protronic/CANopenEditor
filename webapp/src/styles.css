@@ -786,6 +786,10 @@ app-pdo-view {
 .map-bytes > span:nth-child(3),
 .map-row > span:nth-child(3) { left: 8.1rem; }
 
+.map-head,
+.map-bytes,
+.map-row > span:nth-child(-n + 3) { cursor: default; }
+
 .map-bytes > span:nth-child(-n + 3) { background: white; }
 
 .map-row > span:nth-child(-n + 3) { background: lightblue; }
@@ -794,11 +798,20 @@ app-pdo-view {
 
 .map-row { position: relative; }
 
+.map-row.selected > span:nth-child(-n + 3) {
+  background: #1d3f73;
+  color: white;
+  font-weight: 600;
+}
+
+.map-row.selected > .bit-track { background: #dfe9f7; }
+
 .map-row.selected::after {
   content: '';
   position: absolute;
   inset: 0;
-  border: 2px solid #111;
+  border: 3px solid #1d3f73;
+  box-shadow: 0 0 0 1px white, 0 2px 6px rgb(0 0 0 / 35%);
   pointer-events: none;
   z-index: 3;
 }

@@ -112,6 +112,10 @@ The "TX PDO Mapping" tab comes before the "RX PDO Mapping" tab. The following ap
   is selected afterwards. If the free space is not sufficient, the usual warning is shown.
 - The COB and Index columns are shown in hexadecimal (e.g. `0xC0000180`, `0x1800`). The COB value
   matches the "COB" field in "Communication parameters" without an optional `$NODEID+` prefix.
+- The ID, COB, and Index columns, the bit numbers, and the byte labels show the normal mouse
+  pointer, not the text cursor, because nothing is typed there.
+- The selected PDO is clearly highlighted: a dark blue frame with a shadow, dark blue ID, COB, and
+  Index cells with white bold text, and a light blue background behind its bits.
 
 #### Available Objects for PDO
 
