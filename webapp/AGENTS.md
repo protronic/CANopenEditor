@@ -150,10 +150,9 @@ The "TX PDO Mapping" tab comes before the "RX PDO Mapping" tab. The following ap
   in `DS301_profile.xpd`) is no PDO: it is not shown in the PDO tabs, not counted in "RPDO count" /
   "TPDO count", and not checked against the granularity. The counts are recalculated on open and
   after every change (e.g. Toggle in "Object Dictionary"). "Add new PDO" still skips its index.
-- The COB and Index columns are shown in hexadecimal (e.g. `0x180`, `0x1800`). The COB column shows
-  only the CAN identifier of the "COB" field: without `$NODEID` (as prefix or suffix) and without the
-  flag bits 29..31 (11 bits, or 29 bits if the extended-frame bit 29 is set). The "COB" field in
-  "Communication parameters" keeps the full value.
+- The COB and Index columns are shown in hexadecimal (e.g. `0x40000180`, `0x1800`). The COB column
+  shows the full 32-bit COB-ID with 8 hex digits, including the flag bits, but without `$NODEID` (as
+  prefix or suffix). The "COB" field in "Communication parameters" keeps the full value.
 - The ID, COB, and Index columns, the bit numbers, and the byte labels show the normal mouse
   pointer, not the text cursor, because nothing is typed there.
 - The selected PDO is clearly highlighted: a dark blue frame with a shadow, dark blue ID, COB, and

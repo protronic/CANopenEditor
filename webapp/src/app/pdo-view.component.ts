@@ -344,15 +344,14 @@ export class PdoViewComponent {
     return cob.prefix + (cob.value == null ? cob.rest : `0x${cob.value.toString(16).toUpperCase()}`);
   }
 
-  /** CAN identifier for the PDO rows, without $NODEID and without the flag bits 29..31. */
+  /** Full 32-bit COB-ID for the PDO rows, without $NODEID. */
   cobGraph(raw: string): string {
     const rest = raw.replace(/\s*\+?\s*\$NODEID\s*\+?\s*/gi, '').trim();
     const value = /^0x[0-9a-f]+$/i.test(rest) ? Number.parseInt(rest, 16) : /^\d+$/.test(rest) ? Number(rest) : Number.NaN;
     if (!Number.isFinite(value) || value > 0xffffffff) {
       return rest;
     }
-    const id = value & 0x20000000 ? value & 0x1fffffff : value & 0x7ff;
-    return `0x${id.toString(16).toUpperCase()}`;
+    return `0x${value.toString(16).toUpperCase().padStart(8, '0')}`;
   }
 
   setCob(input: HTMLInputElement): void {
