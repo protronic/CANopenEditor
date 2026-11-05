@@ -217,7 +217,7 @@ interface MapBlock {
           <p>You have unapplied changes for PDO {{ pendingLabel }}.<br>Do you want to apply them and switch to a different PDO?</p>
           <div class="modal-actions">
             <button type="button" (click)="resolvePending('no')">Apply</button>
-            <button type="button" (click)="resolvePending('yes')">Discard Changes</button>
+            <button type="button" (click)="resolvePending('yes')">Discard</button>
             <span class="modal-spacer"></span>
             <button type="button" class="quiet" (click)="resolvePending('cancel')">Cancel</button>
           </div>

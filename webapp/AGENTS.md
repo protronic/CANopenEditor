@@ -249,8 +249,8 @@ and the mapped objects (assigning, bit width, "Insert Item before/after", "Remov
 changes are kept in a draft of the PDO; the communication object and the PDO mapping object in the
 object dictionary are updated only when the PDO is saved. While the selected PDO has unsaved
 changes, the "Apply" button is highlighted. Selecting another PDO, or "Add new PDO", then shows the
-question "Unapplied Changes" with the buttons "Apply" and "Discard Changes" side by side on the left
-and "Cancel" on the right: "Apply" applies the changes, "Discard Changes" discards them (including a
+question "Unapplied Changes" with the buttons "Apply" and "Discard" side by side on the left
+and "Cancel" on the right: "Apply" applies the changes, "Discard" discards them (including a
 moved index), "Cancel" stays on the PDO. The same dialog is used in the "Object Dictionary" tab
 (staying on the object); it shows no further explanation of the buttons. With "Auto Apply" checked, changes are saved
 without the question.
@@ -280,7 +280,8 @@ checked for consistency; on an error a warning is shown and nothing is saved:
 
 - the number of mapped objects (sub-index 0x00) is between 0 and 64, and all counted entries exist;
 - every used entry is a valid mapping value and refers to an existing object or dummy object;
-- the bit width of an entry does not exceed the width of the datatype of the mapped object;
+- the bit width of an entry does not exceed the width of the datatype of the mapped object; without
+  "Bitwise mapping" the width is rounded up to whole bytes, so a BOOLEAN may be mapped with 8 bits;
 - all used entries together fit into the 64 bits of the PDO;
 - without "Bitwise mapping", all bit widths are whole bytes.
 
