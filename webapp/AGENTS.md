@@ -30,7 +30,11 @@ The `webapp` branch contains an Angular web app that recreates the CANopen edito
 in the browser. It reads and writes XDD format exclusively.
 
 The application lives under `webapp/` and covers device information, the object dictionary,
-and PDOs. Multiple devices can be open at the same time. XDD 1.0 files can be opened; saving
+and PDOs. Multiple devices can be open at the same time. Each open device remembers its active tab:
+switching to another device and back shows the tab that was active before. A newly opened device
+starts with "Device Info". Each device also remembers where the user was in the views: in "Object
+Dictionary" the selected object and sub-index and the collapsed lists, in "TX PDO Mapping" and
+"RX PDO Mapping" the selected PDO and the zoom level. The selected rows are scrolled into view. XDD 1.0 files can be opened; saving
 produces a normalized XDD 1.1 file. Additional XML fragments outside of identity,
 file information, object dictionary, baud rates, and network features are not preserved.
 

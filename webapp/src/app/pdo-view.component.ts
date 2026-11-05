@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { DeviceDocument, OdEntry, hex2, hex4 } from './model/device';
 import { DialogService } from './state/dialog.service';
 import { UnsavedEditsService } from './state/unsaved-edits.service';
+import { ViewStateService } from './state/view-state.service';
 import {
   MappableEntry,
   MappingRow,
@@ -238,6 +239,7 @@ export class PdoViewComponent {
   /** Unsaved edits of the selected PDO; the document is changed only when they are saved. */
   private readonly draft = signal<PdoDraft | null>(null);
   private readonly unsaved = inject(UnsavedEditsService);
+  private readonly viewState = inject(ViewStateService);
   private pendingResolve: ((choice: 'yes' | 'no' | 'cancel') => void) | null = null;
   private seen: DeviceDocument | null = null;
   private readonly dialogs = inject(DialogService);
@@ -272,10 +274,27 @@ export class PdoViewComponent {
     effect(() => {
       const document = this.document();
       if (document !== this.seen) {
-        this.seen = document;
-        untracked(() => this.discard());
+        untracked(() => {
+          this.discard();
+          if (this.seen) {
+            this.viewState.set(this.seen, this.owner(), { slot: this.selectedSlot, zoom: this.zoomLevel });
+          }
+          this.seen = document;
+          this.restoreView(document);
+        });
       }
     });
+  }
+
+  private restoreView(document: DeviceDocument): void {
+    const saved = this.viewState.get<{ slot: number | null; zoom: number }>(document, this.owner());
+    const slots = pdoSlots(document, this.direction());
+    this.selectedSlot = slots.some((slot) => slot.slot === saved?.slot) ? saved!.slot : null;
+    this.zoomLevel = saved?.zoom ?? 1;
+    this.pickedCell = null;
+    this.listKey = null;
+    this.menu = null;
+    setTimeout(() => this.host.nativeElement.querySelector('.map-row.selected')?.scrollIntoView({ block: 'nearest' }));
   }
 
   @HostListener('document:click')

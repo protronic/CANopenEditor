@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import { DeviceInfoComponent } from './device-info.component';
 import { DialogHostComponent } from './dialog-host.component';
 import { InsertProfileComponent } from './insert-profile.component';
@@ -33,10 +33,6 @@ type EditorTab = 'info' | 'od' | 'rx' | 'tx';
         </div>
       </header>
 
-      @if (store.status()) {
-        <p class="banner">{{ store.status() }}</p>
-      }
-
       <div class="workspace">
         <aside>
           <h2>Devices</h2>
@@ -57,10 +53,10 @@ type EditorTab = 'info' | 'od' | 'rx' | 'tx';
           @if (store.selected(); as device) {
             <div class="main-head">
               <div class="tabs">
-                <button type="button" [class.active]="tab() === 'info'" (click)="tab.set('info')">Device Info</button>
-                <button type="button" [class.active]="tab() === 'od'" (click)="tab.set('od')">Object Dictionary</button>
-                <button type="button" [class.active]="tab() === 'tx'" (click)="tab.set('tx')">TX PDO Mapping</button>
-                <button type="button" [class.active]="tab() === 'rx'" (click)="tab.set('rx')">RX PDO Mapping</button>
+                <button type="button" [class.active]="tab() === 'info'" (click)="setTab('info')">Device Info</button>
+                <button type="button" [class.active]="tab() === 'od'" (click)="setTab('od')">Object Dictionary</button>
+                <button type="button" [class.active]="tab() === 'tx'" (click)="setTab('tx')">TX PDO Mapping</button>
+                <button type="button" [class.active]="tab() === 'rx'" (click)="setTab('rx')">RX PDO Mapping</button>
               </div>
               <span class="schema">Opened as XDD {{ device.document.schemaVersion }}. Save writes XDD 1.1</span>
             </div>
@@ -91,17 +87,29 @@ type EditorTab = 'info' | 'od' | 'rx' | 'tx';
         </main>
       </div>
       @if (profileOpen()) {
-        <app-insert-profile (closed)="profileOpen.set(false)" (inserted)="tab.set('od')" />
+        <app-insert-profile (closed)="profileOpen.set(false)" (inserted)="setTab('od')" />
       }
       <app-dialog-host />
     </div>
   `,
 })
 export class AppComponent {
-  readonly tab = signal<EditorTab>('info');
+  /** Active tab per open device, so switching back to a device restores its tab. */
+  private readonly tabs = signal<Record<string, EditorTab>>({});
+  readonly tab = computed<EditorTab>(() => {
+    const id = this.store.selectedId();
+    return (id && this.tabs()[id]) || 'info';
+  });
   readonly profileOpen = signal(false);
 
   constructor(readonly store: ProjectStore, private readonly dialogs: DialogService) {}
+
+  setTab(tab: EditorTab): void {
+    const id = this.store.selectedId();
+    if (id) {
+      this.tabs.update((tabs) => ({ ...tabs, [id]: tab }));
+    }
+  }
 
   openFile(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -147,6 +155,7 @@ export class AppComponent {
       return;
     }
     this.store.close(device.id);
+    this.tabs.update(({ [device.id]: _, ...rest }) => rest);
   }
 
   async loadExample(): Promise<void> {

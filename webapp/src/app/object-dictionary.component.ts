@@ -1,4 +1,4 @@
-import { Component, HostListener, effect, inject, input, output, untracked } from '@angular/core';
+import { Component, ElementRef, HostListener, effect, inject, input, output, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   AccessType,
@@ -26,9 +26,16 @@ import { CloneObjectsComponent } from './clone-objects.component';
 import { DialogService } from './state/dialog.service';
 import { checkMappingObject, isMappingEntryCounted, isMappingObject, mappingTargetLabel, sameMappingTarget } from './xdd/pdo';
 import { UnsavedEditsService } from './state/unsaved-edits.service';
+import { ViewStateService } from './state/view-state.service';
 
 type PendingChoice = 'yes' | 'no' | 'cancel';
 type MenuKind = 'object' | 'sub';
+
+interface OdViewState {
+  index: number | null;
+  subIndex: number | null;
+  collapsed: Record<ObjectGroupId, boolean>;
+}
 
 @Component({
   selector: 'app-object-dictionary',
@@ -322,7 +329,7 @@ export class ObjectDictionaryComponent {
 
   selectedIndex: number | null = null;
   selectedSubIndex: number | null = null;
-  collapsed: Record<'communication' | 'manufacturer' | 'profile', boolean> = {
+  collapsed: Record<ObjectGroupId, boolean> = {
     communication: false,
     manufacturer: false,
     profile: false,
@@ -361,6 +368,8 @@ export class ObjectDictionaryComponent {
 
   private readonly dialogs = inject(DialogService);
   private readonly unsaved = inject(UnsavedEditsService);
+  private readonly viewState = inject(ViewStateService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private extraCounts: string[] = [];
   private extraStorage: string[] = [];
   private baseline = '';
@@ -373,9 +382,15 @@ export class ObjectDictionaryComponent {
       this.revision();
       untracked(() => {
         if (document !== this.seen) {
+          if (this.seen) {
+            this.viewState.set<OdViewState>(this.seen, 'od', {
+              index: this.selectedIndex,
+              subIndex: this.selectedSubIndex,
+              collapsed: this.collapsed,
+            });
+          }
           this.seen = document;
-          this.selectedIndex = document.objects[0]?.index ?? null;
-          this.selectedSubIndex = null;
+          this.restoreView(document);
           this.extraSelection.clear();
           this.cloneSources = [];
           this.menu = null;
@@ -385,6 +400,18 @@ export class ObjectDictionaryComponent {
           this.loadDraft();
         }
       });
+    });
+  }
+
+  private restoreView(document: DeviceDocument): void {
+    const saved = this.viewState.get<OdViewState>(document, 'od');
+    const object = document.objects.find((entry) => entry.index === saved?.index) ?? document.objects[0];
+    this.selectedIndex = object?.index ?? null;
+    this.selectedSubIndex = object && saved?.index === object.index
+      && object.subObjects.some((sub) => sub.subIndex === saved.subIndex) ? saved.subIndex : null;
+    this.collapsed = saved ? { ...saved.collapsed } : { communication: false, manufacturer: false, profile: false };
+    setTimeout(() => {
+      this.host.nativeElement.querySelectorAll('tr.selected').forEach((row) => row.scrollIntoView({ block: 'nearest' }));
     });
   }
 
