@@ -672,6 +672,55 @@ export function checkMappingObject(document: DeviceDocument, map: OdEntry, subIn
   return null;
 }
 
+/**
+ * Mapped objects whose length is not a multiple of the device granularity (Device Info). Granularity
+ * 0 or 1 accepts every length. `valueOf` lets callers check unsaved values of the mapping object.
+ */
+export function mappingGranularityIssues(
+  document: DeviceDocument,
+  map: OdEntry,
+  valueOf: (sub: OdEntry) => string = (sub) => sub.defaultValue,
+): string[] {
+  const granularity = document.granularity;
+  if (!isMappingObject(map.index) || !Number.isInteger(granularity) || granularity <= 1) {
+    return [];
+  }
+  const sub0 = map.subObjects.find((sub) => sub.subIndex === 0);
+  const countText = sub0 ? valueOf(sub0).trim() : '';
+  const count = !countText
+    ? map.subObjects.filter((sub) => sub.subIndex > 0).length
+    : /^0x/i.test(countText) ? Number.parseInt(countText, 16) : Number.parseInt(countText, 10);
+  const kind = map.index >= 0x1a00 ? 'TPDO' : 'RPDO';
+  const issues: string[] = [];
+  for (const sub of map.subObjects) {
+    if (sub.subIndex < 1 || sub.subIndex > count) {
+      continue;
+    }
+    const decoded = decodeMapping(valueOf(sub));
+    if (decoded && decoded.bits > 0 && decoded.bits % granularity !== 0) {
+      const name = findObject(document, decoded.index)?.subObjects.find((entry) => entry.subIndex === decoded.subIndex)?.name
+        ?? findObject(document, decoded.index)?.name ?? dummyName(decoded.index) ?? '';
+      issues.push(`${kind} 0x${hex4(map.index - 0x200)} entry ${sub.subIndex}: `
+        + `0x${hex4(decoded.index)}/${hex2(decoded.subIndex)}${name ? ` ${name}` : ''} (${decoded.bits} bits)`);
+    }
+  }
+  return issues;
+}
+
+/** Granularity issues of all PDOs of the device. */
+export function pdoGranularityIssues(document: DeviceDocument): string[] {
+  return document.objects
+    .filter((object) => isMappingObject(object.index))
+    .flatMap((map) => mappingGranularityIssues(document, map));
+}
+
+export function granularityMessage(granularity: number, issues: string[]): string {
+  const shown = issues.slice(0, 10);
+  const more = issues.length > shown.length ? `\n... and ${issues.length - shown.length} more` : '';
+  return `The granularity is ${granularity} bits, but these mapped objects are not a multiple of `
+    + `${granularity} bits:\n${shown.join('\n')}${more}`;
+}
+
 export function setMappingRaw(
   document: DeviceDocument,
   direction: PdoDirection,

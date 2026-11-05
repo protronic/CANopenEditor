@@ -14,6 +14,8 @@ import {
   addMapping,
   addPdo,
   commitPdoDraft,
+  granularityMessage,
+  mappingGranularityIssues,
   createPdoDraft,
   byteMappingBits,
   commBase,
@@ -560,6 +562,12 @@ export class PdoViewComponent {
         return false;
       }
       edit.discard();
+    }
+    const map = draft.document.objects.find((object) => object.index === draft.commIndex + 0x200);
+    const issues = map ? mappingGranularityIssues(draft.document, map) : [];
+    if (issues.length > 0 && !(await this.dialogs.confirm(
+      `${granularityMessage(draft.document.granularity, issues)}\n\nSave anyway?`, 'Warning'))) {
+      return false;
     }
     const error = commitPdoDraft(this.document(), draft);
     if (error) {

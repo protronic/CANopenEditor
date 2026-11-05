@@ -24,7 +24,15 @@ import {
 } from './model/device';
 import { CloneObjectsComponent } from './clone-objects.component';
 import { DialogService } from './state/dialog.service';
-import { checkMappingObject, isMappingEntryCounted, isMappingObject, mappingTargetLabel, sameMappingTarget } from './xdd/pdo';
+import {
+  checkMappingObject,
+  granularityMessage,
+  isMappingEntryCounted,
+  isMappingObject,
+  mappingGranularityIssues,
+  mappingTargetLabel,
+  sameMappingTarget,
+} from './xdd/pdo';
 import { UnsavedEditsService } from './state/unsaved-edits.service';
 import { ViewStateService } from './state/view-state.service';
 
@@ -777,6 +785,12 @@ export class ObjectDictionaryComponent {
       const error = checkMappingObject(this.document(), parent, entry.subIndex, this.draftDefault);
       if (error) {
         void this.dialogs.warning(error);
+        return false;
+      }
+      const issues = mappingGranularityIssues(this.document(), parent,
+        (sub) => sub.subIndex === entry.subIndex ? this.draftDefault : sub.defaultValue);
+      if (issues.length > 0 && !(await this.dialogs.confirm(
+        `${granularityMessage(this.document().granularity, issues)}\n\nSave anyway?`, 'Warning'))) {
         return false;
       }
     }

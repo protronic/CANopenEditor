@@ -8,14 +8,17 @@ import {
   createPdoDraft,
   byteMappingBits,
   fitMappingBits,
+  granularityMessage,
   insertMapping,
   isBitwiseMapping,
   isMappingEntryCounted,
   isMappingObject,
   mappableEntries,
+  mappingGranularityIssues,
   mappingTargetLabel,
   movePdo,
   pdoDraftChanged,
+  pdoGranularityIssues,
   pdoSlots,
   removeMapping,
   sameMappingTarget,
@@ -312,6 +315,40 @@ describe('checkMappingObject', () => {
     const { document, map } = project();
     setBitwiseMapping(document, 'tx', 0, false);
     expect(checkMappingObject(document, map, 2, '0x21010001')).toContain('whole bytes');
+  });
+});
+
+describe('mappingGranularityIssues', () => {
+  function project(granularity: number) {
+    const document = createEmptyDocument();
+    document.granularity = granularity;
+    document.objects.push(
+      createEntry({ index: 0x2100, name: 'Value', objectType: 'VAR', dataType: 'UNSIGNED32', pdoMapping: 'optional' }),
+      createEntry({ index: 0x2101, name: 'Flag', objectType: 'VAR', dataType: 'UNSIGNED8', pdoMapping: 'optional' }),
+    );
+    addPdo(document, 'tx');
+    addMapping(document, 'tx', 0);
+    addMapping(document, 'tx', 0);
+    setMappingEntry(document, 'tx', 0, 1, 0x2100, 0, 32);
+    setMappingEntry(document, 'tx', 0, 2, 0x2101, 0, 8);
+    return { document, map: document.objects.find((object) => object.index === 0x1a00)! };
+  }
+
+  it('accepts lengths that are multiples of the granularity', () => {
+    expect(pdoGranularityIssues(project(8).document)).toEqual([]);
+    expect(pdoGranularityIssues(project(1).document)).toEqual([]);
+  });
+
+  it('lists mapped objects that are no multiple of the granularity', () => {
+    const { document, map } = project(16);
+    expect(pdoGranularityIssues(document)).toEqual(['TPDO 0x1800 entry 2: 0x2101/00 Flag (8 bits)']);
+    expect(mappingGranularityIssues(document, map, (sub) => sub.subIndex === 2 ? '0x21010010' : sub.defaultValue)).toEqual([]);
+    expect(granularityMessage(16, pdoGranularityIssues(document))).toContain('not a multiple of 16 bits');
+  });
+
+  it('ignores entries beyond the count of sub-index 0x00', () => {
+    const { document, map } = project(16);
+    expect(mappingGranularityIssues(document, map, (sub) => sub.subIndex === 0 ? '1' : sub.defaultValue)).toEqual([]);
   });
 });
 
