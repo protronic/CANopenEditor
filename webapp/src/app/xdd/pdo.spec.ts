@@ -13,6 +13,7 @@ import {
   movePdo,
   pdoSlots,
   removeMapping,
+  resetMappingNames,
   sameMappingTarget,
   setBitwiseMapping,
   setMappingEntry,
@@ -223,5 +224,27 @@ describe('PDO settings', () => {
     setPdoField(document, 'rx', 0, 'eventTimer', '100');
     expect(pdoSlots(document, 'rx')[0].eventTimer).toBe('100');
     expect(comm.subObjects[0].defaultValue).toBe('5');
+  });
+});
+
+describe('resetMappingNames', () => {
+  it('restores the generated names of used entries in one direction only', () => {
+    const document = createEmptyDocument();
+    document.objects.push(createEntry({ index: 0x2100, name: 'Flag', objectType: 'VAR', dataType: 'BOOLEAN', pdoMapping: 'optional' }));
+    addPdo(document, 'rx');
+    addPdo(document, 'tx');
+    for (const direction of ['rx', 'tx'] as const) {
+      addMapping(document, direction, 0);
+      setMappingEntry(document, direction, 0, 1, 0x2100, 0, 1);
+    }
+    const rxMap = document.objects.find((object) => object.index === 0x1600)!;
+    const txMap = document.objects.find((object) => object.index === 0x1a00)!;
+    rxMap.subObjects[1].name = 'Eigener Name';
+    txMap.subObjects[1].name = 'Eigener Name';
+    rxMap.subObjects.push(createEntry({ index: 0x1600, subIndex: 2, name: 'Application object 2', defaultValue: '0x00000000' }));
+
+    expect(resetMappingNames(document, 'rx')).toBe(1);
+    expect(rxMap.subObjects.map((sub) => sub.name)).toEqual(['Number of mapped objects', '1 - 0x2100/00/Flag', 'Application object 2']);
+    expect(txMap.subObjects[1].name).toBe('Eigener Name');
   });
 });

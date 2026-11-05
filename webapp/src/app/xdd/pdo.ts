@@ -176,6 +176,27 @@ export function mappingTargetLabel(document: DeviceDocument, mappingSubIndex: nu
   return `${mappingSubIndex} - 0x${hex4(decoded.index)}/${hex2(decoded.subIndex)}/${name}`;
 }
 
+/** Gives every used mapping entry of the direction its generated name; returns the number of renamed entries. */
+export function resetMappingNames(document: DeviceDocument, direction: PdoDirection): number {
+  let renamed = 0;
+  for (const map of document.objects) {
+    if (map.index < mapBase(direction) || map.index >= mapBase(direction) + 0x200) {
+      continue;
+    }
+    const count = mappingCount(map);
+    for (const sub of map.subObjects) {
+      const label = sub.subIndex > 0 && sub.subIndex <= count
+        ? mappingTargetLabel(document, sub.subIndex, sub.defaultValue)
+        : null;
+      if (label && sub.name !== label) {
+        sub.name = label;
+        renamed += 1;
+      }
+    }
+  }
+  return renamed;
+}
+
 /** True if both mapping values refer to the same object; the bit width does not matter. */
 export function sameMappingTarget(a: string, b: string): boolean {
   const first = decodeMapping(a);

@@ -155,6 +155,11 @@ of the entry changes. When entries move because an item is inserted or removed, 
 follow the new mapping index, edited names move unchanged with their entry. Names of existing
 projects, e.g. "Application object 1", stay unchanged until the mapped object changes.
 
+The button "Reset Names" in "Communication parameters" of the tabs "TX PDO Mapping" and "RX PDO Mapping"
+gives all used mapping entries of that tab the generated name again, after a confirmation in the
+overlay window. Edited names are overwritten; unused entries keep their name. The other tab is not
+changed.
+
 ### Performance
 
 Projects with many PDOs (e.g. 50 RPDOs with 10 to 20 mapped objects each) must stay responsive:

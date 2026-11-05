@@ -22,6 +22,7 @@ import {
   pdoSlots,
   removeMapping,
   removePdo,
+  resetMappingNames,
   setBitwiseMapping,
   setMappingEntry,
   setPdoField,
@@ -128,6 +129,7 @@ interface MapBlock {
               <button type="button" class="system" (click)="create()">Add new PDO</button>
               <button type="button" class="system" (click)="remove()" [disabled]="!selected()">Delete PDO</button>
               <button type="button" class="system" (click)="save()" [disabled]="!selected()">Save</button>
+              <button type="button" class="system" (click)="resetNames()" [disabled]="!selected()">Reset Names</button>
             </div>
           </div>
         </fieldset>
@@ -451,6 +453,16 @@ export class PdoViewComponent {
     this.refresh();
     this.selectedSlot = this.slots()[0]?.slot ?? null;
     this.commit();
+  }
+
+  async resetNames(): Promise<void> {
+    const question = 'Reset the names of all mapping entries in this tab to "mapping-index - index/sub-index/name"? Edited names are overwritten.';
+    if (!(await this.dialogs.confirm(question))) {
+      return;
+    }
+    if (resetMappingNames(this.document(), this.direction()) > 0) {
+      this.commit();
+    }
   }
 
   save(): void {
