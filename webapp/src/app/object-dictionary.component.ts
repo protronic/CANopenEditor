@@ -290,7 +290,11 @@ type MenuKind = 'object' | 'sub';
         <div class="modal">
           <h3>Unsaved changes</h3>
           <p>Unsaved changes on Index {{ pendingLabel }}. Do you wish to switch object and loose your changes?</p>
-          <p>Yes = Lose changes. No = Save. Cancel = Go back and stay on the object.</p>
+          <ul class="choice-help">
+            <li>Yes = Lose changes.</li>
+            <li>No = Save.</li>
+            <li>Cancel = Go back and stay on the object.</li>
+          </ul>
           <div class="modal-actions">
             <button type="button" (click)="resolvePending('yes')">Yes</button>
             <button type="button" (click)="resolvePending('no')">No</button>

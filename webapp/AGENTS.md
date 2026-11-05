@@ -161,7 +161,9 @@ changes are kept in a draft of the PDO; the communication object and the PDO map
 object dictionary are updated only when the PDO is saved. While the selected PDO has unsaved
 changes, the "Save" button is highlighted. Selecting another PDO, or "Add new PDO", then shows the
 question "Unsaved changes": "Yes" discards the changes (including a moved index), "No" saves them,
-"Cancel" stays on the PDO. With "Autosave changes" checked, changes are saved without the question.
+"Cancel" stays on the PDO. The dialog lists these three explanations one below the other, as does the
+same dialog in the "Object Dictionary" tab. With "Autosave changes" checked, changes are saved
+without the question.
 "Delete PDO" deletes the PDO after its own confirmation.
 
 #### Unsaved changes in both tabs

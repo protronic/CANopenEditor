@@ -469,6 +469,14 @@ button.collapse {
 
 .dialog-box { width: min(28rem, calc(100vw - 2rem)); }
 
+.modal .choice-help {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.2rem;
+}
+
 .dialog-box h3 { margin: 0; }
 
 .dialog-box p { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
