@@ -487,6 +487,11 @@ button.collapse {
 
 .dialog-box h3 { margin: 0; }
 
+/* Title of a movable window (appDraggable). */
+.modal h3 { cursor: grab; user-select: none; touch-action: none; }
+
+.modal.dragging h3 { cursor: grabbing; }
+
 .dialog-box p { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
 
 .dialog-box.error h3 { color: #b8341c; }

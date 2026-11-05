@@ -1,13 +1,15 @@
 import { Component, ElementRef, HostListener, effect, inject } from '@angular/core';
+import { DraggableDirective } from './draggable.directive';
 import { DialogService } from './state/dialog.service';
 
 @Component({
   selector: 'app-dialog-host',
   standalone: true,
+  imports: [DraggableDirective],
   template: `
     @if (dialogs.current(); as dialog) {
       <div class="modal-back dialog-back">
-        <div class="modal dialog-box" [class]="dialog.kind" [class.wide]="!!dialog.items?.length" role="alertdialog" aria-modal="true" aria-labelledby="dialog-title">
+        <div class="modal dialog-box" [appDraggable]="dialog" [class]="dialog.kind" [class.wide]="!!dialog.items?.length" role="alertdialog" aria-modal="true" aria-labelledby="dialog-title">
           <h3 id="dialog-title">{{ dialog.title }}</h3>
           <p>{{ dialog.text }}</p>
           @if (dialog.items?.length) {

@@ -33,6 +33,7 @@ import {
   mappingTargetLabel,
   sameMappingTarget,
 } from './xdd/pdo';
+import { DraggableDirective } from './draggable.directive';
 import { UnsavedEditsService } from './state/unsaved-edits.service';
 import { ViewStateService } from './state/view-state.service';
 
@@ -48,7 +49,7 @@ interface OdViewState {
 @Component({
   selector: 'app-object-dictionary',
   standalone: true,
-  imports: [FormsModule, CloneObjectsComponent],
+  imports: [FormsModule, CloneObjectsComponent, DraggableDirective],
   template: `
     <div class="od">
       <div class="od-groups">
@@ -279,7 +280,7 @@ interface OdViewState {
 
     @if (showAdd) {
       <div class="modal-back">
-        <form class="modal" (submit)="createObject($event)">
+        <form class="modal" appDraggable (submit)="createObject($event)">
           <h3>Create new OD Index</h3>
           <label class="od-line">
             <span>Index (hex)</span>
@@ -309,7 +310,7 @@ interface OdViewState {
 
     @if (pending) {
       <div class="modal-back">
-        <div class="modal">
+        <div class="modal" appDraggable>
           <h3>Unsaved changes</h3>
           <p>Unsaved changes on Index {{ pendingLabel }}. Do you wish to switch object and loose your changes?</p>
           <ul class="choice-help">

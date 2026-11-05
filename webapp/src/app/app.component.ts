@@ -151,7 +151,7 @@ export class AppComponent {
   async close(device: OpenDevice, event: Event): Promise<void> {
     event.stopPropagation();
     const name = device.document.productName || device.fileName;
-    if (device.dirty && !(await this.dialogs.confirm(`"${name}" has unsaved changes. Close file?`))) {
+    if (device.dirty && !(await this.dialogs.choose(`"${name}" has unsaved changes. Close file?`, ['Close without saving']))) {
       return;
     }
     this.store.close(device.id);

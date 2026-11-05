@@ -53,6 +53,12 @@ with changes that are not saved yet are highlighted in color (light red backgrou
 
 Questions to the user use an in-app overlay window with "OK" and "Cancel" instead of `confirm()`.
 Errors and warnings use an in-app overlay window that must be acknowledged with "OK".
+Closing a project with unsaved changes ("×" in "Devices") asks with the buttons "Close without
+saving" and "Cancel".
+These windows, the "Unsaved changes" questions, and "Create new OD Index" can be moved with the
+mouse by dragging their title (grab cursor, grabbing while dragging); they stay inside the browser window, and every newly
+opened window starts centered. "Insert Profile" and "Insert OD Objects" (Clone) are not movable,
+because clicking their background closes them.
 
 ### Layout
 
@@ -124,6 +130,11 @@ after the object under the mouse pointer, within the parameter range of its list
 0x1000–0x1FFF, manufacturer 0x2000–0x5FFF, device profile 0x6000–0xFFFF). Right-clicking the empty
 area of a list uses the next free index after its last object, or the first index of the range if
 the list has no objects.
+
+The "Data Type" selection offers only BOOLEAN, INTEGER8/16/32/64, UNSIGNED8/16/32/64, REAL32/64,
+VISIBLE_STRING, OCTET_STRING, UNICODE_STRING, and DOMAIN. If an object already has another data type
+(e.g. UNSIGNED24 from an opened file), that type stays selectable for this object at the top of the
+list and is kept unless another type is chosen.
 
 #### Tab "TX PDO Mapping"
 

@@ -2,6 +2,7 @@ import { Component, ElementRef, HostListener, computed, effect, inject, input, o
 import { FormsModule } from '@angular/forms';
 import { DeviceDocument, OdEntry, hex2, hex4 } from './model/device';
 import { DialogService } from './state/dialog.service';
+import { DraggableDirective } from './draggable.directive';
 import { UnsavedEditsService } from './state/unsaved-edits.service';
 import { ViewStateService } from './state/view-state.service';
 import {
@@ -55,7 +56,7 @@ interface MapBlock {
 @Component({
   selector: 'app-pdo-view',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, DraggableDirective],
   template: `
     <div class="pdo-layout">
       <div class="pdo-top">
@@ -211,7 +212,7 @@ interface MapBlock {
 
     @if (pending) {
       <div class="modal-back">
-        <div class="modal">
+        <div class="modal" appDraggable>
           <h3>Unsaved changes</h3>
           <p>Unsaved changes on PDO {{ pendingLabel }}. Do you wish to switch PDO and loose your changes?</p>
           <ul class="choice-help">

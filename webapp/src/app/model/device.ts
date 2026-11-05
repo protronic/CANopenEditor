@@ -189,6 +189,7 @@ export const DATA_TYPE_BY_CODE: Record<number, DataTypeName> = {
   0x23: 'IDENTITY',
 };
 
+/** Data types offered in the "Data Type" selection. */
 export const DATA_TYPES: DataTypeName[] = [
   'BOOLEAN',
   'INTEGER8',
@@ -204,22 +205,7 @@ export const DATA_TYPES: DataTypeName[] = [
   'VISIBLE_STRING',
   'OCTET_STRING',
   'UNICODE_STRING',
-  'TIME_OF_DAY',
-  'TIME_DIFFERENCE',
   'DOMAIN',
-  'INTEGER24',
-  'INTEGER40',
-  'INTEGER48',
-  'INTEGER56',
-  'UNSIGNED24',
-  'UNSIGNED40',
-  'UNSIGNED48',
-  'UNSIGNED56',
-  'PDO_COMMUNICATION_PARAMETER',
-  'PDO_MAPPING',
-  'SDO_PARAMETER',
-  'IDENTITY',
-  'UNKNOWN',
 ];
 
 export const ACCESS_TYPES: AccessType[] = [
@@ -520,6 +506,7 @@ export function formatTime(date: Date): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
+/** The offered data types; a different current type (e.g. from an opened file) stays selectable. */
 export function dataTypeChoices(current: DataTypeName): DataTypeName[] {
   return DATA_TYPES.includes(current) ? DATA_TYPES : [current, ...DATA_TYPES];
 }
