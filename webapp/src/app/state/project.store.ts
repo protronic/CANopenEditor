@@ -4,7 +4,7 @@ import { createEmptyDocument } from '../model/device';
 import { parseXdd, writeXdd } from '../xdd/xdd-codec';
 import { CloneRow, cloneObjects } from '../xdd/clone';
 import { DialogService } from './dialog.service';
-import { InsertRow, insertSelected } from '../xdd/profiles';
+import { InsertRow, buildInsertRows, insertSelected, profileUrl } from '../xdd/profiles';
 import { pdoSlots } from '../xdd/pdo';
 
 export interface OpenDevice {
@@ -15,6 +15,10 @@ export interface OpenDevice {
   /** Counts changes to the document, so views recompute derived data only after a change. */
   revision: number;
 }
+
+const NEW_EMPTY = 'Empty project';
+const NEW_DS301 = 'DS301 profile';
+const DS301_PROFILE = 'DS301_profile.xpd';
 
 @Injectable({ providedIn: 'root' })
 export class ProjectStore {
@@ -29,8 +33,32 @@ export class ProjectStore {
     this.selectedId.set(id);
   }
 
-  newDevice(): void {
-    this.add(this.create(createEmptyDocument(), 'project.xdd', true));
+  async newDevice(): Promise<void> {
+    const choice = await this.dialogs.choose(
+      'Create an empty project or a project with the DS301 profile?',
+      [NEW_EMPTY, NEW_DS301] as const,
+      'New project',
+    );
+    if (!choice) {
+      return;
+    }
+    const document = createEmptyDocument();
+    if (choice === NEW_DS301) {
+      try {
+        const response = await fetch(profileUrl(DS301_PROFILE));
+        if (!response.ok) {
+          throw new Error();
+        }
+        const profile = parseXdd(await response.text());
+        insertSelected(document, buildInsertRows([{ name: DS301_PROFILE, document: profile }], document, [0], new Map(), true));
+        document.nrOfRxPdo = pdoSlots(document, 'rx').length;
+        document.nrOfTxPdo = pdoSlots(document, 'tx').length;
+      } catch {
+        void this.dialogs.error(`${DS301_PROFILE} could not be loaded.`);
+        return;
+      }
+    }
+    this.add(this.create(document, 'project.xdd', true));
   }
 
   openXml(fileName: string, xml: string): void {

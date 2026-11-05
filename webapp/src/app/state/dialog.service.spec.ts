@@ -15,6 +15,18 @@ describe('DialogService', () => {
     expect(dialogs.current()).toBeNull();
   });
 
+  it('resolves a choice with the chosen button or null for Cancel', async () => {
+    const dialogs = new DialogService();
+    const chosen = dialogs.choose('New project?', ['Empty project', 'DS301 profile']);
+    expect(dialogs.current()?.choices).toEqual(['Empty project', 'DS301 profile']);
+    dialogs.close('DS301 profile');
+    expect(await chosen).toBe('DS301 profile');
+
+    const cancel = dialogs.choose('New project?', ['Empty project', 'DS301 profile']);
+    dialogs.close(false);
+    expect(await cancel).toBeNull();
+  });
+
   it('shows queued messages one after another', async () => {
     const dialogs = new DialogService();
     const first = dialogs.error('The file could not be read.');

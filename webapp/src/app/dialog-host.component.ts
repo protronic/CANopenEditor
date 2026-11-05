@@ -11,8 +11,15 @@ import { DialogService } from './state/dialog.service';
           <h3 id="dialog-title">{{ dialog.title }}</h3>
           <p>{{ dialog.text }}</p>
           <div class="modal-actions">
-            <span class="modal-spacer"></span>
-            <button type="button" class="dialog-ok" (click)="dialogs.close(true)">OK</button>
+            @if (dialog.choices; as choices) {
+              @for (choice of choices; track choice; let first = $first) {
+                <button type="button" [class.dialog-ok]="first" (click)="dialogs.close(choice)">{{ choice }}</button>
+              }
+              <span class="modal-spacer"></span>
+            } @else {
+              <span class="modal-spacer"></span>
+              <button type="button" class="dialog-ok" (click)="dialogs.close(true)">OK</button>
+            }
             @if (dialog.kind === 'confirm') {
               <button type="button" class="quiet" (click)="dialogs.close(false)">Cancel</button>
             }

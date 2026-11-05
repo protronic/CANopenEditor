@@ -6,7 +6,9 @@ export interface DialogRequest {
   kind: DialogKind;
   title: string;
   text: string;
-  resolve: (ok: boolean) => void;
+  /** Buttons offered instead of "OK"; "Cancel" is always added. */
+  choices?: readonly string[];
+  resolve: (result: boolean | string) => void;
 }
 
 /** In-app replacement for confirm() and alert(); requests are shown one after another. */
@@ -16,7 +18,12 @@ export class DialogService {
   readonly current = computed(() => this.queue()[0] ?? null);
 
   confirm(text: string, title = 'Confirm'): Promise<boolean> {
-    return this.open('confirm', title, text);
+    return this.open('confirm', title, text).then((result) => result === true);
+  }
+
+  /** Resolves with the chosen button text, or null for "Cancel". */
+  choose<T extends string>(text: string, choices: readonly T[], title = 'Confirm'): Promise<T | null> {
+    return this.open('confirm', title, text, choices).then((result) => typeof result === 'string' ? result as T : null);
   }
 
   error(text: string, title = 'Error'): Promise<void> {
@@ -27,18 +34,18 @@ export class DialogService {
     return this.open('warning', title, text).then(() => undefined);
   }
 
-  close(ok: boolean): void {
+  close(result: boolean | string): void {
     const [first, ...rest] = this.queue();
     if (!first) {
       return;
     }
     this.queue.set(rest);
-    first.resolve(ok);
+    first.resolve(result);
   }
 
-  private open(kind: DialogKind, title: string, text: string): Promise<boolean> {
+  private open(kind: DialogKind, title: string, text: string, choices?: readonly string[]): Promise<boolean | string> {
     return new Promise((resolve) => {
-      this.queue.update((queue) => [...queue, { kind, title, text, resolve }]);
+      this.queue.update((queue) => [...queue, { kind, title, text, choices, resolve }]);
     });
   }
 }

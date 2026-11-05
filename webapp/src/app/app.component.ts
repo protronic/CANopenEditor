@@ -160,11 +160,11 @@ export class AppComponent {
 
   async loadExample(): Promise<void> {
     try {
-      const response = await fetch('minimal_project.xdd');
+      const response = await fetch('demo_io.xdd');
       if (!response.ok) {
         throw new Error('Example not found');
       }
-      this.store.openXml('minimal_project.xdd', await response.text());
+      this.store.openXml('demo_io.xdd', await response.text());
     } catch {
       void this.dialogs.error('The example XDD could not be loaded.');
     }

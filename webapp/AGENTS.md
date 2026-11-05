@@ -41,7 +41,11 @@ file information, object dictionary, baud rates, and network features are not pr
 The web UI should replicate the CANopenEditor EDSEditorGUI with the older WinForms interface.
 All labels within the UI remain in their original English language and are not translated.
 
-The start page offers the buttons "New", "Open", and "Open example XDD". There is no notice line
+The start page offers the buttons "New", "Open", and "Open example XDD". "New" asks in the dialog
+"New project" whether to create an "Empty project" or a project with the "DS301 profile" (all
+objects of `DS301_profile.xpd`); "Cancel" creates nothing. The two choices stand together on the
+left, "Cancel" on the right. The example project is `demo_io.xdd`
+(`webapp/public/demo_io.xdd`). There is no notice line
 below the header: no notice is shown when a device is created, a file is opened or saved, or
 objects are cloned or inserted from a profile. In the "Devices" column, projects
 with changes that are not saved yet are highlighted in color (light red background, red border, and
