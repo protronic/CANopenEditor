@@ -52,8 +52,6 @@ export class ProjectStore {
         }
         const profile = parseXdd(await response.text());
         insertSelected(document, buildInsertRows([{ name: DS301_PROFILE, document: profile }], document, [0], new Map(), true));
-        document.nrOfRxPdo = pdoSlots(document, 'rx').length;
-        document.nrOfTxPdo = pdoSlots(document, 'tx').length;
       } catch {
         void this.dialogs.error(`${DS301_PROFILE} could not be loaded.`);
         return;
@@ -79,8 +77,6 @@ export class ProjectStore {
       return null;
     }
     const inserted = insertSelected(device.document, rows, overwrite);
-    device.document.nrOfRxPdo = pdoSlots(device.document, 'rx').length;
-    device.document.nrOfTxPdo = pdoSlots(device.document, 'tx').length;
     this.touch(id);
     return inserted;
   }
@@ -91,8 +87,6 @@ export class ProjectStore {
       return null;
     }
     const cloned = cloneObjects(device.document, rows, offsets);
-    device.document.nrOfRxPdo = pdoSlots(device.document, 'rx').length;
-    device.document.nrOfTxPdo = pdoSlots(device.document, 'tx').length;
     this.touch(id);
     return cloned;
   }
@@ -100,6 +94,7 @@ export class ProjectStore {
   touch(id: string): void {
     const document = this.devices().find((device) => device.id === id)?.document;
     if (document) {
+      countPdos(document);
       syncMonitoredNodes(document);
     }
     this.devices.update((list) => list.map((device) => device.id === id ? { ...device, dirty: true, revision: device.revision + 1 } : device));
@@ -139,6 +134,7 @@ export class ProjectStore {
   }
 
   private create(document: DeviceDocument, fileName: string, dirty: boolean): OpenDevice {
+    countPdos(document);
     trackHeartbeatConsumers(document);
     return {
       id: globalThis.crypto.randomUUID(),
@@ -148,4 +144,9 @@ export class ProjectStore {
       revision: 0,
     };
   }
+}
+
+function countPdos(document: DeviceDocument): void {
+  document.nrOfRxPdo = pdoSlots(document, 'rx').length;
+  document.nrOfTxPdo = pdoSlots(document, 'tx').length;
 }

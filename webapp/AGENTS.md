@@ -146,6 +146,10 @@ The "TX PDO Mapping" tab comes before the "RX PDO Mapping" tab. The following ap
 - Right-clicking a mapped object opens a context menu with "Insert Item before", "Insert Item after",
   and "Remove Item". As in the desktop editor, inserting adds a "Dummy Int8" (0x0002) placeholder that
   is selected afterwards. If the free space is not sufficient, the usual warning is shown.
+- Like the desktop editor, a disabled communication object (e.g. 0x1404/0x1804 with `CO_disabled`
+  in `DS301_profile.xpd`) is no PDO: it is not shown in the PDO tabs, not counted in "RPDO count" /
+  "TPDO count", and not checked against the granularity. The counts are recalculated on open and
+  after every change (e.g. Toggle in "Object Dictionary"). "Add new PDO" still skips its index.
 - The COB and Index columns are shown in hexadecimal (e.g. `0x180`, `0x1800`). The COB column shows
   only the CAN identifier of the "COB" field: without `$NODEID` (as prefix or suffix) and without the
   flag bits 29..31 (11 bits, or 29 bits if the extended-frame bit 29 is set). The "COB" field in

@@ -225,10 +225,11 @@ export function isMappingEntryCounted(map: OdEntry, subIndex: number): boolean {
   return subIndex > 0 && subIndex <= mappingCount(map);
 }
 
+/** PDOs of the device; like the desktop editor, disabled communication objects are no PDOs. */
 export function pdoSlots(document: DeviceDocument, direction: PdoDirection): PdoSlot[] {
   const base = commBase(direction);
   return document.objects
-    .filter((object) => object.index >= base && object.index < base + 0x200)
+    .filter((object) => object.index >= base && object.index < base + 0x200 && !object.disabled)
     .sort((a, b) => a.index - b.index)
     .map((comm) => {
       const slot = comm.index - base;
@@ -710,7 +711,7 @@ export function mappingGranularityIssues(
 /** Granularity issues of all PDOs of the device. */
 export function pdoGranularityIssues(document: DeviceDocument): string[] {
   return document.objects
-    .filter((object) => isMappingObject(object.index))
+    .filter((object) => isMappingObject(object.index) && findObject(document, object.index - 0x200)?.disabled === false)
     .flatMap((map) => mappingGranularityIssues(document, map));
 }
 

@@ -318,6 +318,19 @@ describe('checkMappingObject', () => {
   });
 });
 
+describe('pdoSlots', () => {
+  it('skips disabled communication objects like the desktop editor', () => {
+    const document = createEmptyDocument();
+    addPdo(document, 'tx');
+    addPdo(document, 'tx');
+    document.objects.find((object) => object.index === 0x1801)!.disabled = true;
+    expect(pdoSlots(document, 'tx').map((slot) => slot.commIndex)).toEqual([0x1800]);
+    expect(addPdo(document, 'tx')).toBeNull();
+    expect(pdoSlots(document, 'tx').map((slot) => slot.commIndex)).toEqual([0x1800, 0x1802]);
+    expect(document.nrOfTxPdo).toBe(2);
+  });
+});
+
 describe('mappingGranularityIssues', () => {
   function project(granularity: number) {
     const document = createEmptyDocument();
