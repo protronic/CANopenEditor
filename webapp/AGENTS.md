@@ -19,6 +19,10 @@ You are an autonomous AI coding assistant integrated into this repository. Your 
 4. Implement the solution incrementally.
 5. Provide a clear summary of changes made and instructions for verification.
 6. Do not read the Readme.md.
+7. Do not commit or push changes before the user has tested them in the browser. After implementing
+   and checking a change (tests, build), keep the dev server (`ng serve --host 0.0.0.0 --port 4200`)
+   running, leave the changes uncommitted, and ask the user to test them. Commit, push, and update
+   the pull request only after the user confirms.
 
 ## Project
 
