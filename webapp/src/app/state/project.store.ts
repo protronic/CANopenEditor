@@ -102,7 +102,7 @@ export class ProjectStore {
     this.devices.update((list) => list.map((device) => (
       device.id === id ? { ...device, dirty: false, fileName, revision: device.revision + 1 } : device
     )));
-    this.status.set(`${fileName} written.`);
+    this.status.set(null);
   }
 
   private add(device: OpenDevice): void {

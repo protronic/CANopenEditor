@@ -41,7 +41,7 @@ type EditorTab = 'info' | 'od' | 'rx' | 'tx';
         <aside>
           <h2>Devices</h2>
           @for (device of store.devices(); track device.id) {
-            <div class="device" [class.active]="device.id === store.selectedId()" (click)="store.select(device.id)">
+            <div class="device" [class.active]="device.id === store.selectedId()" [class.dirty]="device.dirty" (click)="store.select(device.id)">
               <div>
                 <strong>{{ device.document.productName || 'Unnamed' }}</strong>
                 <small>{{ device.fileName }}{{ device.dirty ? ' · modified' : '' }}</small>

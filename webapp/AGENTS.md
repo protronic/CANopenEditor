@@ -38,7 +38,9 @@ The web UI should replicate the CANopenEditor EDSEditorGUI with the older WinFor
 All labels within the UI remain in their original English language and are not translated.
 
 The start page offers the buttons "New", "Open", and "Open example XDD". The header does not show a
-notice that a file was opened.
+notice that a file was opened or that a project file was saved. In the "Devices" column, projects
+with changes that are not saved yet are highlighted in color (light red background, red border, and
+"modified" in red).
 
 Questions to the user use an in-app overlay window with "OK" and "Cancel" instead of `confirm()`.
 Errors and warnings use an in-app overlay window that must be acknowledged with "OK".

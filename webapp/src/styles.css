@@ -175,6 +175,10 @@ h2, h3, h4 { margin: 0 0 0.6rem; }
 
 .device.active { border-color: var(--teal); outline: 2px solid rgb(15 110 107 / 25%); }
 
+.device.dirty { background: #fde4dc; border-color: tomato; }
+
+.device.dirty small { color: #b8341c; font-weight: 600; }
+
 .device button {
   background: transparent;
   color: var(--muted);
@@ -465,10 +469,6 @@ button.collapse {
 
 .modal-actions { display: flex; gap: 0.5rem; }
 
-.dialog-back { z-index: 70; }
-
-.dialog-box { width: min(28rem, calc(100vw - 2rem)); }
-
 .modal .choice-help {
   margin: 0;
   padding: 0;
@@ -476,6 +476,10 @@ button.collapse {
   display: grid;
   gap: 0.2rem;
 }
+
+.dialog-back { z-index: 70; }
+
+.dialog-box { width: min(28rem, calc(100vw - 2rem)); }
 
 .dialog-box h3 { margin: 0; }
 
