@@ -58,6 +58,12 @@ The following images show the prescribed layout for each tab.
 
 ![Tab Device Info](images/Template_Tab_Device_Info.png)
 
+"Granularity" accepts only whole numbers from 1 to 64, "No of monitored nodes" only whole numbers
+from 0 to 127. The value is checked when the field is left, with Enter, or with the arrows. A wrong
+value is never replaced automatically: a warning names the allowed range and offers the correction
+(nearest limit, or the rounded value). "OK" takes the correction, "Cancel" keeps the previous value.
+Empty or non-numeric input shows the warning and keeps the previous value.
+
 #### Tab "Object Dictionary"
 
 ![Tab Object Dictionary](images/Template_Tab_Object_Dictionary.png)
