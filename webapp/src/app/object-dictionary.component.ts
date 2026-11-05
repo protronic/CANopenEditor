@@ -22,7 +22,7 @@ import {
 } from './model/device';
 import { CloneObjectsComponent } from './clone-objects.component';
 import { DialogService } from './state/dialog.service';
-import { isMappingObject, mappingTargetLabel } from './xdd/pdo';
+import { isMappingObject, mappingTargetLabel, sameMappingTarget } from './xdd/pdo';
 
 type PendingChoice = 'yes' | 'no' | 'cancel';
 type MenuKind = 'object' | 'sub';
@@ -870,7 +870,7 @@ export class ObjectDictionaryComponent {
       subIndex: parent ? entry.subIndex : null,
       selected,
       subLabel: parent ? `0x${hex2(entry.subIndex)}` : '',
-      name: (parent && this.mappingLabel(parent, entry)) || entry.name,
+      name: entry.name,
       objectType: entry.objectType,
       dataType: detailed ? dataType : '',
       sdo: detailed ? this.sdoLabel(entry) : '',
@@ -878,13 +878,6 @@ export class ObjectDictionaryComponent {
       srdo: detailed ? entry.accessSrdo : '',
       defaultValue: detailed ? entry.defaultValue : '',
     };
-  }
-
-  private mappingLabel(parent: OdEntry, entry: OdEntry): string | null {
-    if (!isMappingObject(parent.index) || entry.subIndex === 0) {
-      return null;
-    }
-    return mappingTargetLabel(this.document(), entry.subIndex, entry.defaultValue);
   }
 
   private sdoLabel(entry: OdEntry): string {
@@ -954,6 +947,10 @@ export class ObjectDictionaryComponent {
     const parent = this.selected();
     if (!entry || !parent) {
       return;
+    }
+    if (entry !== parent && isMappingObject(parent.index) && entry.subIndex > 0
+      && !sameMappingTarget(entry.defaultValue, this.draftDefault)) {
+      this.draftName = mappingTargetLabel(this.document(), entry.subIndex, this.draftDefault) ?? this.draftName;
     }
     entry.name = this.draftName;
     entry.denotation = this.draftDenotation;

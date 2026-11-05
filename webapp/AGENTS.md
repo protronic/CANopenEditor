@@ -141,13 +141,19 @@ The "TX PDO Mapping" tab comes before the "RX PDO Mapping" tab. The following ap
 #### Object Dictionary
 
 In the "Object Dictionary" tab, the sub-objects of the PDO mapping objects "TPDO mapping parameter"
-and "RPDO mapping parameter" display the mapped object in the format
-`mapping-index object-index/sub-index/name`, e.g. `0x02 0x0005/00/Dummy UInt8`. The mapping index is
-the sub-index within "TPDO mapping parameter" or "RPDO mapping parameter"; it keeps the name unique
-when a PDO contains objects with the same name. The bit width is not part of the label.
-Changes in the PDO tab update these labels immediately;
-there is no refresh button. When the project is saved, the labels replace names such as
-"Application object 1" in the project file.
+and "RPDO mapping parameter" are named after the mapped object in the format
+`mapping-index - object-index/sub-index/name`, e.g. `2 - 0x0005/00/Dummy UInt8`. The mapping index is
+the sub-index within "TPDO mapping parameter" or "RPDO mapping parameter", written as a decimal
+number; it keeps the name unique when a PDO contains objects with the same name. The bit width is
+not part of the name.
+
+The name is written only when the mapped object of the entry changes: by assigning another object
+in the PDO tab, by "Insert Item before"/"Insert Item after", or by changing the default value of the
+entry in the "Object Dictionary" tab to another object. Changing only the bit width keeps the name.
+The name can be edited afterwards; an edited name is kept, also when saving, until the mapped object
+of the entry changes. When entries move because an item is inserted or removed, generated names
+follow the new mapping index, edited names move unchanged with their entry. Names of existing
+projects, e.g. "Application object 1", stay unchanged until the mapped object changes.
 
 ### Performance
 

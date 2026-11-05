@@ -160,7 +160,7 @@ export function isMappingObject(index: number): boolean {
 }
 
 /**
- * `0xMM 0xIIII/SS/name` for the mapping entry in sub-index MM, or null if it maps nothing.
+ * `M - 0xIIII/SS/name` for the mapping entry in sub-index M (decimal), or null if it maps nothing.
  * The leading sub-index keeps the name unique when a PDO maps objects with the same name.
  */
 export function mappingTargetLabel(document: DeviceDocument, mappingSubIndex: number, raw: string): string | null {
@@ -173,22 +173,27 @@ export function mappingTargetLabel(document: DeviceDocument, mappingSubIndex: nu
   const name = DUMMY_NAMES[decoded.index]
     ?? (decoded.subIndex === 0 && object?.objectType === 'VAR' ? object.name : sub?.name || object?.name)
     ?? '';
-  return `0x${hex2(mappingSubIndex)} 0x${hex4(decoded.index)}/${hex2(decoded.subIndex)}/${name}`;
+  return `${mappingSubIndex} - 0x${hex4(decoded.index)}/${hex2(decoded.subIndex)}/${name}`;
 }
 
-/** Names each mapping sub-object after the object it maps, as shown in the object dictionary. */
-export function syncMappingNames(document: DeviceDocument, mapIndex?: number): void {
-  for (const map of document.objects) {
-    if (!isMappingObject(map.index) || (mapIndex != null && map.index !== mapIndex)) {
-      continue;
-    }
-    for (const sub of map.subObjects) {
-      const label = sub.subIndex > 0 ? mappingTargetLabel(document, sub.subIndex, sub.defaultValue) : null;
-      if (label) {
-        sub.name = label;
-      }
-    }
+/** True if both mapping values refer to the same object; the bit width does not matter. */
+export function sameMappingTarget(a: string, b: string): boolean {
+  const first = decodeMapping(a);
+  const second = decodeMapping(b);
+  if (!first || !second) {
+    return a.trim() === b.trim();
   }
+  return first.index === second.index && first.subIndex === second.subIndex;
+}
+
+/**
+ * Name for a mapping entry that moves from one sub-index to another. A generated name follows the
+ * new sub-index; a name edited by the user is kept.
+ */
+function movedMappingName(document: DeviceDocument, entry: OdEntry, from: number, to: number): string {
+  return entry.name === mappingTargetLabel(document, from, entry.defaultValue)
+    ? mappingTargetLabel(document, to, entry.defaultValue) ?? entry.name
+    : entry.name;
 }
 
 function toMappingRow(document: DeviceDocument, subIndex: number, raw: string): MappingRow {
@@ -529,8 +534,16 @@ export function setMappingRaw(
   subIndex: number,
   raw: string,
 ): void {
-  setSubValue(document, mapBase(direction) + slot, subIndex, raw);
-  syncMappingNames(document, mapBase(direction) + slot);
+  const mapIndex = mapBase(direction) + slot;
+  const sub = findObject(document, mapIndex)?.subObjects.find((entry) => entry.subIndex === subIndex);
+  if (!sub) {
+    return;
+  }
+  const retarget = !sameMappingTarget(sub.defaultValue, raw);
+  sub.defaultValue = raw;
+  if (retarget) {
+    sub.name = mappingTargetLabel(document, subIndex, raw) ?? sub.name;
+  }
 }
 
 export function setMappingEntry(
@@ -582,11 +595,20 @@ export function insertMapping(
   }
   const map = findObject(document, mapIndex)!;
   const position = Math.min(Math.max(1, subIndex), count + 1);
+  const subAt = (subIndex: number) => map.subObjects.find((sub) => sub.subIndex === subIndex);
   for (let target = count + 1; target > position; target -= 1) {
-    setSubValue(document, mapIndex, target, subValue(map, target - 1));
+    const from = subAt(target - 1);
+    const to = subAt(target);
+    if (from && to) {
+      to.name = movedMappingName(document, from, target - 1, target);
+      to.defaultValue = from.defaultValue;
+    }
   }
-  setSubValue(document, mapIndex, position, raw);
-  syncMappingNames(document, mapIndex);
+  const inserted = subAt(position);
+  if (inserted) {
+    inserted.defaultValue = raw;
+    inserted.name = mappingTargetLabel(document, position, raw) ?? inserted.name;
+  }
   return null;
 }
 
@@ -603,11 +625,11 @@ export function removeMapping(
   map.subObjects = map.subObjects.filter((sub) => sub.subIndex !== subIndex);
   const mapped = map.subObjects.filter((sub) => sub.subIndex > 0).sort((a, b) => a.subIndex - b.subIndex);
   mapped.forEach((sub, position) => {
+    sub.name = movedMappingName(document, sub, sub.subIndex, position + 1);
     sub.subIndex = position + 1;
   });
   const sub0 = map.subObjects.find((sub) => sub.subIndex === 0);
   if (sub0) {
     sub0.defaultValue = String(mapped.length);
   }
-  syncMappingNames(document, map.index);
 }

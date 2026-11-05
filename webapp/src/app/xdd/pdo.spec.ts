@@ -13,10 +13,10 @@ import {
   movePdo,
   pdoSlots,
   removeMapping,
+  sameMappingTarget,
   setBitwiseMapping,
   setMappingEntry,
   setPdoField,
-  syncMappingNames,
 } from './pdo';
 
 describe('mappingTargetLabel', () => {
@@ -32,9 +32,9 @@ describe('mappingTargetLabel', () => {
   );
 
   it('names the mapped object with mapping sub-index, index and sub-index', () => {
-    expect(mappingTargetLabel(document, 1, '0x21000001')).toBe('0x01 0x2100/00/Temperatur');
-    expect(mappingTargetLabel(document, 2, '0x20010210')).toBe('0x02 0x2001/02/Eingang 2');
-    expect(mappingTargetLabel(document, 3, '0x00050008')).toBe('0x03 0x0005/00/Dummy UInt8');
+    expect(mappingTargetLabel(document, 1, '0x21000001')).toBe('1 - 0x2100/00/Temperatur');
+    expect(mappingTargetLabel(document, 2, '0x20010210')).toBe('2 - 0x2001/02/Eingang 2');
+    expect(mappingTargetLabel(document, 12, '0x00050008')).toBe('12 - 0x0005/00/Dummy UInt8');
   });
 
   it('keeps labels unique when the same object is mapped twice', () => {
@@ -55,12 +55,31 @@ describe('mappingTargetLabel', () => {
     addMapping(project, 'tx', 0);
     setMappingEntry(project, 'tx', 0, 1, 0x2100, 0, 1);
 
-    expect(map.subObjects.find((sub) => sub.subIndex === 1)?.name).toBe('0x01 0x2100/00/Temperatur');
+    expect(map.subObjects.find((sub) => sub.subIndex === 1)?.name).toBe('1 - 0x2100/00/Temperatur');
     expect(map.subObjects.find((sub) => sub.subIndex === 2)?.name).toBe('Application object 2');
+  });
 
-    project.objects.find((object) => object.index === 0x2100)!.name = 'Temperature';
-    syncMappingNames(project);
-    expect(map.subObjects.find((sub) => sub.subIndex === 1)?.name).toBe('0x01 0x2100/00/Temperature');
+  it('keeps an edited name until the mapped object changes', () => {
+    const project = createEmptyDocument();
+    project.objects.push(
+      createEntry({ index: 0x2100, name: 'Temperatur', objectType: 'VAR', dataType: 'UNSIGNED8', pdoMapping: 'optional' }),
+      createEntry({ index: 0x2200, name: 'Druck', objectType: 'VAR', dataType: 'UNSIGNED8', pdoMapping: 'optional' }),
+    );
+    addPdo(project, 'tx');
+    addMapping(project, 'tx', 0);
+    setMappingEntry(project, 'tx', 0, 1, 0x2100, 0, 8);
+    const sub = project.objects.find((object) => object.index === 0x1a00)!.subObjects.find((entry) => entry.subIndex === 1)!;
+    sub.name = 'Sensor';
+
+    setMappingEntry(project, 'tx', 0, 1, 0x2100, 0, 4);
+    expect(sub.name).toBe('Sensor');
+    setMappingEntry(project, 'tx', 0, 1, 0x2200, 0, 8);
+    expect(sub.name).toBe('1 - 0x2200/00/Druck');
+  });
+
+  it('compares mapping values by object only', () => {
+    expect(sameMappingTarget('0x21000008', '0x21000004')).toBe(true);
+    expect(sameMappingTarget('0x21000008', '0x21010008')).toBe(false);
   });
 
   it('recognises the RPDO and TPDO mapping ranges', () => {
@@ -187,10 +206,13 @@ describe('PDO settings', () => {
     expect(pdoSlots(document, 'rx')[0].mappings.map((row) => row.raw)).toEqual(['0x21000008', '0x00020008', '0x22000010']);
     const map = document.objects.find((object) => object.index === 0x1600)!;
     expect(map.subObjects.find((sub) => sub.subIndex === 0)?.defaultValue).toBe('3');
-    expect(map.subObjects.find((sub) => sub.subIndex === 3)?.name).toBe('0x03 0x2200/00/Wert');
+    expect(map.subObjects.find((sub) => sub.subIndex === 2)?.name).toBe('2 - 0x0002/00/Dummy Int8');
+    expect(map.subObjects.find((sub) => sub.subIndex === 3)?.name).toBe('3 - 0x2200/00/Wert');
 
+    map.subObjects.find((sub) => sub.subIndex === 3)!.name = 'Sollwert';
     removeMapping(document, 'rx', 0, 1);
-    expect(map.subObjects.find((sub) => sub.subIndex === 2)?.name).toBe('0x02 0x2200/00/Wert');
+    expect(map.subObjects.find((sub) => sub.subIndex === 1)?.name).toBe('1 - 0x0002/00/Dummy Int8');
+    expect(map.subObjects.find((sub) => sub.subIndex === 2)?.name).toBe('Sollwert');
   });
 
   it('adds a missing event timer to an RPDO', () => {
