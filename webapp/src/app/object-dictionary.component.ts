@@ -313,14 +313,10 @@ interface OdViewState {
         <div class="modal" appDraggable>
           <h3>Unsaved changes</h3>
           <p>Unsaved changes on Index {{ pendingLabel }}. Do you wish to switch object and loose your changes?</p>
-          <ul class="choice-help">
-            <li>Yes = Lose changes.</li>
-            <li>No = Save.</li>
-            <li>Cancel = Go back and stay on the object.</li>
-          </ul>
           <div class="modal-actions">
-            <button type="button" (click)="resolvePending('yes')">Yes</button>
-            <button type="button" (click)="resolvePending('no')">No</button>
+            <button type="button" (click)="resolvePending('no')">Save</button>
+            <button type="button" (click)="resolvePending('yes')">Discard Changes</button>
+            <span class="modal-spacer"></span>
             <button type="button" class="quiet" (click)="resolvePending('cancel')">Cancel</button>
           </div>
         </div>
@@ -844,8 +840,8 @@ export class ObjectDictionaryComponent {
       }
       const issues = mappingGranularityIssues(this.document(), parent,
         (sub) => sub.subIndex === entry.subIndex ? this.draftDefault : sub.defaultValue);
-      if (issues.length > 0 && !(await this.dialogs.confirm(
-        granularityMessage(this.document().granularity, issues, 'Save anyway?'), 'Warning'))) {
+      if (issues.length > 0 && !(await this.dialogs.choose(
+        granularityMessage(this.document().granularity, issues, 'Save anyway?'), ['Save'], 'Warning'))) {
         return false;
       }
     }

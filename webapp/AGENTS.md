@@ -103,7 +103,8 @@ list scrolls vertically:
 - when a PDO is saved in "TX PDO Mapping" or "RX PDO Mapping",
 - when a sub-object of a PDO mapping object is saved in "Object Dictionary".
 
-When saving, the warning asks "Save anyway?": "OK" saves, "Cancel" keeps the unsaved changes.
+When saving, the warning asks "Save anyway?" with "Save" on the left and "Cancel" on the right:
+"Save" saves, "Cancel" keeps the unsaved changes.
 
 #### Tab "Object Dictionary"
 
@@ -240,9 +241,10 @@ and the mapped objects (assigning, bit width, "Insert Item before/after", "Remov
 changes are kept in a draft of the PDO; the communication object and the PDO mapping object in the
 object dictionary are updated only when the PDO is saved. While the selected PDO has unsaved
 changes, the "Save" button is highlighted. Selecting another PDO, or "Add new PDO", then shows the
-question "Unsaved changes": "Yes" discards the changes (including a moved index), "No" saves them,
-"Cancel" stays on the PDO. The dialog lists these three explanations one below the other, as does the
-same dialog in the "Object Dictionary" tab. With "Autosave changes" checked, changes are saved
+question "Unsaved changes" with the buttons "Save" and "Discard Changes" side by side on the left
+and "Cancel" on the right: "Save" saves the changes, "Discard Changes" discards them (including a
+moved index), "Cancel" stays on the PDO. The same dialog is used in the "Object Dictionary" tab
+(staying on the object); it shows no further explanation of the buttons. With "Autosave changes" checked, changes are saved
 without the question.
 "Delete PDO" deletes the PDO after its own confirmation.
 

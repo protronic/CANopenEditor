@@ -215,14 +215,10 @@ interface MapBlock {
         <div class="modal" appDraggable>
           <h3>Unsaved changes</h3>
           <p>Unsaved changes on PDO {{ pendingLabel }}. Do you wish to switch PDO and loose your changes?</p>
-          <ul class="choice-help">
-            <li>Yes = Lose changes.</li>
-            <li>No = Save.</li>
-            <li>Cancel = Go back and stay on the PDO.</li>
-          </ul>
           <div class="modal-actions">
-            <button type="button" (click)="resolvePending('yes')">Yes</button>
-            <button type="button" (click)="resolvePending('no')">No</button>
+            <button type="button" (click)="resolvePending('no')">Save</button>
+            <button type="button" (click)="resolvePending('yes')">Discard Changes</button>
+            <span class="modal-spacer"></span>
             <button type="button" class="quiet" (click)="resolvePending('cancel')">Cancel</button>
           </div>
         </div>
@@ -585,8 +581,8 @@ export class PdoViewComponent {
     }
     const map = draft.document.objects.find((object) => object.index === draft.commIndex + 0x200);
     const issues = map ? mappingGranularityIssues(draft.document, map) : [];
-    if (issues.length > 0 && !(await this.dialogs.confirm(
-      granularityMessage(draft.document.granularity, issues, 'Save anyway?'), 'Warning'))) {
+    if (issues.length > 0 && !(await this.dialogs.choose(
+      granularityMessage(draft.document.granularity, issues, 'Save anyway?'), ['Save'], 'Warning'))) {
       return false;
     }
     const error = commitPdoDraft(this.document(), draft);

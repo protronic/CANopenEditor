@@ -473,14 +473,6 @@ button.collapse {
 
 .modal-actions { display: flex; gap: 0.5rem; }
 
-.modal .choice-help {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 0.2rem;
-}
-
 .dialog-back { z-index: 70; }
 
 .dialog-box { width: min(28rem, calc(100vw - 2rem)); }
