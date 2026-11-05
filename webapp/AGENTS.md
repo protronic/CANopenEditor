@@ -68,6 +68,25 @@ value is never replaced automatically: a warning names the allowed range and off
 (nearest limit, or the rounded value). "OK" takes the correction, "Cancel" keeps the previous value.
 Empty or non-numeric input shows the warning and keeps the previous value.
 
+"No of monitored nodes" follows 0x1016 Consumer heartbeat time: an entry is used when sub-index
+0x00 counts it and both node ID (bits 16..23) and heartbeat time (bits 0..15) are non-zero (values
+that are no plain number, e.g. `$NODEID` expressions, count as used). When the number of used entries
+grows beyond "No of monitored nodes", the value is raised to that number; a larger value is kept and
+the value is never lowered automatically. The user may change it afterwards; a value below the
+number of used 0x1016 entries shows a warning (only "OK", the value is kept). The "Refresh" button
+next to the field counts the used 0x1016 entries again and sets the value to exactly that number
+(this may also lower it).
+
+The PDOs are checked against the granularity: the length of every mapped object (including dummy
+objects) must be a multiple of the granularity in bits; granularity 1 accepts every length. A
+warning lists every mapped object that does not fit (PDO, mapping entry, object, length):
+
+- after the granularity is changed in "Device Info" (the new value is kept, only "OK"),
+- when a PDO is saved in "TX PDO Mapping" or "RX PDO Mapping",
+- when a sub-object of a PDO mapping object is saved in "Object Dictionary".
+
+When saving, the warning asks "Save anyway?": "OK" saves, "Cancel" keeps the unsaved changes.
+
 #### Tab "Object Dictionary"
 
 ![Tab Object Dictionary](images/Template_Tab_Object_Dictionary.png)

@@ -2,6 +2,8 @@ import { Component, inject, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BAUD_OPTIONS, BaudRates, DeviceDocument } from './model/device';
 import { DialogService } from './state/dialog.service';
+import { granularityMessage, pdoGranularityIssues } from './xdd/pdo';
+import { usedHeartbeatConsumers } from './xdd/heartbeat';
 
 @Component({
   selector: 'app-device-info',
@@ -101,9 +103,11 @@ import { DialogService } from './state/dialog.service';
               <label class="check"><input type="checkbox" [ngModel]="document().ngSlave" (ngModelChange)="set('ngSlave', $event)" /> Node guarding Slave</label>
               <label class="check"><input type="checkbox" [ngModel]="document().ngMaster" (ngModelChange)="set('ngMaster', $event)" /> Node guarding Master</label>
             </div>
-            <label class="info-line">No of monitored nodes
-              <input type="number" min="0" max="127" step="1" [value]="document().nrOfNgMonitoredNodes" (change)="setNumber('nrOfNgMonitoredNodes', $any($event.target))" />
-            </label>
+            <div class="info-line info-action">
+              <label for="nr-of-monitored-nodes">No of monitored nodes</label>
+              <input id="nr-of-monitored-nodes" type="number" min="0" max="127" step="1" [value]="document().nrOfNgMonitoredNodes" (change)="setNumber('nrOfNgMonitoredNodes', $any($event.target))" />
+              <button type="button" class="system" (click)="refreshMonitoredNodes()" title="Count the used entries of 0x1016 Consumer heartbeat time">Refresh</button>
+            </div>
           </fieldset>
         </div>
 
@@ -165,6 +169,15 @@ export class DeviceInfoComponent {
   private readonly dialogs = inject(DialogService);
 
   /** Invalid input is never replaced silently: a warning offers the correction, Cancel keeps the old value. */
+  /** Sets "No of monitored nodes" to the number of used entries of 0x1016. */
+  refreshMonitoredNodes(): void {
+    const value = Math.min(127, usedHeartbeatConsumers(this.document()));
+    if (value !== this.document().nrOfNgMonitoredNodes) {
+      this.document().nrOfNgMonitoredNodes = value;
+      this.changed.emit();
+    }
+  }
+
   async setNumber(key: 'granularity' | 'nrOfNgMonitoredNodes', input: HTMLInputElement): Promise<void> {
     const { label, min, max } = this.numberFields[key];
     const text = input.value.trim();
@@ -189,6 +202,15 @@ export class DeviceInfoComponent {
     if (value !== this.document()[key]) {
       this.document()[key] = value;
       this.changed.emit();
+      const issues = key === 'granularity' ? pdoGranularityIssues(this.document()) : [];
+      if (issues.length > 0) {
+        void this.dialogs.warning(`${granularityMessage(value, issues)}\n\nAdjust the PDO mapping or the granularity.`);
+      }
+      const consumers = key === 'nrOfNgMonitoredNodes' ? usedHeartbeatConsumers(this.document()) : 0;
+      if (value < consumers) {
+        void this.dialogs.warning(`0x1016 Consumer heartbeat time monitors ${consumers} nodes, `
+          + `but "No of monitored nodes" is ${value}.`);
+      }
     }
   }
 

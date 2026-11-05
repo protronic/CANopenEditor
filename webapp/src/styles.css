@@ -605,6 +605,10 @@ app-pdo-view {
   font-size: 0.82rem;
 }
 
+.info-line.info-action { grid-template-columns: 11.2rem minmax(0, 1fr) auto; }
+
+.info-action label { color: var(--ink); font-size: inherit; }
+
 .info-line input {
   width: 100%;
   padding: 0.22rem 0.4rem;

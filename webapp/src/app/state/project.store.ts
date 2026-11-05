@@ -6,6 +6,7 @@ import { CloneRow, cloneObjects } from '../xdd/clone';
 import { DialogService } from './dialog.service';
 import { InsertRow, buildInsertRows, insertSelected, profileUrl } from '../xdd/profiles';
 import { pdoSlots } from '../xdd/pdo';
+import { syncMonitoredNodes, trackHeartbeatConsumers } from '../xdd/heartbeat';
 
 export interface OpenDevice {
   id: string;
@@ -97,6 +98,10 @@ export class ProjectStore {
   }
 
   touch(id: string): void {
+    const document = this.devices().find((device) => device.id === id)?.document;
+    if (document) {
+      syncMonitoredNodes(document);
+    }
     this.devices.update((list) => list.map((device) => device.id === id ? { ...device, dirty: true, revision: device.revision + 1 } : device));
   }
 
@@ -134,6 +139,7 @@ export class ProjectStore {
   }
 
   private create(document: DeviceDocument, fileName: string, dirty: boolean): OpenDevice {
+    trackHeartbeatConsumers(document);
     return {
       id: globalThis.crypto.randomUUID(),
       fileName,
