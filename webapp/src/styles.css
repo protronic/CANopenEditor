@@ -863,7 +863,7 @@ app-pdo-view {
   padding: 0.12rem 0.15rem;
   border-right: 1px solid #c8c0a8;
   font-size: 0.72rem;
-  line-height: 1.6;
+  line-height: 2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
