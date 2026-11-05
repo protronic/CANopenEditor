@@ -144,10 +144,10 @@ interface MapBlock {
             <div class="comm-actions">
               <button type="button" class="system" (click)="create()">Add new PDO</button>
               <button type="button" class="system" (click)="remove()" [disabled]="!selected()">Delete PDO</button>
-              <button type="button" class="system" [class.dirty]="dirty" (click)="save()" [disabled]="!selected()">Save</button>
+              <button type="button" class="system" [class.dirty]="dirty" (click)="save()" [disabled]="!selected()">Apply</button>
               <label class="od-check autosave">
                 <input type="checkbox" [(ngModel)]="autosave" />
-                <span>Autosave changes</span>
+                <span>Auto Apply</span>
               </label>
             </div>
           </div>
@@ -213,10 +213,10 @@ interface MapBlock {
     @if (pending) {
       <div class="modal-back">
         <div class="modal" appDraggable>
-          <h3>Unsaved changes</h3>
-          <p>You have unsaved changes for PDO {{ pendingLabel }}.<br>Do you want to save them and switch to a different PDO?</p>
+          <h3>Unapplied Changes</h3>
+          <p>You have unapplied changes for PDO {{ pendingLabel }}.<br>Do you want to apply them and switch to a different PDO?</p>
           <div class="modal-actions">
-            <button type="button" (click)="resolvePending('no')">Save</button>
+            <button type="button" (click)="resolvePending('no')">Apply</button>
             <button type="button" (click)="resolvePending('yes')">Discard Changes</button>
             <span class="modal-spacer"></span>
             <button type="button" class="quiet" (click)="resolvePending('cancel')">Cancel</button>
@@ -574,7 +574,7 @@ export class PdoViewComponent {
       return true;
     }
     for (const edit of this.unsaved.conflicts(this.owner(), this.document(), pdoDraftIndices(draft))) {
-      if (!(await this.dialogs.confirm(`${edit.label} has unsaved changes. Overwrite them?`, 'Warning'))) {
+      if (!(await this.dialogs.confirm(`${edit.label} has unapplied changes. Overwrite them?`, 'Warning'))) {
         return false;
       }
       edit.discard();
@@ -582,7 +582,7 @@ export class PdoViewComponent {
     const map = draft.document.objects.find((object) => object.index === draft.commIndex + 0x200);
     const issues = map ? mappingGranularityIssues(draft.document, map) : [];
     if (issues.length > 0 && !(await this.dialogs.choose(
-      granularityMessage(draft.document.granularity, issues, 'Save anyway?'), ['Save'], 'Warning'))) {
+      granularityMessage(draft.document.granularity, issues, 'Apply anyway?'), ['Apply'], 'Warning'))) {
       return false;
     }
     const error = commitPdoDraft(this.document(), draft);

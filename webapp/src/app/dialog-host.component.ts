@@ -29,8 +29,8 @@ import { DialogService } from './state/dialog.service';
               }
               <span class="modal-spacer"></span>
             } @else {
-              <span class="modal-spacer"></span>
               <button type="button" class="dialog-ok" (click)="dialogs.close(true)">OK</button>
+              <span class="modal-spacer"></span>
             }
             @if (dialog.kind === 'confirm') {
               <button type="button" class="quiet" (click)="dialogs.close(false)">Cancel</button>

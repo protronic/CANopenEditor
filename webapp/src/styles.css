@@ -406,12 +406,21 @@ button.collapse {
 
 .od-check.autosave > span { flex: none; }
 
+/* "Auto Apply" left-aligned above "Apply"; the button is a bit wider than the checkbox with its
+   text and lines up with "Default value". */
 .save-row {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 0.55rem;
+  display: grid;
+  justify-self: end;
+  align-self: end;
+  gap: 0.35rem;
 }
+
+.object-settings .default-line { align-self: end; }
+
+/* Same height as the "Default value" input, which uses the smaller font of the form. */
+.od .save-row button.system { padding-block: 0.275rem; min-width: 7rem; }
+
+.save-row .od-check { justify-self: start; }
 
 .od button.system {
   background: #f3f3f3;

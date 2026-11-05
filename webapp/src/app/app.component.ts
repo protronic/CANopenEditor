@@ -9,6 +9,19 @@ import { OpenDevice, ProjectStore } from './state/project.store';
 
 type EditorTab = 'info' | 'od' | 'rx' | 'tx';
 
+/** File System Access API (Chromium); absent in other browsers. */
+interface SaveFileHandle {
+  readonly name: string;
+  createWritable(): Promise<{ write(data: string): Promise<void>; close(): Promise<void> }>;
+}
+
+type SaveFilePickerWindow = Window & {
+  showSaveFilePicker?: (options: {
+    suggestedName: string;
+    types: { description: string; accept: Record<string, string[]> }[];
+  }) => Promise<SaveFileHandle>;
+};
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -132,11 +145,46 @@ export class AppComponent {
     reader.readAsText(file);
   }
 
-  save(): void {
+  async save(): Promise<void> {
     const device = this.store.selected();
     if (!device) {
       return;
     }
+    const picker = (window as SaveFilePickerWindow).showSaveFilePicker;
+    let handle: SaveFileHandle | null = null;
+    if (picker) {
+      try {
+        handle = await picker.call(window, {
+          suggestedName: this.store.saveName(device),
+          types: [{ description: 'XDD file', accept: { 'application/xml': ['.xdd'] } }],
+        });
+      } catch (error) {
+        if ((error as DOMException).name === 'AbortError') {
+          return;
+        }
+      }
+    }
+    if (handle) {
+      const xml = this.store.serialize(device, handle.name).xml;
+      try {
+        const writable = await handle.createWritable();
+        await writable.write(xml);
+        await writable.close();
+      } catch {
+        void this.dialogs.error(`"${handle.name}" could not be written.`);
+        return;
+      }
+      this.store.markSaved(device.id, handle.name);
+      return;
+    }
+    this.download(device);
+  }
+
+  /**
+   * Fallback without the save dialog of the browser (e.g. Firefox): a download, whose cancellation
+   * the page cannot notice, so the project counts as saved.
+   */
+  private download(device: OpenDevice): void {
     const result = this.store.serialize(device);
     const blob = new Blob([result.xml], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);

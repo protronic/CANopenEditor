@@ -247,16 +247,16 @@ interface OdViewState {
             <span></span>
             <span></span>
 
-            <label class="od-line span-2">
+            <label class="od-line span-2 default-line">
               <span>Default value</span>
               <input [ngModel]="isVar ? draftDefault : ''" (ngModelChange)="setDraft('default', $event)" [disabled]="!isVar" />
             </label>
             <div class="save-row">
-              <button type="button" class="system" [class.dirty]="dirty" (click)="saveChanges()" [disabled]="!editing()">Save Changes</button>
               <label class="od-check autosave">
                 <input type="checkbox" [(ngModel)]="autosave" />
-                <span>Autosave changes</span>
+                <span>Auto Apply</span>
               </label>
+              <button type="button" class="system" [class.dirty]="dirty" (click)="saveChanges()" [disabled]="!editing()">Apply</button>
             </div>
           </fieldset>
         </div>
@@ -298,6 +298,7 @@ interface OdViewState {
           </fieldset>
           <div class="modal-actions">
             <button type="submit">Create</button>
+            <span class="modal-spacer"></span>
             <button type="button" class="quiet" (click)="showAdd = false">Cancel</button>
           </div>
         </form>
@@ -311,10 +312,10 @@ interface OdViewState {
     @if (pending) {
       <div class="modal-back">
         <div class="modal" appDraggable>
-          <h3>Unsaved changes</h3>
-          <p>You have unsaved changes for index {{ pendingLabel }}.<br>Do you want to save them and switch to a different object?</p>
+          <h3>Unapplied Changes</h3>
+          <p>You have unapplied changes for index {{ pendingLabel }}.<br>Do you want to apply them and switch to a different object?</p>
           <div class="modal-actions">
-            <button type="button" (click)="resolvePending('no')">Save</button>
+            <button type="button" (click)="resolvePending('no')">Apply</button>
             <button type="button" (click)="resolvePending('yes')">Discard Changes</button>
             <span class="modal-spacer"></span>
             <button type="button" class="quiet" (click)="resolvePending('cancel')">Cancel</button>
@@ -700,7 +701,7 @@ export class ObjectDictionaryComponent {
     return this.resettableNames().length > 0;
   }
 
-  /** Resets the names of all active mapping entries and applies them without "Save Changes". */
+  /** Resets the names of all active mapping entries and applies them without "Apply". */
   async resetAllNames(): Promise<void> {
     const map = this.selected();
     if (!map || !this.canResetAll || !(await this.guard())) {
@@ -715,7 +716,7 @@ export class ObjectDictionaryComponent {
       return;
     }
     for (const edit of this.unsaved.conflicts('od', this.document(), [map.index])) {
-      if (!(await this.dialogs.confirm(`${edit.label} has unsaved changes. Overwrite them?`, 'Warning'))) {
+      if (!(await this.dialogs.confirm(`${edit.label} has unapplied changes. Overwrite them?`, 'Warning'))) {
         return;
       }
       edit.discard();
@@ -841,12 +842,12 @@ export class ObjectDictionaryComponent {
       const issues = mappingGranularityIssues(this.document(), parent,
         (sub) => sub.subIndex === entry.subIndex ? this.draftDefault : sub.defaultValue);
       if (issues.length > 0 && !(await this.dialogs.choose(
-        granularityMessage(this.document().granularity, issues, 'Save anyway?'), ['Save'], 'Warning'))) {
+        granularityMessage(this.document().granularity, issues, 'Apply anyway?'), ['Apply'], 'Warning'))) {
         return false;
       }
     }
     for (const edit of this.unsaved.conflicts('od', this.document(), [parent.index])) {
-      if (!(await this.dialogs.confirm(`${edit.label} has unsaved changes. Overwrite them?`, 'Warning'))) {
+      if (!(await this.dialogs.confirm(`${edit.label} has unapplied changes. Overwrite them?`, 'Warning'))) {
         return false;
       }
       edit.discard();

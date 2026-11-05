@@ -52,10 +52,18 @@ with changes that are not saved yet are highlighted in color (light red backgrou
 "modified" in red).
 
 Questions to the user use an in-app overlay window with "OK" and "Cancel" instead of `confirm()`.
-Errors and warnings use an in-app overlay window that must be acknowledged with "OK".
+Errors and warnings use an in-app overlay window that must be acknowledged with "OK". In all these
+windows "OK" (or the buttons that replace it, e.g. "Apply") is on the left and "Cancel" on the right;
+the same applies to "Create" and "Cancel" in "Create new OD Index".
 Closing a project with unsaved changes ("×" in "Devices") asks with the buttons "Close without
 saving" and "Cancel".
-These windows, the "Unsaved changes" questions, and "Create new OD Index" can be moved with the
+
+"Save" in the header uses the save dialog of the browser (`showSaveFilePicker`, Chromium/Chrome/
+Edge) with the XDD file name as proposal. Only a written file marks the project as saved and takes
+the chosen file name; cancelling the dialog or a write error (error window) keeps it marked as
+modified. Browsers without this dialog (e.g. Firefox) get a download instead; the page cannot notice
+a cancelled download, so the project then counts as saved.
+These windows, the "Unapplied Changes" questions, and "Create new OD Index" can be moved with the
 mouse by dragging their title (grab cursor, grabbing while dragging); they stay inside the browser window, and every newly
 opened window starts centered. "Insert Profile" and "Insert OD Objects" (Clone) are not movable,
 because clicking their background closes them.
@@ -103,8 +111,8 @@ list scrolls vertically:
 - when a PDO is saved in "TX PDO Mapping" or "RX PDO Mapping",
 - when a sub-object of a PDO mapping object is saved in "Object Dictionary".
 
-When saving, the warning asks "Save anyway?" with "Save" on the left and "Cancel" on the right:
-"Save" saves, "Cancel" keeps the unsaved changes.
+When applying, the warning asks "Apply anyway?" with "Apply" on the left and "Cancel" on the right:
+"Apply" applies, "Cancel" keeps the unapplied changes.
 
 #### Tab "Object Dictionary"
 
@@ -240,18 +248,25 @@ Changes to a PDO in "TX PDO Mapping" and "RX PDO Mapping" must be saved explicit
 and the mapped objects (assigning, bit width, "Insert Item before/after", "Remove Item"). Unsaved
 changes are kept in a draft of the PDO; the communication object and the PDO mapping object in the
 object dictionary are updated only when the PDO is saved. While the selected PDO has unsaved
-changes, the "Save" button is highlighted. Selecting another PDO, or "Add new PDO", then shows the
-question "Unsaved changes" with the buttons "Save" and "Discard Changes" side by side on the left
-and "Cancel" on the right: "Save" saves the changes, "Discard Changes" discards them (including a
+changes, the "Apply" button is highlighted. Selecting another PDO, or "Add new PDO", then shows the
+question "Unapplied Changes" with the buttons "Apply" and "Discard Changes" side by side on the left
+and "Cancel" on the right: "Apply" applies the changes, "Discard Changes" discards them (including a
 moved index), "Cancel" stays on the PDO. The same dialog is used in the "Object Dictionary" tab
-(staying on the object); it shows no further explanation of the buttons. With "Autosave changes" checked, changes are saved
+(staying on the object); it shows no further explanation of the buttons. With "Auto Apply" checked, changes are saved
 without the question.
 "Delete PDO" deletes the PDO after its own confirmation.
 
 #### Unsaved changes in both tabs
 
-Changes in the "Object Dictionary" tab are written to the object only with "Save Changes" (or by
-"Autosave changes"); until then the PDO tabs show the saved state. In the other direction, the
+The edits of a PDO or an object are applied to the device with "Apply"; with "Auto Apply"
+checked this happens without the button. In the "Object Dictionary" tab, "Auto Apply" is
+left-aligned to the button above "Apply" (as in "Communication parameters"); both are right-aligned in the form; the button is a bit wider than the checkbox with its text and on the same
+line as "Default value". (The "Save" button in the header still saves the project file.) If the
+other tab has unapplied changes on the same objects, applying asks "... has unapplied changes.
+Overwrite them?".
+
+Changes in the "Object Dictionary" tab are written to the object only with "Apply" (or by
+"Auto Apply"); until then the PDO tabs show the saved state. In the other direction, the
 "Object Dictionary" tab shows the saved state of a PDO until it is saved in its PDO tab.
 
 - Saving a PDO while the "Object Dictionary" tab has unsaved changes on its communication or mapping
@@ -292,14 +307,14 @@ so that the button is right-aligned with the fields below. The button is enabled
 entries: sub-index 0x01 and higher, counted by sub-index 0x00, mapping an object, and in a mapping
 object that is enabled. For deactivated entries it is disabled. It puts the generated name of the selected entry into the "Name" field,
 based on its default value, without a question. Like any other edit it must be saved with
-"Save Changes". An unused entry keeps its name.
+"Apply". An unused entry keeps its name.
 
 For a selected PDO mapping object, the header "Name" of the sub-object table contains the button
 "Reset all". It resets the names of all active entries (same rules as "Reset Name") to the naming
-scheme. Unsaved edits in the Object Dictionary are handled first by the usual "Unsaved changes"
-question; then a warning asks for confirmation ("OK"/"Cancel"), and unsaved edits of the same PDO in
+scheme. Unsaved edits in the Object Dictionary are handled first by the usual "Unapplied Changes"
+question; then a warning asks for confirmation ("OK" on the left, "Cancel" on the right), and unsaved edits of the same PDO in
 the PDO tab need the usual overwrite confirmation. The new names are applied to the device at once,
-without "Save Changes".
+without "Apply".
 
 ### Performance
 

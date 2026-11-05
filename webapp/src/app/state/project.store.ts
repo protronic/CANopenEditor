@@ -108,7 +108,13 @@ export class ProjectStore {
     }
   }
 
-  serialize(device: OpenDevice): { fileName: string; xml: string } {
+  /** File name proposed when saving the device. */
+  saveName(device: OpenDevice): string {
+    return ensureXddName(device.fileName, device.document.productName);
+  }
+
+  /** XDD of the device; `fileName` (e.g. chosen in the save dialog) replaces its file name. */
+  serialize(device: OpenDevice, fileName = device.fileName): { fileName: string; xml: string } {
     const now = new Date();
     if (!device.document.fileCreationDate) {
       device.document.fileCreationDate = formatDate(now);
@@ -116,10 +122,10 @@ export class ProjectStore {
     }
     device.document.fileModificationDate = formatDate(now);
     device.document.fileModificationTime = formatTime(now);
-    const fileName = ensureXddName(device.fileName, device.document.productName);
-    device.document.fileName = fileName;
+    const name = ensureXddName(fileName, device.document.productName);
+    device.document.fileName = name;
     device.document.schemaVersion = '1.1';
-    return { fileName, xml: writeXdd(device.document, now) };
+    return { fileName: name, xml: writeXdd(device.document, now) };
   }
 
   markSaved(id: string, fileName: string): void {
