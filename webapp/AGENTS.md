@@ -146,8 +146,10 @@ The "TX PDO Mapping" tab comes before the "RX PDO Mapping" tab. The following ap
 - Right-clicking a mapped object opens a context menu with "Insert Item before", "Insert Item after",
   and "Remove Item". As in the desktop editor, inserting adds a "Dummy Int8" (0x0002) placeholder that
   is selected afterwards. If the free space is not sufficient, the usual warning is shown.
-- The COB and Index columns are shown in hexadecimal (e.g. `0xC0000180`, `0x1800`). The COB value
-  matches the "COB" field in "Communication parameters" without an optional `$NODEID+` prefix.
+- The COB and Index columns are shown in hexadecimal (e.g. `0x180`, `0x1800`). The COB column shows
+  only the CAN identifier of the "COB" field: without `$NODEID` (as prefix or suffix) and without the
+  flag bits 29..31 (11 bits, or 29 bits if the extended-frame bit 29 is set). The "COB" field in
+  "Communication parameters" keeps the full value.
 - The ID, COB, and Index columns, the bit numbers, and the byte labels show the normal mouse
   pointer, not the text cursor, because nothing is typed there.
 - The selected PDO is clearly highlighted: a dark blue frame with a shadow, dark blue ID, COB, and

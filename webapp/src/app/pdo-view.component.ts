@@ -341,12 +341,18 @@ export class PdoViewComponent {
 
   cobText(raw: string): string {
     const cob = splitCob(raw);
-    return cob.prefix + this.cobGraph(raw);
+    return cob.prefix + (cob.value == null ? cob.rest : `0x${cob.value.toString(16).toUpperCase()}`);
   }
 
+  /** CAN identifier for the PDO rows, without $NODEID and without the flag bits 29..31. */
   cobGraph(raw: string): string {
-    const cob = splitCob(raw);
-    return cob.value == null ? cob.rest : `0x${cob.value.toString(16).toUpperCase()}`;
+    const rest = raw.replace(/\s*\+?\s*\$NODEID\s*\+?\s*/gi, '').trim();
+    const value = /^0x[0-9a-f]+$/i.test(rest) ? Number.parseInt(rest, 16) : /^\d+$/.test(rest) ? Number(rest) : Number.NaN;
+    if (!Number.isFinite(value) || value > 0xffffffff) {
+      return rest;
+    }
+    const id = value & 0x20000000 ? value & 0x1fffffff : value & 0x7ff;
+    return `0x${id.toString(16).toUpperCase()}`;
   }
 
   setCob(input: HTMLInputElement): void {
