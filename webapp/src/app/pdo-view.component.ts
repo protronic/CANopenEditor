@@ -585,7 +585,7 @@ export class PdoViewComponent {
     const map = draft.document.objects.find((object) => object.index === draft.commIndex + 0x200);
     const issues = map ? mappingGranularityIssues(draft.document, map) : [];
     if (issues.length > 0 && !(await this.dialogs.confirm(
-      `${granularityMessage(draft.document.granularity, issues)}\n\nSave anyway?`, 'Warning'))) {
+      granularityMessage(draft.document.granularity, issues, 'Save anyway?'), 'Warning'))) {
       return false;
     }
     const error = commitPdoDraft(this.document(), draft);
@@ -691,12 +691,13 @@ export class PdoViewComponent {
     if (!menu || !slot) {
       return;
     }
-    if (fitMappingBits(INSERT_DUMMY_BITS, usedBits(slot)) < INSERT_DUMMY_BITS) {
+    const bits = isBitwiseMapping(this.doc(), slot) ? 1 : 8;
+    if (fitMappingBits(bits, usedBits(slot)) < bits) {
       this.warn('The object does not fit into the PDO.');
       return;
     }
     const target = menu.subIndex + (after ? 1 : 0);
-    const raw = encodeMapping(INSERT_DUMMY, 0, INSERT_DUMMY_BITS);
+    const raw = encodeMapping(INSERT_DUMMY, 0, bits);
     this.begin(slot);
     const error = insertMapping(this.doc(), slot.direction, slot.slot, target, raw);
     this.warn(error);
@@ -774,9 +775,8 @@ export class PdoViewComponent {
   }
 }
 
-/** Placeholder inserted from the context menu, as in the desktop editor: Dummy Int8. */
-const INSERT_DUMMY = 0x0002;
-const INSERT_DUMMY_BITS = 8;
+/** Placeholder inserted from the context menu: Dummy Bool (1 bit, or 8 bits without bitwise mapping). */
+const INSERT_DUMMY = 0x0001;
 
 function usedBits(slot: PdoSlot): number {
   return slot.mappings.reduce((sum, row) => sum + (row.bits && row.bits > 0 ? row.bits : 0), 0);

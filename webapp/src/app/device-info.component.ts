@@ -204,7 +204,7 @@ export class DeviceInfoComponent {
       this.changed.emit();
       const issues = key === 'granularity' ? pdoGranularityIssues(this.document()) : [];
       if (issues.length > 0) {
-        void this.dialogs.warning(`${granularityMessage(value, issues)}\n\nAdjust the PDO mapping or the granularity.`);
+        void this.dialogs.warning(granularityMessage(value, issues, 'Adjust the PDO mapping or the granularity.'));
       }
       const consumers = key === 'nrOfNgMonitoredNodes' ? usedHeartbeatConsumers(this.document()) : 0;
       if (value < consumers) {

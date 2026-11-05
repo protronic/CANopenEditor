@@ -495,6 +495,20 @@ button.collapse {
 
 .dialog-box .modal-actions button { min-width: 5rem; }
 
+/* Wide enough for the longest item; the paragraphs wrap within that width. */
+.dialog-box.wide {
+  width: fit-content;
+  min-width: min(28rem, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+}
+
+.dialog-box.wide p { width: 0; min-width: 100%; }
+
+/* At most 8 lines are visible; more items scroll vertically. */
+.dialog-items { margin: 0; padding: 0 0.5rem 0 0; list-style: none; max-height: 12em; overflow: auto; }
+
+.dialog-items li { white-space: pre; line-height: 1.5; }
+
 .modal-spacer { flex: 1; }
 
 .profile-modal {

@@ -48,6 +48,7 @@ describe('mappingTargetLabel', () => {
     expect(mappingTargetLabel(document, 1, '0x21000001')).toBe('1 - 0x2100/00/Temperatur');
     expect(mappingTargetLabel(document, 2, '0x20010210')).toBe('2 - 0x2001/02/Eingang 2');
     expect(mappingTargetLabel(document, 12, '0x00050008')).toBe('12 - 0x0005/00/Dummy UInt8');
+    expect(mappingTargetLabel(document, 3, '0x00010001')).toBe('3 - 0x0001/00/Dummy Bool');
   });
 
   it('keeps labels unique when the same object is mapped twice', () => {
@@ -144,7 +145,7 @@ describe('mappableEntries', () => {
       defaultValue: 'ABCD',
     }));
 
-    expect(mappableEntries(document)[6]).toMatchObject({ index: 0x2000, bits: 32 });
+    expect(mappableEntries(document)[7]).toMatchObject({ index: 0x2000, bits: 32 });
   });
 
   it('starts with the dummy objects for every direction', () => {
@@ -152,6 +153,7 @@ describe('mappableEntries', () => {
     for (const direction of [undefined, 'rx', 'tx'] as const) {
       expect(mappableEntries(document, direction).map((entry) => [entry.index, entry.subIndex, entry.name, entry.bits]))
         .toEqual([
+          [0x0001, 0, 'Dummy Bool', 1],
           [0x0002, 0, 'Dummy Int8', 8],
           [0x0003, 0, 'Dummy Int16', 16],
           [0x0004, 0, 'Dummy Int32', 32],
@@ -394,35 +396,75 @@ describe('pdoSlots', () => {
 });
 
 describe('mappingGranularityIssues', () => {
-  function project(granularity: number) {
+  /** TPDO 0x1800 with the given entries as [index, bits]. */
+  function project(granularity: number, entries: [number, number][]) {
     const document = createEmptyDocument();
     document.granularity = granularity;
     document.objects.push(
       createEntry({ index: 0x2100, name: 'Value', objectType: 'VAR', dataType: 'UNSIGNED32', pdoMapping: 'optional' }),
-      createEntry({ index: 0x2101, name: 'Flag', objectType: 'VAR', dataType: 'UNSIGNED8', pdoMapping: 'optional' }),
+      createEntry({ index: 0x2101, name: 'Flag', objectType: 'VAR', dataType: 'BOOLEAN', pdoMapping: 'optional' }),
+      createEntry({ index: 0x2102, name: 'Level', objectType: 'VAR', dataType: 'UNSIGNED8', pdoMapping: 'optional' }),
+      createEntry({ index: 0x2103, name: 'Word', objectType: 'VAR', dataType: 'UNSIGNED16', pdoMapping: 'optional' }),
     );
     addPdo(document, 'tx');
-    addMapping(document, 'tx', 0);
-    addMapping(document, 'tx', 0);
-    setMappingEntry(document, 'tx', 0, 1, 0x2100, 0, 32);
-    setMappingEntry(document, 'tx', 0, 2, 0x2101, 0, 8);
+    entries.forEach(([index, bits], i) => {
+      addMapping(document, 'tx', 0);
+      setMappingEntry(document, 'tx', 0, i + 1, index, 0, bits);
+    });
     return { document, map: document.objects.find((object) => object.index === 0x1a00)! };
   }
 
-  it('accepts lengths that are multiples of the granularity', () => {
-    expect(pdoGranularityIssues(project(8).document)).toEqual([]);
-    expect(pdoGranularityIssues(project(1).document)).toEqual([]);
+  it('accepts objects that fit exactly into one byte', () => {
+    const { document } = project(8, [[0x2101, 1], [0x2101, 1], [0x2101, 1], [0x2102, 5]]);
+    expect(pdoGranularityIssues(document)).toEqual([]);
   });
 
-  it('lists mapped objects that are no multiple of the granularity', () => {
-    const { document, map } = project(16);
-    expect(pdoGranularityIssues(document)).toEqual(['TPDO 0x1800 entry 2: 0x2101/00 Flag (8 bits)']);
-    expect(mappingGranularityIssues(document, map, (sub) => sub.subIndex === 2 ? '0x21010010' : sub.defaultValue)).toEqual([]);
-    expect(granularityMessage(16, pdoGranularityIssues(document))).toContain('not a multiple of 16 bits');
+  it('lists objects that cross a byte boundary', () => {
+    const { document } = project(8, [[0x2101, 1], [0x2101, 1], [0x2101, 1], [0x2101, 1], [0x2102, 5]]);
+    expect(pdoGranularityIssues(document)).toEqual([
+      'TPDO 0x1800 entry 5: 0x2102/00 Level (5 bits, bit 4-8)',
+      'TPDO 0x1800: byte 1 is not filled up (1 of 8 bits used)',
+    ]);
+    const message = granularityMessage(8, pdoGranularityIssues(document), 'Save anyway?');
+    expect(message.text).toContain('granularity of 8 bits');
+    expect(message.items).toEqual(pdoGranularityIssues(document));
+    expect(message.footer).toBe('Save anyway?');
   });
 
-  it('ignores entries beyond the count of sub-index 0x00', () => {
-    const { document, map } = project(16);
+  it('accepts objects that start and end on unit boundaries', () => {
+    expect(pdoGranularityIssues(project(8, [[0x2100, 32], [0x2103, 16], [0x2102, 8]]).document)).toEqual([]);
+    expect(pdoGranularityIssues(project(16, [[0x2102, 8], [0x2102, 8], [0x2100, 32]]).document)).toEqual([]);
+    expect(pdoGranularityIssues(project(1, [[0x2101, 1], [0x2103, 16], [0x0005, 7]]).document)).toEqual([]);
+    expect(pdoGranularityIssues(project(8, [[0x2101, 1], [0x2103, 16], [0x0005, 7]]).document))
+      .toEqual(['TPDO 0x1800 entry 2: 0x2103/00 Word (16 bits, bit 1-16)']);
+    expect(pdoGranularityIssues(project(8, [[0x2103, 12]]).document)).toEqual([
+      'TPDO 0x1800 entry 1: 0x2103/00 Word (12 bits, bit 0-11)',
+      'TPDO 0x1800: byte 1 is not filled up (4 of 8 bits used)',
+    ]);
+  });
+
+  it('accepts dummy objects that fill up to the granularity boundary', () => {
+    expect(pdoGranularityIssues(project(8, [[0x2101, 1], [0x0006, 15]]).document)).toEqual([]);
+    expect(pdoGranularityIssues(project(8, [[0x2101, 1], [0x0006, 14]]).document)).toEqual([
+      'TPDO 0x1800 entry 2: 0x0006/00 Dummy UInt16 (14 bits, bit 1-14)',
+      'TPDO 0x1800: byte 1 is not filled up (7 of 8 bits used)',
+    ]);
+  });
+
+  it('warns about a byte that is not filled up, whatever the granularity', () => {
+    for (const granularity of [0, 1, 8]) {
+      expect(pdoGranularityIssues(project(granularity, [[0x2101, 1], [0x2101, 1], [0x2101, 1]]).document))
+        .toEqual(['TPDO 0x1800: byte 0 is not filled up (3 of 8 bits used)']);
+      expect(pdoGranularityIssues(project(granularity, [[0x2101, 1], [0x2101, 1], [0x2101, 1], [0x0001, 1], [0x2102, 4]]).document))
+        .toEqual([]);
+    }
+    expect(pdoGranularityIssues(project(8, []).document)).toEqual([]);
+  });
+
+  it('checks unsaved values and ignores entries beyond the count of sub-index 0x00', () => {
+    const { document, map } = project(8, [[0x2102, 8], [0x2103, 12]]);
+    expect(mappingGranularityIssues(document, map)).toHaveLength(2);
+    expect(mappingGranularityIssues(document, map, (sub) => sub.subIndex === 2 ? '0x21030010' : sub.defaultValue)).toEqual([]);
     expect(mappingGranularityIssues(document, map, (sub) => sub.subIndex === 0 ? '1' : sub.defaultValue)).toEqual([]);
   });
 });

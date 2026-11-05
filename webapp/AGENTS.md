@@ -77,9 +77,21 @@ number of used 0x1016 entries shows a warning (only "OK", the value is kept). Th
 next to the field counts the used 0x1016 entries again and sets the value to exactly that number
 (this may also lower it).
 
-The PDOs are checked against the granularity: the length of every mapped object (including dummy
-objects) must be a multiple of the granularity in bits; granularity 1 accepts every length. A
-warning lists every mapped object that does not fit (PDO, mapping entry, object, length):
+The PDOs are checked against the granularity G (bits): the PDO is divided into units of G bits
+(G = 8: bytes). A mapped object fits if it lies within one unit (several small objects may share a
+unit, e.g. three 1-bit objects and a 5-bit object in one byte) or if it starts and ends on unit
+boundaries (e.g. a 16-bit object at bit 0 or 8 with G = 8). An object that crosses a unit boundary
+does not fit (e.g. four 1-bit objects and a 5-bit object: the 5-bit object covers bits 4..8).
+Granularity 1 accepts everything. A dummy object (0x0001..0x0007) that ends on a unit boundary
+fills up to that boundary and always fits, whatever its width (e.g. G = 8: a 1-bit object followed
+by a 15-bit Dummy UInt16). Independent of the granularity (also for 0 or 1), every byte of the PDO
+must be filled up: if the total length of the mapped objects is no multiple of 8 bits, the last byte
+is reported (e.g. three 1-bit objects: "byte 0 is not filled up (3 of 8 bits used)"); it can be
+filled e.g. with a dummy object. A warning lists every mapped object that does not fit (PDO, mapping
+entry, object, length, bit range) and every byte that is not filled up, each on one line without
+wrapping (the dialog widens to the longest line, at most to the window width; the explanation above
+and the question below wrap within that width). All items are listed; with more than 8 items the
+list scrolls vertically:
 
 - after the granularity is changed in "Device Info" (the new value is kept, only "OK"),
 - when a PDO is saved in "TX PDO Mapping" or "RX PDO Mapping",
@@ -144,8 +156,8 @@ The "TX PDO Mapping" tab comes before the "RX PDO Mapping" tab. The following ap
   not selected before clears an existing object selection in the other PDOs.
 - The free bits after the mapped objects are shown as a single "Empty" element without a gray box.
 - Right-clicking a mapped object opens a context menu with "Insert Item before", "Insert Item after",
-  and "Remove Item". As in the desktop editor, inserting adds a "Dummy Int8" (0x0002) placeholder that
-  is selected afterwards. If the free space is not sufficient, the usual warning is shown.
+  and "Remove Item". Inserting always adds a "Dummy Bool" (0x0001) placeholder (1 bit with "Bitwise
+  mapping", otherwise 8 bits) that is selected afterwards. If the free space is not sufficient, the usual warning is shown.
 - Like the desktop editor, a disabled communication object (e.g. 0x1404/0x1804 with `CO_disabled`
   in `DS301_profile.xpd`) is no PDO: it is not shown in the PDO tabs, not counted in "RPDO count" /
   "TPDO count", and not checked against the granularity. The counts are recalculated on open and
@@ -169,6 +181,7 @@ The "TX PDO Mapping" tab comes before the "RX PDO Mapping" tab. The following ap
 
 | Name         | Object index | Sub-index |
 |--------------|--------------|-----------|
+| Dummy Bool   | 0x0001       | 0x00      |
 | Dummy Int8   | 0x0002       | 0x00      |
 | Dummy Int16  | 0x0003       | 0x00      |
 | Dummy Int32  | 0x0004       | 0x00      |

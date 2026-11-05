@@ -18,6 +18,7 @@ import {
   hex4,
   sortDocument,
 } from '../model/device';
+import type { DialogContent } from '../state/dialog.service';
 
 export type PdoDirection = 'rx' | 'tx';
 export type PdoField = 'cobId' | 'transmission' | 'inhibit' | 'eventTimer' | 'syncStart';
@@ -139,6 +140,7 @@ export function mappingLabel(
 }
 
 const DUMMY_OBJECTS: { index: number; name: string; dataType: OdEntry['dataType'] }[] = [
+  { index: 0x0001, name: 'Dummy Bool', dataType: 'BOOLEAN' },
   { index: 0x0002, name: 'Dummy Int8', dataType: 'INTEGER8' },
   { index: 0x0003, name: 'Dummy Int16', dataType: 'INTEGER16' },
   { index: 0x0004, name: 'Dummy Int32', dataType: 'INTEGER32' },
@@ -769,9 +771,25 @@ export function checkMappingObject(document: DeviceDocument, map: OdEntry, subIn
   return null;
 }
 
+/** A dummy object (0x0001..0x0007) that fills up to the next granularity boundary. */
+function isGranularityFiller(index: number, bits: number, start: number, granularity: number): boolean {
+  return DUMMY_NAMES[index] != null && bits > 0 && (start + bits) % granularity === 0;
+}
+
 /**
- * Mapped objects whose length is not a multiple of the device granularity (Device Info). Granularity
- * 0 or 1 accepts every length. `valueOf` lets callers check unsaved values of the mapping object.
+ * True if a mapped object lies within one granularity unit (e.g. several bits packed into one byte)
+ * or starts and ends on unit boundaries; false if it crosses a boundary.
+ */
+function fitsGranularity(start: number, bits: number, granularity: number): boolean {
+  const end = start + bits;
+  return Math.floor(start / granularity) === Math.floor((end - 1) / granularity)
+    || (start % granularity === 0 && end % granularity === 0);
+}
+
+/**
+ * Mapped objects that do not fit into the units of the device granularity (Device Info), i.e. that
+ * cross a unit boundary (granularity 0 or 1 accepts every object), and a last byte that is not
+ * filled up. `valueOf` lets callers check unsaved values of the mapping object.
  */
 export function mappingGranularityIssues(
   document: DeviceDocument,
@@ -779,9 +797,10 @@ export function mappingGranularityIssues(
   valueOf: (sub: OdEntry) => string = (sub) => sub.defaultValue,
 ): string[] {
   const granularity = document.granularity;
-  if (!isMappingObject(map.index) || !Number.isInteger(granularity) || granularity <= 1) {
+  if (!isMappingObject(map.index)) {
     return [];
   }
+  const checkUnits = Number.isInteger(granularity) && granularity > 1;
   const sub0 = map.subObjects.find((sub) => sub.subIndex === 0);
   const countText = sub0 ? valueOf(sub0).trim() : '';
   const count = !countText
@@ -789,33 +808,47 @@ export function mappingGranularityIssues(
     : /^0x/i.test(countText) ? Number.parseInt(countText, 16) : Number.parseInt(countText, 10);
   const kind = map.index >= 0x1a00 ? 'TPDO' : 'RPDO';
   const issues: string[] = [];
-  for (const sub of map.subObjects) {
+  let offset = 0;
+  for (const sub of [...map.subObjects].sort((x, y) => x.subIndex - y.subIndex)) {
     if (sub.subIndex < 1 || sub.subIndex > count) {
       continue;
     }
     const decoded = decodeMapping(valueOf(sub));
-    if (decoded && decoded.bits > 0 && decoded.bits % granularity !== 0) {
+    const start = offset;
+    offset += decoded?.bits ?? 0;
+    if (!checkUnits || (decoded && isGranularityFiller(decoded.index, decoded.bits, start, granularity))) {
+      continue;
+    }
+    if (decoded && decoded.bits > 0 && !fitsGranularity(start, decoded.bits, granularity)) {
       const name = findObject(document, decoded.index)?.subObjects.find((entry) => entry.subIndex === decoded.subIndex)?.name
         ?? findObject(document, decoded.index)?.name ?? dummyName(decoded.index) ?? '';
       issues.push(`${kind} 0x${hex4(map.index - 0x200)} entry ${sub.subIndex}: `
-        + `0x${hex4(decoded.index)}/${hex2(decoded.subIndex)}${name ? ` ${name}` : ''} (${decoded.bits} bits)`);
+        + `0x${hex4(decoded.index)}/${hex2(decoded.subIndex)}${name ? ` ${name}` : ''} `
+        + `(${decoded.bits} bits, bit ${start}-${start + decoded.bits - 1})`);
     }
+  }
+  if (offset % 8 !== 0) {
+    issues.push(`${kind} 0x${hex4(map.index - 0x200)}: byte ${Math.floor(offset / 8)} is not filled up `
+      + `(${offset % 8} of 8 bits used)`);
   }
   return issues;
 }
 
-/** Granularity issues of all PDOs of the device. */
+/** Granularity and byte fill issues of all PDOs of the device. */
 export function pdoGranularityIssues(document: DeviceDocument): string[] {
   return document.objects
     .filter((object) => isMappingObject(object.index) && findObject(document, object.index - 0x200)?.disabled === false)
     .flatMap((map) => mappingGranularityIssues(document, map));
 }
 
-export function granularityMessage(granularity: number, issues: string[]): string {
-  const shown = issues.slice(0, 10);
-  const more = issues.length > shown.length ? `\n... and ${issues.length - shown.length} more` : '';
-  return `The granularity is ${granularity} bits, but these mapped objects are not a multiple of `
-    + `${granularity} bits:\n${shown.join('\n')}${more}`;
+export function granularityMessage(granularity: number, issues: string[], footer: string): DialogContent {
+  return {
+    text: `The PDO mapping does not fit the granularity of ${granularity} bits (an object must lie `
+      + `within one ${granularity}-bit unit or start and end on unit boundaries) or leaves a byte not `
+      + `filled up (fill it e.g. with a dummy object):`,
+    items: issues,
+    footer,
+  };
 }
 
 export function setMappingRaw(

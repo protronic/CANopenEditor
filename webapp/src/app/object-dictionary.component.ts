@@ -844,7 +844,7 @@ export class ObjectDictionaryComponent {
       const issues = mappingGranularityIssues(this.document(), parent,
         (sub) => sub.subIndex === entry.subIndex ? this.draftDefault : sub.defaultValue);
       if (issues.length > 0 && !(await this.dialogs.confirm(
-        `${granularityMessage(this.document().granularity, issues)}\n\nSave anyway?`, 'Warning'))) {
+        granularityMessage(this.document().granularity, issues, 'Save anyway?'), 'Warning'))) {
         return false;
       }
     }

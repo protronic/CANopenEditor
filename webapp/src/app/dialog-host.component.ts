@@ -7,9 +7,19 @@ import { DialogService } from './state/dialog.service';
   template: `
     @if (dialogs.current(); as dialog) {
       <div class="modal-back dialog-back">
-        <div class="modal dialog-box" [class]="dialog.kind" role="alertdialog" aria-modal="true" aria-labelledby="dialog-title">
+        <div class="modal dialog-box" [class]="dialog.kind" [class.wide]="!!dialog.items?.length" role="alertdialog" aria-modal="true" aria-labelledby="dialog-title">
           <h3 id="dialog-title">{{ dialog.title }}</h3>
           <p>{{ dialog.text }}</p>
+          @if (dialog.items?.length) {
+            <ul class="dialog-items">
+              @for (item of dialog.items; track $index) {
+                <li>{{ item }}</li>
+              }
+            </ul>
+          }
+          @if (dialog.footer) {
+            <p>{{ dialog.footer }}</p>
+          }
           <div class="modal-actions">
             @if (dialog.choices; as choices) {
               @for (choice of choices; track choice; let first = $first) {
