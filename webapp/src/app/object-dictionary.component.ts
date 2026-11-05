@@ -312,7 +312,7 @@ interface OdViewState {
       <div class="modal-back">
         <div class="modal" appDraggable>
           <h3>Unsaved changes</h3>
-          <p>Unsaved changes on Index {{ pendingLabel }}. Do you wish to switch object and loose your changes?</p>
+          <p>You have unsaved changes for index {{ pendingLabel }}.<br>Do you want to save them and switch to a different object?</p>
           <div class="modal-actions">
             <button type="button" (click)="resolvePending('no')">Save</button>
             <button type="button" (click)="resolvePending('yes')">Discard Changes</button>
