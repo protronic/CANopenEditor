@@ -54,7 +54,9 @@ with changes that are not saved yet are highlighted in color (light red backgrou
 Questions to the user use an in-app overlay window with "OK" and "Cancel" instead of `confirm()`.
 Errors and warnings use an in-app overlay window that must be acknowledged with "OK". In all these
 windows "OK" (or the buttons that replace it, e.g. "Apply") is on the left and "Cancel" on the right;
-the same applies to "Create" and "Cancel" in "Create new OD Index".
+the same applies to "Create" and "Cancel" in "Create new OD Index". In "Insert Profile" and
+"Insert OD Objects" (Clone), "Insert" is the leftmost button, followed by "Check all" (only "Insert
+Profile") and "Uncheck all"; "Cancel" is on the right.
 Closing a project with unsaved changes ("×" in "Devices") asks with the buttons "Close without
 saving" and "Cancel".
 

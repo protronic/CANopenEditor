@@ -56,9 +56,9 @@ import { parseOffsets } from './xdd/profiles';
           </table>
         </div>
         <div class="modal-actions">
+          <button type="button" (click)="insert()" [disabled]="!canInsert()">Insert</button>
           <button type="button" class="quiet" (click)="uncheckAll()">Uncheck all</button>
           <span class="modal-spacer"></span>
-          <button type="button" (click)="insert()" [disabled]="!canInsert()">Insert</button>
           <button type="button" class="quiet" (click)="closed.emit()">Cancel</button>
         </div>
       </div>
