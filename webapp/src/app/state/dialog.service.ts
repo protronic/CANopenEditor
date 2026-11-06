@@ -1,6 +1,6 @@
 import { Injectable, computed, signal } from '@angular/core';
 
-export type DialogKind = 'confirm' | 'error' | 'warning';
+export type DialogKind = 'confirm' | 'error' | 'warning' | 'prompt';
 
 /** Text with an optional list of single-line items (e.g. warnings) and a closing question. */
 export interface DialogContent {
@@ -14,10 +14,12 @@ export interface DialogRequest extends DialogContent {
   title: string;
   /** Buttons offered instead of "OK"; "Cancel" is always added. */
   choices?: readonly string[];
+  /** Initial text of the input field of a "prompt". */
+  input?: string;
   resolve: (result: boolean | string) => void;
 }
 
-/** In-app replacement for confirm() and alert(); requests are shown one after another. */
+/** In-app replacement for confirm(), alert() and prompt(); requests are shown one after another. */
 @Injectable({ providedIn: 'root' })
 export class DialogService {
   private readonly queue = signal<DialogRequest[]>([]);
@@ -30,6 +32,11 @@ export class DialogService {
   /** Resolves with the chosen button text, or null for "Cancel". */
   choose<T extends string>(text: string | DialogContent, choices: readonly T[], title = 'Confirm'): Promise<T | null> {
     return this.open('confirm', title, text, choices).then((result) => typeof result === 'string' ? result as T : null);
+  }
+
+  /** Asks for a text; resolves with the entered text for "OK", or null for "Cancel". */
+  prompt(text: string | DialogContent, title: string, initial = ''): Promise<string | null> {
+    return this.open('prompt', title, text, undefined, initial).then((result) => typeof result === 'string' ? result : null);
   }
 
   error(text: string | DialogContent, title = 'Error'): Promise<void> {
@@ -49,10 +56,16 @@ export class DialogService {
     first.resolve(result);
   }
 
-  private open(kind: DialogKind, title: string, text: string | DialogContent, choices?: readonly string[]): Promise<boolean | string> {
+  private open(
+    kind: DialogKind,
+    title: string,
+    text: string | DialogContent,
+    choices?: readonly string[],
+    input?: string,
+  ): Promise<boolean | string> {
     const content = typeof text === 'string' ? { text } : text;
     return new Promise((resolve) => {
-      this.queue.update((queue) => [...queue, { ...content, kind, title, choices, resolve }]);
+      this.queue.update((queue) => [...queue, { ...content, kind, title, choices, input, resolve }]);
     });
   }
 }

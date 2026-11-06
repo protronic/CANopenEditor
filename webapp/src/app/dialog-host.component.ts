@@ -19,6 +19,9 @@ import { DialogService } from './state/dialog.service';
               }
             </ul>
           }
+          @if (dialog.kind === 'prompt') {
+            <input #answer class="dialog-input" [value]="dialog.input ?? ''" (keydown)="$event.key === 'Enter' && dialogs.close(answer.value)" aria-labelledby="dialog-title" />
+          }
           @if (dialog.footer) {
             <p>{{ dialog.footer }}</p>
           }
@@ -29,10 +32,10 @@ import { DialogService } from './state/dialog.service';
               }
               <span class="modal-spacer"></span>
             } @else {
-              <button type="button" class="dialog-ok" (click)="dialogs.close(true)">OK</button>
+              <button type="button" class="dialog-ok" (click)="ok()">OK</button>
               <span class="modal-spacer"></span>
             }
-            @if (dialog.kind === 'confirm') {
+            @if (dialog.kind === 'confirm' || dialog.kind === 'prompt') {
               <button type="button" class="quiet" (click)="dialogs.close(false)">Cancel</button>
             }
           </div>
@@ -48,9 +51,23 @@ export class DialogHostComponent {
   constructor() {
     effect(() => {
       if (this.dialogs.current()) {
-        requestAnimationFrame(() => this.host.nativeElement.querySelector<HTMLButtonElement>('.dialog-ok')?.focus());
+        requestAnimationFrame(() => {
+          const input = this.host.nativeElement.querySelector<HTMLInputElement>('.dialog-input');
+          if (input) {
+            input.focus();
+            input.select();
+          } else {
+            this.host.nativeElement.querySelector<HTMLButtonElement>('.dialog-ok')?.focus();
+          }
+        });
       }
     });
+  }
+
+  /** "OK" returns the entered text for a prompt. */
+  ok(): void {
+    const input = this.host.nativeElement.querySelector<HTMLInputElement>('.dialog-input');
+    this.dialogs.close(this.dialogs.current()?.kind === 'prompt' ? input?.value ?? '' : true);
   }
 
   @HostListener('document:keydown.escape', ['$event'])
@@ -58,7 +75,7 @@ export class DialogHostComponent {
     const dialog = this.dialogs.current();
     if (dialog) {
       event.stopPropagation();
-      this.dialogs.close(dialog.kind !== 'confirm');
+      this.dialogs.close(dialog.kind !== 'confirm' && dialog.kind !== 'prompt');
     }
   }
 }

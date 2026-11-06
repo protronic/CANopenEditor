@@ -174,7 +174,7 @@ interface OdViewState {
             </label>
             <label class="od-line">
               <span>Count Label</span>
-              <select [ngModel]="draftCount" (ngModelChange)="setCount($event)" [disabled]="!isParent">
+              <select #countSelect [ngModel]="draftCount" (ngModelChange)="setCount($event, countSelect)" [disabled]="!isParent">
                 @for (label of countLabels(); track label) {
                   <option [value]="label">{{ label }}</option>
                 }
@@ -195,7 +195,7 @@ interface OdViewState {
             </label>
             <label class="od-line">
               <span>Storage Group</span>
-              <select [ngModel]="draftStorage" (ngModelChange)="setStorage($event)" [disabled]="!isParent">
+              <select #storageSelect [ngModel]="draftStorage" (ngModelChange)="setStorage($event, storageSelect)" [disabled]="!isParent">
                 @for (group of storageLabels(); track group) {
                   <option [value]="group">{{ group }}</option>
                 }
@@ -798,28 +798,30 @@ export class ObjectDictionaryComponent {
     this.applyDraft();
   }
 
-  setCount(value: string): void {
+  async setCount(value: string, select: HTMLSelectElement): Promise<void> {
     if (value === 'Add...') {
-      const name = window.prompt('Add Count Label');
-      if (name?.trim()) {
-        this.extraCounts = [...this.extraCounts, name.trim()];
-        this.draftCount = name.trim();
+      const name = (await this.dialogs.prompt('Name of the new count label:', 'Add Count Label'))?.trim();
+      if (name) {
+        this.extraCounts = [...this.extraCounts, name];
+        this.draftCount = name;
         this.applyDraft();
       }
+      setTimeout(() => (select.value = this.draftCount));
       return;
     }
     this.draftCount = value;
     this.applyDraft();
   }
 
-  setStorage(value: string): void {
+  async setStorage(value: string, select: HTMLSelectElement): Promise<void> {
     if (value === 'Add...') {
-      const name = window.prompt('Add Storage Group');
-      if (name?.trim()) {
-        this.extraStorage = [...this.extraStorage, name.trim()];
-        this.draftStorage = name.trim();
+      const name = (await this.dialogs.prompt('Name of the new storage group:', 'Add Storage Group'))?.trim();
+      if (name) {
+        this.extraStorage = [...this.extraStorage, name];
+        this.draftStorage = name;
         this.applyDraft();
       }
+      setTimeout(() => (select.value = this.draftStorage));
       return;
     }
     this.draftStorage = value;
