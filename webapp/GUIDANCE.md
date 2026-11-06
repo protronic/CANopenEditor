@@ -1,10 +1,14 @@
 # GUIDANCE.md – Reconstruction guide for the CANopen Editor web app
 
 This document describes the structure, the layout, and the behavior of the Angular web app in
-`webapp/` in enough detail to rebuild it from scratch. It complements `AGENTS.md` (requirements and
-working rules) and the layout templates in `webapp/images/`. Where this guide and `AGENTS.md`
-differ, `AGENTS.md` is the binding specification; this guide describes how the current code
-implements it.
+`webapp/` in enough detail to rebuild it from scratch. It is the binding specification of the
+structure, the layout, and the function of the app; `AGENTS.md` contains the working rules for the
+agent and refers to this file. The layout templates in `webapp/images/` show the desktop editor;
+every intentional deviation from them is listed in the section of the tab ("Deviations from the
+template").
+
+**Precedence:** if two rules contradict each other, the latest rule applies (see the decision
+history in section 19). This guide always describes the latest state.
 
 All UI texts are English and must be reproduced literally (they are quoted in this document).
 
@@ -22,9 +26,16 @@ All UI texts are English and must be reproduced literally (they are quoted in th
 - No backend: everything runs in the browser. Static assets (example project, profiles) are served
   from `public/`.
 
-Not implemented on purpose (present in the desktop templates): the menu bar (`File`, `Insert
-Profile`, `Reports`, `Tools`), the `Modules` tab, EDS/DCF/CANopenNode export, and the "100 kbps"
-baud rate checkbox (the template does not show it either).
+General deviations from the desktop templates (`images/`):
+
+- No menu bar (`File`, `Insert Profile`, `Reports`, `Tools`). Its functions are the header buttons
+  **New**, **Open**, **Save**, **Example**, and **Insert Profile** (section 6.2).
+- No `Modules` tab; no EDS/DCF/CANopenNode export.
+- The tabs have no icons; the order is **Device Info**, **Object Dictionary**, **TX PDO Mapping**,
+  **RX PDO Mapping** (TX before RX).
+- The device list "Devices" shows cards with product name, file name, a "modified" marker, and a
+  close button "×" instead of the plain list.
+- Message boxes of the desktop editor are in-app windows (section 8).
 
 ---
 
@@ -70,8 +81,8 @@ to the development configuration (no optimization, source maps).
 
 ```text
 webapp/
-  AGENTS.md                 requirements and working rules (binding)
-  GUIDANCE.md               this file
+  AGENTS.md                 working rules for the agent (refers to GUIDANCE.md)
+  GUIDANCE.md               this file: binding specification of structure, layout, and function
   images/                   layout templates (screenshots of the desktop editor)
     Template_Tab_Device_Info.png
     Template_Tab_Object_Dictionary.png
@@ -95,7 +106,7 @@ webapp/
       clone-objects.component.ts    dialog "Insert OD Objects" (Clone...)
       model/device.ts               data model, constants, OD helpers
       state/project.store.ts        open devices, dirty flag, revision, save/serialize
-      state/dialog.service.ts       queue for confirm/choose/error/warning
+      state/dialog.service.ts       queue for confirm/choose/prompt/error/warning
       state/unsaved-edits.service.ts unapplied edits of the views (cross-tab conflicts)
       state/view-state.service.ts   per-device memory of selections
       xdd/xdd-codec.ts              XDD parser and writer
@@ -428,12 +439,14 @@ A panel `.empty` (max 42rem) with `<h2>Object Dictionary Editor</h2>`,
 
 ## 8. Dialog system (`state/dialog.service.ts`, `dialog-host.component.ts`, `draggable.directive.ts`)
 
-`DialogService` replaces `confirm()`/`alert()`; requests are queued and shown one after another.
+`DialogService` replaces `confirm()`, `alert()`, and `prompt()` of the browser (none of them is
+used); requests are queued and shown one after another.
 
 ```ts
 interface DialogContent { text: string; items?: readonly string[]; footer?: string; }
 confirm(text | content, title = 'Confirm'): Promise<boolean>        // OK / Cancel
 choose(text | content, choices, title = 'Confirm'): Promise<choice | null>  // choices / Cancel
+prompt(text | content, title, initial = ''): Promise<string | null> // input field, OK / Cancel
 error(text | content, title = 'Error'): Promise<void>               // OK
 warning(text | content, title = 'Warning'): Promise<void>           // OK
 ```
@@ -445,17 +458,23 @@ Rendering (`DialogHostComponent`):
 │ text (pre-line, wraps)                  │   <p>
 │ item 1 (one line, no wrap)              │   <ul class="dialog-items">, only if items
 │ item 2 …                                │   max-height 12em (≈ 8 lines), scrolls vertically
+│ [input field]                           │   <input class="dialog-input">, only for "prompt"
 │ footer (e.g. "Apply anyway?")           │   <p>, only if footer
-│ [OK | choices…]  ············  [Cancel] │   Cancel only for kind "confirm"
+│ [OK | choices…]  ············  [Cancel] │   Cancel only for "confirm" and "prompt"
 └─────────────────────────────────────────┘
 ```
 
-- Classes: `.modal.dialog-box` plus the kind (`confirm`, `error`, `warning`). Error title color
-  `#b8341c`, warning title `#a86200`. Width `min(28rem, 100vw - 2rem)`; buttons min width 5rem.
+- Classes: `.modal.dialog-box` plus the kind (`confirm`, `prompt`, `error`, `warning`). Error title
+  color `#b8341c`, warning title `#a86200`. Width `min(28rem, 100vw - 2rem)`; buttons min width 5rem.
+- **Prompt** (input window): the input field starts with `initial`, gets the focus, and its text is
+  selected. **OK** or **Enter** resolves with the entered text; **Cancel** or **Escape** resolves
+  with `null`. Enter is handled by a plain `(keydown)` handler that checks `$event.key === 'Enter'`
+  (with `(keydown.enter)` the view of the caller was not refreshed after the dialog closed).
 - With items the box gets `.wide`: `width: fit-content`, `min-width: min(28rem, 100vw - 2rem)`,
   `max-width: 100vw - 2rem`; paragraphs use `width: 0; min-width: 100%` so they wrap within the
   width of the longest item. Items: `white-space: pre; line-height: 1.5`.
-- The first button (`.dialog-ok`) gets the focus. **Escape** closes: confirm → Cancel, others → OK.
+- The first button (`.dialog-ok`) gets the focus (for a prompt: the input field). **Escape**
+  closes: confirm and prompt → Cancel, others → OK.
 - `appDraggable` directive (bound value = the current dialog, so each new dialog starts centered):
   pointerdown on the `h3` (left button) starts dragging with pointer capture and adds the class
   `dragging`; pointermove translates the window (`transform: translate(x, y)`), clamped so it stays
@@ -494,6 +513,16 @@ Layout follows `images/Template_Tab_Device_Info.png`:
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
+Deviations from the template:
+
+- The **Refresh** button right of "No of monitored nodes" is new.
+- "Granularity" and "No of monitored nodes" are number fields with range checks and warnings
+  (below); the template has plain text fields.
+- "Project Info" shows the opened XDD file name as "Project file (version)"; the EDS, DCF,
+  CANopenNode, and documentation fields stay empty, because only XDD is supported.
+- "Revision number" is read-only and empty (it is not stored in the XDD); "Order code" is editable.
+- The "100 kbps" baud rate is not offered (the template does not show it either).
+
 - Field rows `.info-line`: grid `11.2rem | 1fr`, font 0.82rem; the wide fieldset uses `15.5rem`.
   The right column is split (`.info-split`) into Baudrates (`minmax(8.5rem, 0.72fr)`) and General
   and Master Features (`1.35fr`). Fieldsets have legends at 0.82rem.
@@ -531,8 +560,18 @@ Layout follows `images/Template_Tab_Device_Info.png`:
 
 ### 10.1 Layout
 
-Follows `images/Template_Tab_Object_Dictionary.png`, with these intentional differences: the three
-lists are collapsible, and "Save Changes / Autosave changes" are now **Apply / Auto Apply** as shown.
+Follows `images/Template_Tab_Object_Dictionary.png`.
+
+Deviations from the template:
+
+- The three lists are independently collapsible (`▾`/`▸` in the highlighted list header); several
+  objects can be selected (Ctrl/Shift+click) and a context menu is offered (section 10.4).
+- "Save Changes" and "Autosave changes" are **Apply** and **Auto Apply**: the checkbox stands
+  left-aligned above the button, both right-aligned on the line of "Default value" (no disk icon).
+- For PDO mapping objects there are the buttons **Reset Name** (right of "Name") and **Reset all**
+  (in the "Name" header of the sub table), section 10.5.
+- "Access SDO" offers only `no`, `ro`, `wo`, `rw`; "Data Type" offers a restricted list (10.2).
+- Count Label / Storage Group offer "Add...", which opens an in-app input window.
 
 ```text
 .od: grid 280px | 1fr, white, bordered
@@ -591,7 +630,10 @@ lists are collapsible, and "Save Changes / Autosave changes" are now **Apply / A
     only for VAR entries (other types show empty values).
   - Count Label, Storage Group, Enabled: only for the parent object (no sub selected).
   - Object Type: always disabled (shows the type).
-- **Data Type** options: `dataTypeChoices(current)` (section 4).
+- **Data Type** options: BOOLEAN, INTEGER8/16/32/64, UNSIGNED8/16/32/64, REAL32/64,
+  VISIBLE_STRING, OCTET_STRING, UNICODE_STRING, DOMAIN (`dataTypeChoices(current)`, section 4). A
+  type of an opened file that is not in this list (e.g. UNSIGNED24) stays selectable for this object
+  at the top of the list and is kept unless another type is chosen.
 - **Access SDO** options `no, ro, wo, rw`. Display: const/read → ro, write → wo, readWrite/
   readWriteInput/readWriteOutput → rw, others → no. Selecting: ro → `read`, wo → `write`,
   rw → `readWriteOutput` if Access PDO is `r`, `readWriteInput` if `t`, else `readWrite`;
@@ -601,8 +643,12 @@ lists are collapsible, and "Save Changes / Autosave changes" are now **Apply / A
 - **Access SRDO** options `no, tx, rx, trx`.
 - **Count Label** / **Storage Group**: options are an empty label (Count Label only), the
   predefined storage groups, all values used in the document, values added in this session, the
-  current value, and finally `Add...`, which asks for a new name with `window.prompt('Add Count
-  Label')` / `window.prompt('Add Storage Group')`.
+  current value, and finally `Add...`. `Add...` opens the movable input window (section 8)
+  **Add Count Label** ("Name of the new count label:") or **Add Storage Group** ("Name of the new
+  storage group:"). OK/Enter with a non-empty (trimmed) name adds the name to the options of this
+  session and selects it in the draft (applied like any other edit); Cancel/Escape or an empty name
+  keeps the previous value. In both cases the select shows the resulting value again, never
+  "Add...".
 - In the sub table, the **SDO/PDO** columns use the same short forms; PDO shows `r` also for
   `readWriteOutput` access and `t` for `readWriteInput`. For ARRAY/RECORD parent rows only the name
   and object type are shown. An `UNKNOWN` sub data type is shown as the parent type.
@@ -644,7 +690,9 @@ lists are collapsible, and "Save Changes / Autosave changes" are now **Apply / A
 
 - Click selects an object (after the guard) and clears the sub selection.
 - Ctrl/Cmd+click toggles extra objects; Shift+click selects the range between the primary and the
-  clicked object within the same list. Extra selections are used by Clone, Delete, and Toggle.
+  clicked object within the same list. The multi-selection is used by **Clone...**, **Delete...**,
+  and **Toggle**. The form, "Reset Name", and "Reset all" always work on the primary (last clicked)
+  object only.
 - Right-click (also on the empty area of a list or on its header) opens the object menu at the
   mouse position. Right-clicking an object that is not selected selects it first (guard). The menu
   remembers the list and the object under the mouse for "Add...".
@@ -668,6 +716,9 @@ lists are collapsible, and "Save Changes / Autosave changes" are now **Apply / A
   **Remove (leave gap)** (RECORD only). Sub 0x00 is refreshed to the highest sub-index.
 
 ### 10.5 Mapping objects: "Reset Name" and "Reset all"
+
+Both buttons work only on the one selected mapping object (the primary selection); they do not use
+the multi-selection of the object lists.
 
 - When a PDO mapping object (0x1600–0x17FF, 0x1A00–0x1BFF) is selected:
   - **Reset Name** (`button.system`) right of the Name input (the input shrinks). Enabled only for
@@ -697,7 +748,26 @@ communication index + 0x200.
 
 ### 11.1 Layout
 
-Follows `images/Template_Tab_TX_PDO_Mapping.png` / `…RX…`:
+Follows `images/Template_Tab_TX_PDO_Mapping.png` / `…RX…`.
+
+Deviations from the template:
+
+- **Invalid** is placed below the "COB" line instead of right of "Sync start"; a new checkbox
+  **Bitwise mapping** is placed below "Sync start". While it is checked, the list "Available Objects
+  for PDO" has an extra column with `-`/`+` buttons.
+- "Save" is **Apply** (no disk icon) with the checkbox **Auto Apply** below it; "Add new PDO" and
+  "Delete PDO" have no icons.
+- The "Communication" and "Mapping" indices are both editable (the template shows "Mapping"
+  read-only); "Event Timer" is editable also in "RX PDO Mapping".
+- The COB and Index columns of the grid are hexadecimal with `0x`: COB as full 32-bit value with
+  8 digits (e.g. `0x40000180`), Index e.g. `0x1800` (template: `40000`, `1800`).
+- The selected PDO row gets a strong frame and dark blue ID/COB/Index cells; PDO rows are about 20 %
+  higher; odd byte header cells have another color.
+- "Available Objects for PDO" always starts with the dummy objects 0x0001..0x0007.
+- Mapped cells have a context menu (Insert Item before/after, Remove Item); objects are assigned
+  via the list, not via pull-downs in the cells.
+- "Zoom In" / "Zoom Out" scale only the bit area, not the ID/COB/Index columns.
+- The "TX PDO Mapping" tab comes before "RX PDO Mapping".
 
 ```text
 .pdo-top: grid 1.45fr | minmax(20rem, 0.9fr)
@@ -1005,12 +1075,12 @@ Layout as in `images/Template_Tab_Object_Dictionary_Clone_Object.png`:
 
 ---
 
-## 17. Tests (Vitest, 63 tests)
+## 17. Tests (Vitest, 64 tests)
 
 | File | Covers |
 |------|--------|
 | `model/device.spec.ts` | `nextFreeIndex` (hovered object, last object, empty range, wrap-around), `dataTypeChoices` |
-| `state/dialog.service.spec.ts` | confirm OK/Cancel, choose returns the button or null, queue order |
+| `state/dialog.service.spec.ts` | confirm OK/Cancel, choose returns the button or null, prompt returns the text or null, queue order |
 | `xdd/xdd-codec.spec.ts` | reading XDD 1.1 and 1.0, rejecting EDS/non-XDD, round trip, new device output |
 | `xdd/profiles.spec.ts` | offsets (single, hex, range), DS301 insert, index reuse between profiles, overwrite |
 | `xdd/heartbeat.spec.ts` | used 0x1016 entries, count limit, raising "No of monitored nodes" |
@@ -1021,20 +1091,18 @@ Layout as in `images/Template_Tab_Object_Dictionary_Clone_Object.png`:
 
 ---
 
-## 18. Working rules (from `AGENTS.md` and the conversation)
+## 18. Working rules
 
-- Replies to the user are in German; UI labels stay English; XDD only.
-- Do not commit or push before the user has tested the change in the browser: keep
-  `ng serve --host 0.0.0.0 --port 4200` running, leave the changes uncommitted, and commit, push,
-  and update the pull request only after explicit confirmation. Rebase onto `origin/webapp` before
-  pushing.
-- Update `AGENTS.md` whenever behavior changes.
+The working rules (language, commit/push only after the user's browser test, rebase before pushing,
+keeping the documentation up to date) are defined in `AGENTS.md`. Every change of structure, layout,
+or function is documented in this file; `AGENTS.md` contains no specification of the app.
 
 ---
 
 ## 19. Decision history (from the conversation, in order)
 
-The current behavior is the result of these requests; later items override earlier ones.
+The current behavior is the result of these requests. If two rules contradict each other, the
+latest rule applies; the sections above already describe that state.
 
 1. Angular web app on branch `webapp`, based on the desktop editor; only XDD is read and written.
 2. Layout of all tabs prescribed by the template screenshots; "Access SDO" only `no/ro/wo/rw`.
@@ -1073,3 +1141,9 @@ The current behavior is the result of these requests; later items override earli
     left-aligned above Apply on the "Default value" line.
 21. BOOLEAN with 8 bits accepted in OD mapping entries without bitwise mapping; "Discard Changes"
     renamed to "Discard".
+22. "Insert" is the leftmost button in "Insert Profile" and "Insert OD Objects", followed by
+    "Check all" (only "Insert Profile") and "Uncheck all"; "Cancel" on the right.
+23. "Add..." in Count Label / Storage Group opens an in-app input window instead of the browser
+    prompt. Multi-selection stays for Clone, Delete, and Toggle; "Reset Name" / "Reset all" work on
+    the selected mapping object only. A data type of an opened file (e.g. UNSIGNED24) stays
+    selectable. The specification moved from `AGENTS.md` into this file.
