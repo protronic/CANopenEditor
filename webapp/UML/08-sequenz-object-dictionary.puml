@@ -1,0 +1,93 @@
+@startuml sequenz-object-dictionary
+title Sequenz – Object Dictionary: Entwurf, Apply, neues Objekt
+skinparam shadowing false
+
+actor Nutzer
+participant "ObjectDictionary" as OD
+participant "DialogService" as Dialogs
+participant "UnsavedEdits" as Unsaved
+participant "pdo.ts" as Pdo
+participant "ProjectStore" as Store
+
+== Feld ändern ==
+Nutzer -> OD : Wert im Formular
+OD -> OD : Entwurf setzen, dirty
+OD -> Unsaved : set("od", Indizes, discard)
+
+== Anderes Objekt wählen ==
+Nutzer -> OD : Objekt anklicken
+alt nicht dirty
+  OD -> OD : Entwurf des neuen Eintrags laden
+else Auto Apply
+  OD -> OD : saveChanges()
+else sonst
+  OD -> Nutzer : Unapplied Changes\nApply | Discard | Cancel
+  alt Apply
+    OD -> OD : saveChanges()
+  else Discard
+    OD -> OD : Entwurf verwerfen
+  else Cancel
+    OD -> OD : Auswahl bleibt
+  end
+end
+
+== Apply ==
+Nutzer -> OD : Apply
+OD -> Pdo : checkMappingObject()\nnur Mapping-Sub-Objekt
+alt Konsistenzfehler
+  OD -> Dialogs : warning(Fehler)
+  note right : nichts wird geschrieben
+else Granularität verletzt
+  OD -> Dialogs : choose(Apply anyway?)
+  alt Cancel
+    Dialogs --> OD : null
+  end
+end
+OD -> Unsaved : conflicts("od", Index)
+alt anderer Tab hat denselben Index
+  OD -> Dialogs : confirm(Overwrite them?)
+  alt OK
+    Unsaved -> Unsaved : discard() des PDO-Entwurfs
+  else Cancel
+    note right : Apply bricht ab
+  end
+end
+OD -> OD : Entwurf in den OdEntry schreiben
+OD -> Store : changed → touch(id)
+Store -> Store : dirty, revision + 1\nPDO-Zähler, 0x1016
+
+== Add... ==
+Nutzer -> OD : Kontextmenü Add...
+OD -> OD : nextFreeIndex(Liste, Objekt unter der Maus)
+OD -> Nutzer : Create new OD Index
+Nutzer -> OD : Create
+alt Index oder Name ungültig
+  OD -> Dialogs : warning
+else frei
+  OD -> OD : addObject(VAR, ARRAY oder RECORD)
+  OD -> Store : touch(id)
+end
+
+== Count Label Add... ==
+Nutzer -> OD : Add... in Count Label
+OD -> Dialogs : prompt(Add Count Label)
+alt OK oder Enter, Name nicht leer
+  Dialogs --> OD : Name
+  OD -> OD : Entwurf, extraCounts
+else Cancel oder Escape
+  Dialogs --> OD : null
+  OD -> OD : bisheriger Wert bleibt
+end
+
+== Reset all ==
+Nutzer -> OD : Reset all
+OD -> OD : Unapplied Changes, falls dirty
+OD -> Dialogs : confirm(Namen zurücksetzen?)
+OD -> Unsaved : conflicts, ggf. überschreiben
+OD -> OD : Namen der aktiven Einträge\ndirekt ins Dokument
+OD -> Store : touch(id)
+note right of OD
+  Reset all braucht kein Apply.
+  Reset Name schreibt nur in den Entwurf.
+end note
+@enduml

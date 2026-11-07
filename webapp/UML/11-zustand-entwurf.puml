@@ -1,0 +1,43 @@
+@startuml zustand-entwurf
+title Zustand – ungespeicherter Entwurf einer Sicht
+skinparam shadowing false
+
+[*] --> Clean
+
+state "Kein Entwurf" as Clean
+state "Entwurf offen" as Dirty
+state "Rückfrage\nUnapplied Changes" as Ask
+state "Prüfen und schreiben" as Apply {
+  [*] --> Conflict
+  state "Konflikt mit\nder anderen Sicht" as Conflict
+  state "Konsistenz\nMapping-Objekt" as Consistent
+  state "Granularität\nund Bytefüllung" as Grain
+  state "commit oder\nFelder schreiben" as Write
+  Conflict --> Consistent : kein Konflikt\noder Überschreiben
+  Conflict --> [*] : Cancel
+  Consistent --> Grain : Mapping gültig\noder kein Mapping
+  Consistent --> [*] : warning, Abbruch
+  Grain --> Write : keine Mängel\noder Apply anyway
+  Grain --> [*] : Cancel
+  Write --> [*] : touch()
+}
+
+Clean --> Dirty : Feld, Zuordnung,\nInsert oder Remove
+Clean --> Apply : Auto Apply bei der\nersten Änderung
+Dirty --> Dirty : weitere Änderung
+Dirty --> Ask : anderes Objekt oder PDO,\noder Add new PDO
+Dirty --> Apply : Apply
+Dirty --> Clean : Discard\noder Gerät gewechselt
+Ask --> Apply : Apply
+Ask --> Clean : Discard
+Ask --> Dirty : Cancel
+Apply --> Clean : Prüfungen bestanden
+Apply --> Dirty : Prüfung abgelehnt\noder Cancel
+Apply --> Ask : Konflikt noch offen
+
+legend bottom
+  Object Dictionary: Entwurf als Felder der Komponente, registriert als "od".
+  PDO-Tab: PdoDraft, registriert als "pdo-rx" oder "pdo-tx".
+  Device Info schreibt sofort und hat diesen Automaten nicht.
+endlegend
+@enduml

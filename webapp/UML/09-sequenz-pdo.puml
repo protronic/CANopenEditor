@@ -1,0 +1,74 @@
+@startuml sequenz-pdo
+title Sequenz – PDO-Tab: Zuordnen, Entwurf, Apply
+skinparam shadowing false
+
+actor Nutzer
+participant "PdoView\n(tx oder rx)" as View
+participant "DialogService" as Dialogs
+participant "UnsavedEdits" as Unsaved
+participant "pdo.ts" as Pdo
+participant "ProjectStore" as Store
+
+== PDO wählen und Objekt zuordnen ==
+Nutzer -> View : Zelle im PDO
+View -> View : Zelle gewählt\nListe entsperrt
+View -> View : passendes Objekt\nin der Liste mittig
+Nutzer -> View : Zeile in Available Objects
+alt Zelle ist Empty
+  View -> Pdo : addMapping()
+else belegt oder leer ersetzt
+  View -> Pdo : fitMappingBits()
+  alt passt nicht
+    View -> Dialogs : warning(does not fit)
+  else
+    View -> Pdo : setMappingEntry()
+    note right : Name nur wenn das\nZielobjekt wechselt
+  end
+end
+View -> View : Entwurf anlegen, dirty
+View -> Unsaved : set("pdo-tx" oder "pdo-rx")
+
+== Anderes PDO wählen ==
+Nutzer -> View : andere Zeile oder Add new PDO
+alt Auto Apply
+  View -> View : save()
+else Entwurf offen
+  View -> Nutzer : Unapplied Changes\nApply | Discard | Cancel
+end
+
+== Apply ==
+Nutzer -> View : Apply
+View -> Unsaved : conflicts(Kommunikations-\nund Mapping-Index)
+alt Object Dictionary hat denselben Index
+  View -> Dialogs : confirm(Overwrite them?)
+  alt Cancel
+    note right : PDO bleibt Entwurf
+  else OK
+    Unsaved -> Unsaved : discard() des OD-Entwurfs
+  end
+end
+View -> Pdo : mappingGranularityIssues(Entwurf)
+alt Verstöße
+  View -> Dialogs : choose(Apply anyway?)
+  alt Cancel
+    note right : Entwurf bleibt
+  end
+end
+View -> Pdo : commitPdoDraft()
+alt Zielindex inzwischen belegt
+  Pdo --> View : Index already in use
+  View -> Dialogs : error
+else übernommen
+  View -> Store : changed → touch(id)
+  View -> View : Entwurf verwerfen, dirty = false
+end
+
+== Invalid und Bitwise mapping ==
+Nutzer -> View : Invalid
+View -> Pdo : setCobBits(Bit 31)
+note right : CAN-ID, andere Bits\nund $NODEID bleiben.\nKein Zahlenwert: Warnung.
+
+Nutzer -> View : Bitwise mapping aus
+View -> Pdo : setBitwiseMapping(false)
+note right : Breiten auf ganze Bytes.\nPasst es nicht in 64 Bit,\nkehrt die Checkbox zurück.
+@enduml

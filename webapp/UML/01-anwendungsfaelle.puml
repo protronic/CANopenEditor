@@ -1,0 +1,66 @@
+@startuml anwendungsfaelle
+title Anwendungsfälle – CANopen Editor Web
+skinparam shadowing false
+skinparam nodesep 12
+skinparam ranksep 18
+
+actor "Nutzer" as Nutzer
+
+usecase "Projekt anlegen" as UC_New
+usecase "Leeres Projekt" as UC_Empty
+usecase "Projekt mit DS301-Profil" as UC_Ds301
+usecase "XDD-Datei öffnen" as UC_Open
+usecase "Beispielprojekt öffnen" as UC_Example
+usecase "Projekt als XDD 1.1 speichern" as UC_Save
+usecase "Projekt schließen" as UC_Close
+usecase "Schließen ohne Speichern\nbestätigen" as UC_CloseAsk
+usecase "Geräteinformationen\nbearbeiten" as UC_Info
+usecase "Überwachte Knoten\nnachzählen" as UC_Refresh
+usecase "Objektverzeichnis\nbearbeiten" as UC_Od
+usecase "Objekt hinzufügen" as UC_Add
+usecase "Objekte klonen" as UC_Clone
+usecase "Objekte löschen" as UC_Delete
+usecase "Objekte deaktivieren" as UC_Toggle
+usecase "Mapping-Namen\nzurücksetzen" as UC_Reset
+usecase "PDO-Mapping bearbeiten" as UC_Pdo
+usecase "PDO hinzufügen\noder löschen" as UC_PdoLife
+usecase "Profil einfügen" as UC_Profile
+usecase "Änderungen übernehmen" as UC_Apply
+usecase "Ungespeicherte\nÄnderungen klären" as UC_Pending
+
+Nutzer --> UC_New
+Nutzer --> UC_Open
+Nutzer --> UC_Example
+Nutzer --> UC_Save
+Nutzer --> UC_Close
+Nutzer --> UC_Info
+Nutzer --> UC_Od
+Nutzer --> UC_Pdo
+Nutzer --> UC_Profile
+
+UC_New <|-- UC_Empty
+UC_New <|-- UC_Ds301
+UC_Ds301 ..> UC_Profile : <<include>>\nDS301_profile.xpd
+UC_Close ..> UC_CloseAsk : <<extend>>\nProjekt geändert
+UC_Info ..> UC_Refresh : <<extend>>\nRefresh
+UC_Add ..> UC_Od : <<extend>>
+UC_Clone ..> UC_Od : <<extend>>
+UC_Delete ..> UC_Od : <<extend>>
+UC_Toggle ..> UC_Od : <<extend>>
+UC_Reset ..> UC_Od : <<extend>>
+UC_PdoLife ..> UC_Pdo : <<extend>>
+UC_Od ..> UC_Apply : <<include>>
+UC_Pdo ..> UC_Apply : <<include>>
+UC_Apply ..> UC_Pending : <<extend>>\nanderer Tab\nhat Änderungen
+UC_Od ..> UC_Pending : <<extend>>\nWechsel
+UC_Pdo ..> UC_Pending : <<extend>>\nWechsel
+
+UC_New -[hidden]down- UC_Open
+UC_Open -[hidden]down- UC_Example
+UC_Example -[hidden]down- UC_Save
+UC_Save -[hidden]down- UC_Close
+UC_Close -[hidden]down- UC_Info
+UC_Info -[hidden]down- UC_Od
+UC_Od -[hidden]down- UC_Pdo
+UC_Pdo -[hidden]down- UC_Profile
+@enduml

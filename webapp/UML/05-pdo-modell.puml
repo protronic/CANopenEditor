@@ -1,0 +1,150 @@
+@startuml pdo-modell
+!pragma layout smetana
+title Klassen – PDO, Mapping und abgeleitete Sichten (xdd/pdo.ts)
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+class DeviceDocument
+class OdEntry
+
+enum PdoDirection {
+  rx
+  tx
+}
+
+enum PdoField {
+  cobId
+  transmission
+  inhibit
+  eventTimer
+  syncStart
+}
+
+class PdoSlot <<derived>> {
+  + direction : PdoDirection
+  + slot : int
+  + commIndex : int
+  + mapIndex : int
+  + cobId : string
+  + transmission : string
+  + inhibit : string
+  + eventTimer : string
+  + syncStart : string
+}
+
+class MappingRow <<derived>> {
+  + subIndex : int
+  + raw : string
+  + index : int?
+  + entrySubIndex : int?
+  + bits : int?
+  + label : string
+}
+
+class MappableEntry <<derived>> {
+  + index : int
+  + subIndex : int
+  + name : string
+  + dataType : DataTypeName
+  + bits : int
+  + key : string
+}
+
+class CobId {
+  + value : int
+  + before : string
+  + after : string
+  + digits : int
+}
+
+class PdoDraft {
+  + direction : PdoDirection
+  + originalCommIndex : int
+  + commIndex : int
+}
+
+class "Bitwise-Schalter" as Bitwise <<editor>> {
+  - flags : WeakMap
+}
+
+class "pdo.ts" as PdoModule <<module>> {
+  + {static} pdoSlots(document, direction) : PdoSlot[]
+  + {static} mappableEntries(document, direction) : MappableEntry[]
+  + {static} addPdo(document, direction) : string?
+  + {static} removePdo(document, direction, slot) : void
+  + {static} movePdo(document, direction, slot, commIndex) : string?
+  + {static} setPdoField(...) : void
+  + {static} parseCobId(raw) : CobId?
+  + {static} setCobBits(raw, mask, on) : string?
+  + {static} cobIdIssue(raw, direction) : string?
+  + {static} pdoFieldIssue(field, raw) : string?
+  + {static} setMappingEntry(...) : void
+  + {static} addMapping(...) : string?
+  + {static} insertMapping(...) : string?
+  + {static} removeMapping(...) : void
+  + {static} isBitwiseMapping(document, slot) : boolean
+  + {static} setBitwiseMapping(...) : string?
+  + {static} createPdoDraft(...) : PdoDraft
+  + {static} syncPdoDraft(document, draft) : void
+  + {static} commitPdoDraft(document, draft) : string?
+  + {static} checkMappingObject(...) : string?
+  + {static} mappingGranularityIssues(...) : string[]
+  + {static} pdoGranularityIssues(document) : string[]
+  + {static} mappingTargetLabel(...) : string?
+}
+
+class InsertRow {
+  + key : string
+  + source : string
+  + selected : boolean
+  + indexes : int[]
+  + conflict : boolean
+}
+
+class CloneRow {
+  + conflict : boolean
+}
+
+class CloneCell {
+  + index : int
+  + label : string
+  + conflict : boolean
+}
+
+class UnsavedEdit {
+  + indices : int[]
+  + label : string
+  + discard() : void
+}
+
+PdoSlot --> PdoDirection
+PdoSlot *-- "0..64" MappingRow : mappings
+PdoDraft *-- "1" DeviceDocument : Kopie\nohne fremde Objekte
+PdoSlot ..> OdEntry : gelesen aus\nKommunikation und Mapping
+MappableEntry ..> OdEntry : Dummy oder VAR
+CobId ..> PdoSlot : cobId geparst
+Bitwise ..> DeviceDocument : je Kommunikation-Index
+InsertRow --> OdEntry : entry
+CloneRow --> OdEntry : entry
+CloneRow *-- "1..*" CloneCell : cells
+UnsavedEdit --> DeviceDocument
+
+note bottom of PdoSlot
+  RX: Kommunikation 0x1400–0x15FF, Mapping + 0x200.
+  TX: Kommunikation 0x1800–0x19FF, Mapping + 0x200.
+  Deaktivierte Kommunikationsobjekte sind kein PDO.
+  mapIndex = commIndex + 0x200.
+end note
+
+note bottom of PdoDraft
+  Der Entwurf teilt alle Objekte mit dem Gerät
+  außer Kommunikations- und Mapping-Objekt.
+  Übernommen wird er nur durch commitPdoDraft.
+end note
+
+note right of CobId
+  before ist "$NODEID+" vor der Zahl,
+  after ist "+$NODEID" dahinter.
+  Bit 31 ist Invalid, beim TPDO ist Bit 30 kein RTR.
+end note
+@enduml

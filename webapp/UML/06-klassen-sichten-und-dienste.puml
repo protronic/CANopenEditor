@@ -1,0 +1,232 @@
+@startuml klassen-sichten
+!pragma layout smetana
+title Klassen – Sichten und Dienste
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+class AppComponent {
+  - tabs : Map<deviceId, EditorTab>
+  + profileOpen : boolean
+  + tab() : EditorTab
+  + setTab(tab) : void
+  + openFile(event) : void
+  + save() : void
+  + closeDevice(id) : void
+  + openExample() : void
+}
+
+class DeviceInfoComponent {
+  + document : DeviceDocument
+  + changed() : void
+  + set(key, value) : void
+  + refreshMonitoredNodes() : void
+  - checkNumber(field, text) : void
+}
+
+class ObjectDictionaryComponent {
+  + document : DeviceDocument
+  + revision : int
+  + changed() : void
+  - selectedIndex : int?
+  - selectedSubIndex : int?
+  - extraSelection : Set<int>
+  - dirty : boolean
+  - autosave : boolean
+  - draft : Felder des Eintrags
+  + selectObject(index) : void
+  + saveChanges() : boolean
+  + addObjectDialog() : void
+  + createObject() : void
+  + deleteSelected() : void
+  + toggleSelected() : void
+  + resetName() : void
+  + resetAllNames() : void
+  + setCount(value) : void
+  + setStorage(value) : void
+}
+
+class PdoViewComponent {
+  + document : DeviceDocument
+  + direction : PdoDirection
+  + revision : int
+  + changed() : void
+  - selectedSlot : int?
+  - zoomLevel : number
+  - dirty : boolean
+  - autosave : boolean
+  - draft : PdoDraft?
+  - pickedCell : Zelle?
+  + select(slot) : boolean
+  + selectCell(slot, block) : boolean
+  + pickEntry(entry) : void
+  + save() : boolean
+  + create() : void
+  + remove() : void
+  + zoom(step) : void
+}
+
+class InsertProfileComponent {
+  + closed() : void
+  + inserted() : void
+  - rows : InsertRow[]
+  + toggleFile(file) : void
+  + checkAll() : void
+  + uncheckAll() : void
+  + insert() : void
+}
+
+class CloneObjectsComponent {
+  + objects : OdEntry[]
+  + closed() : void
+  + cloned() : void
+  - rows : CloneRow[]
+  - offsets : int[]
+  + insert() : void
+  + uncheckAll() : void
+}
+
+class DialogHostComponent {
+  + ok() : void
+  + cancel(event) : void
+}
+
+class DraggableDirective {
+  + appDraggable : Dialog
+  - drag(pointer) : void
+}
+
+class DialogService {
+  - queue : DialogRequest[]
+  + current() : DialogRequest?
+  + confirm(text, title) : boolean
+  + choose(text, choices, title) : string?
+  + prompt(text, title, initial) : string?
+  + error(text, title) : void
+  + warning(text, title) : void
+  + close(result) : void
+}
+
+class DialogRequest {
+  + kind : DialogKind
+  + title : string
+  + text : string
+  + items : string[]
+  + footer : string
+  + choices : string[]
+  + input : string
+}
+
+enum DialogKind {
+  confirm
+  error
+  warning
+  prompt
+}
+
+class ProjectStore {
+  + devices : OpenDevice[]
+  + selectedId : string?
+  + selected() : OpenDevice?
+  + select(id) : void
+  + newDevice() : void
+  + openXml(fileName, xml) : void
+  + insertObjects(id, rows, overwrite) : int?
+  + cloneInto(id, rows, offsets) : int?
+  + touch(id) : void
+  + close(id) : void
+  + serialize(device, fileName) : xml
+  + markSaved(id, fileName) : void
+}
+
+class UnsavedEditsService {
+  - edits : Map<owner, UnsavedEdit>
+  + set(owner, edit) : void
+  + conflicts(owner, document, indices) : UnsavedEdit[]
+}
+
+class ViewStateService {
+  - states : WeakMap
+  + get(document, view) : T?
+  + set(document, view, state) : void
+}
+
+class XddFormatError {
+  + message : string
+}
+
+class "xdd-codec.ts" as Codec <<module>> {
+  + {static} parseXdd(xml) : DeviceDocument
+  + {static} writeXdd(document, now) : string
+}
+
+class "heartbeat.ts" as Heart <<module>> {
+  + {static} usedHeartbeatConsumers(document) : int
+  + {static} trackHeartbeatConsumers(document) : void
+  + {static} syncMonitoredNodes(document) : boolean
+}
+
+enum EditorTab {
+  info
+  od
+  rx
+  tx
+}
+
+class PdoDraft {
+  + direction : PdoDirection
+  + originalCommIndex : int
+  + commIndex : int
+}
+
+class OpenDevice {
+  + id : string
+  + fileName : string
+  + dirty : boolean
+  + revision : int
+}
+
+AppComponent --> ProjectStore
+AppComponent --> DialogService
+AppComponent --> EditorTab
+AppComponent o-- DeviceInfoComponent
+AppComponent o-- ObjectDictionaryComponent
+AppComponent o-- "2" PdoViewComponent
+AppComponent o-- InsertProfileComponent
+AppComponent o-- DialogHostComponent
+ObjectDictionaryComponent o-- CloneObjectsComponent
+
+DeviceInfoComponent --> DialogService
+ObjectDictionaryComponent --> DialogService
+ObjectDictionaryComponent --> UnsavedEditsService
+ObjectDictionaryComponent --> ViewStateService
+PdoViewComponent --> DialogService
+PdoViewComponent --> UnsavedEditsService
+PdoViewComponent --> ViewStateService
+PdoViewComponent --> PdoDraft
+DialogHostComponent --> DialogService
+DialogHostComponent --> DraggableDirective
+DialogService *-- "0..*" DialogRequest
+DialogRequest --> DialogKind
+InsertProfileComponent --> ProjectStore
+CloneObjectsComponent --> ProjectStore
+ProjectStore --> DialogService
+ProjectStore --> Codec
+ProjectStore --> Heart
+ProjectStore *-- "0..*" OpenDevice
+Codec ..> XddFormatError : wirft
+
+note bottom of ObjectDictionaryComponent
+  Der Entwurf ist im Code eine Gruppe von Feldern
+  (draftName, draftDataType, draftDefault, …),
+  kein eigener Typ. dirty vergleicht ihn mit
+  einem JSON-Stand des geladenen Eintrags.
+  Clone, Delete und Toggle nutzen extraSelection.
+  Reset Name und Reset all nur den gewählten Eintrag.
+end note
+
+note bottom of ProjectStore
+  touch setzt dirty, erhöht revision und
+  zählt die PDOs neu. syncMonitoredNodes
+  hebt "No of monitored nodes" nur an.
+end note
+@enduml

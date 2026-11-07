@@ -1,0 +1,68 @@
+@startuml pakete
+!pragma layout smetana
+title Pakete – Dateien unter webapp/src/app
+skinparam shadowing false
+
+package "src" {
+  class "main.ts" as Main <<bootstrap>>
+}
+
+package "app" {
+  class "app.component.ts" as App
+  class "dialog-host.component.ts" as Host
+  class "draggable.directive.ts" as Drag
+  class "device-info.component.ts" as Info
+  class "object-dictionary.component.ts" as OD
+  class "pdo-view.component.ts" as PdoView
+  class "insert-profile.component.ts" as Profile
+  class "clone-objects.component.ts" as Clone
+}
+
+package "state" {
+  class "project.store.ts" as Store
+  class "dialog.service.ts" as Dialogs
+  class "unsaved-edits.service.ts" as Unsaved
+  class "view-state.service.ts" as Views
+}
+
+package "model" {
+  class "device.ts" as Device
+}
+
+package "xdd" {
+  class "xdd-codec.ts" as Codec
+  class "pdo.ts" as Pdo
+  class "heartbeat.ts" as Heart
+  class "profiles.ts" as Profiles
+  class "clone.ts" as CloneMod
+}
+
+package "public" {
+  class "demo_io.xdd" as Demo <<asset>>
+  class "profiles/*.xpd" as Xpd <<asset>>
+}
+
+Main --> App
+App --> Store
+App --> Dialogs
+App --> Host
+App --> Info
+App --> OD
+App --> PdoView
+App --> Profile
+OD --> Clone
+
+Info --> Device
+OD --> Device
+Store --> Device
+Codec --> Device
+Pdo --> Device
+Heart --> Device
+Profiles --> Device
+CloneMod --> Device
+
+Store --> Codec
+Store --> Heart
+Profile --> Xpd : fetch
+App --> Demo : Example
+@enduml

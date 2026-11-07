@@ -1,0 +1,62 @@
+@startuml aktivitaet-apply
+title Aktivität – Apply eines PDOs und Granularitätsprüfung
+skinparam shadowing false
+
+|PdoView|
+start
+:Apply für den Entwurf;
+:Konflikte beim UnsavedEditsService\nfür Kommunikations- und Mapping-Index;
+if (andere Sicht hat diese Indizes?) then (ja)
+  :Rückfrage "Overwrite them?";
+  if (Antwort?) then (Cancel)
+    stop
+  else (OK)
+    :Entwurf der anderen Sicht verwerfen;
+  endif
+else (nein)
+endif
+
+|pdo.ts|
+:mappingGranularityIssues(Mapping-Objekt);
+partition "Prüfung je gezähltem Eintrag" {
+  :Bitoffset = 0;
+  while (weitere gezählte Einträge?) is (ja)
+    if (Dummy 0x0001..0x0007\nendet auf einer Grenze?) then (ja)
+      :passt immer;
+    elseif (Objekt liegt in einer Einheit\noder beginnt und endet auf Grenzen?) then (ja)
+      :passt;
+    else (nein)
+      :Mangel: PDO, Eintrag, Objekt, Bits;
+    endif
+    :Bitoffset += Breite;
+  endwhile (nein)
+  if (Gesamtbreite kein Vielfaches von 8?) then (ja)
+    :Mangel: letztes Byte nicht gefüllt;
+  else (nein)
+  endif
+}
+note right
+  Einheiten nur bei Granularität > 1.
+  Die Bytefüllung gilt immer,
+  auch bei Granularität 0 oder 1.
+end note
+
+|PdoView|
+if (Mängel?) then (ja)
+  :Warnung, jede Zeile ein Mangel\n"Apply anyway?";
+  if (Antwort?) then (Cancel)
+    stop
+  else (Apply)
+  endif
+else (nein)
+endif
+:commitPdoDraft();
+if (Zielindex belegt?) then (ja)
+  :Fehler, Entwurf bleibt;
+  stop
+else (frei)
+  :touch(): dirty, revision + 1,\nPDO-Zähler, 0x1016;
+  :Entwurf schließen;
+  stop
+endif
+@enduml

@@ -1,0 +1,90 @@
+@startuml komponenten
+!pragma layout smetana
+title Komponenten – Angular-Komponenten, Dienste und Fachmodule
+skinparam shadowing false
+skinparam componentStyle rectangle
+
+package "app" {
+  component "AppComponent" as App
+  component "DialogHostComponent" as Host
+  component "DraggableDirective" as Drag
+  component "DeviceInfoComponent" as Info
+  component "ObjectDictionaryComponent" as OD
+  component "PdoViewComponent" as PdoView
+  component "InsertProfileComponent" as Profile
+  component "CloneObjectsComponent" as Clone
+}
+
+package "state" {
+  component "ProjectStore" as Store
+  component "DialogService" as Dialogs
+  component "UnsavedEditsService" as Unsaved
+  component "ViewStateService" as Views
+}
+
+package "model" {
+  component "device.ts" as Device
+}
+
+package "xdd" {
+  component "xdd-codec.ts" as Codec
+  component "pdo.ts" as Pdo
+  component "heartbeat.ts" as Heart
+  component "profiles.ts" as Profiles
+  component "clone.ts" as CloneMod
+}
+
+App *-- Info : zeigt
+App *-- OD : zeigt
+App *-- PdoView : zweimal\nrx und tx
+App *-- Profile : bei Bedarf
+App *-- Host : immer
+OD *-- Clone : bei Clone...
+
+App --> Store
+App --> Dialogs
+Host --> Dialogs
+Host --> Drag
+
+Info --> Dialogs
+Info --> Device
+Info --> Heart
+
+OD --> Dialogs
+OD --> Unsaved
+OD --> Views
+OD --> Device
+OD --> Pdo
+
+PdoView --> Dialogs
+PdoView --> Unsaved
+PdoView --> Views
+PdoView --> Pdo
+
+Profile --> Store
+Profile --> Dialogs
+Profile --> Profiles
+Clone --> Store
+Clone --> CloneMod
+
+Store --> Dialogs
+Store --> Codec
+Store --> Profiles
+Store --> CloneMod
+Store --> Pdo
+Store --> Heart
+
+Codec --> Device
+Pdo --> Device
+Heart --> Device
+Profiles --> Device
+Profiles --> Codec : Profil ist XDD
+CloneMod --> Device
+
+note bottom of Pdo
+  Die PDO-Liste, die Zellen und die
+  zuordenbaren Objekte sind abgeleitet.
+  Der Bitwise-Mapping-Schalter liegt in
+  einer WeakMap und wird nicht gespeichert.
+end note
+@enduml

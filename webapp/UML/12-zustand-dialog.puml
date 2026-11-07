@@ -1,0 +1,31 @@
+@startuml zustand-dialog
+title Zustand – DialogService und ein Meldungsfenster
+skinparam shadowing false
+
+state DialogService {
+  [*] --> Leer
+  Leer --> Sichtbar : confirm, choose,\nerror, warning, prompt
+  Sichtbar --> Sichtbar : weiteres open()\nlegt hinten in die queue
+  Sichtbar --> Leer : close() der letzten Meldung
+  Sichtbar --> Nächste : close()\nund queue nicht leer
+  Nächste --> Sichtbar : current() ist queue[0]
+}
+
+state "Ein Fenster" as Fenster {
+  [*] --> Geöffnet : zentriert
+  Geöffnet --> Geöffnet : Titel ziehen,\nim Fenster bleiben
+  Geöffnet --> [*] : OK, Enter, Wahl
+  Geöffnet --> [*] : Cancel, Escape\nbei confirm und prompt
+  Geöffnet --> [*] : Escape bei error\nund warning gilt als OK
+}
+
+note bottom of Fenster
+  prompt löst mit dem Text auf,
+  Cancel und Escape mit null.
+  OK und die Wahl-Buttons stehen links,
+  Cancel rechts. Insert Profile und
+  Insert OD Objects nutzen dieses Fenster
+  nur für Rückfragen; sie selbst sind
+  nicht verschiebbar.
+end note
+@enduml

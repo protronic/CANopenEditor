@@ -1,0 +1,53 @@
+@startuml sequenz-profil-clone
+title Sequenz – Profil einfügen und Objekte klonen
+skinparam shadowing false
+
+actor Nutzer
+participant "AppComponent" as App
+participant "InsertProfile" as Profile
+participant "CloneObjects" as Clone
+participant "ObjectDictionary" as OD
+participant "ProjectStore" as Store
+participant "profiles.ts" as Profiles
+participant "clone.ts" as CloneMod
+participant "DialogService" as Dialogs
+
+== Insert Profile ==
+Nutzer -> App : Insert Profile
+App -> Profile : öffnen
+Nutzer -> Profile : Profil anhaken
+Profile -> Profile : fetch(profiles/Datei.xpd)
+Profile -> Profiles : parseXdd, buildInsertRows
+note right of Profiles
+  Vorhandene Indizes starten abgewählt.
+  Erneut gewählt: conflict, Zeile hervorgehoben.
+end note
+Nutzer -> Profile : Insert
+alt gewählte Konflikte
+  Profile -> Dialogs : confirm(Overwrite?)
+  alt OK
+    Profile -> Store : insertObjects(overwrite = true)
+  else Cancel
+    Profile -> Store : insertObjects(nur freie)
+  end
+else keine Konflikte
+  Profile -> Store : insertObjects()
+end
+Store -> Profiles : insertSelected()
+Profile -> App : inserted
+App -> App : Tab Object Dictionary
+
+== Clone... ==
+Nutzer -> OD : mehrere Objekte, Clone...
+OD -> Clone : objects = Auswahl
+Clone -> CloneMod : buildCloneRows(Ziel, Offsets)
+note right of CloneMod
+  Konfliktzeile ohne Checkbox,
+  Index hervorgehoben, wird nicht geklont.
+  Endzahl im Namen wandert um den Offset.
+end note
+Nutzer -> Clone : Insert
+Clone -> Store : cloneInto(Ziel, Zeilen, Offsets)
+Store -> CloneMod : cloneObjects()
+Clone -> OD : cloned, Dialog zu
+@enduml

@@ -1,0 +1,92 @@
+@startuml sequenz-projekt
+title Sequenz – Projekt anlegen, öffnen, speichern, schließen
+skinparam shadowing false
+
+actor Nutzer
+participant "AppComponent" as App
+participant "DialogService" as Dialogs
+participant "ProjectStore" as Store
+participant "xdd-codec" as Codec
+participant "heartbeat" as Heart
+participant "Browser" as Browser
+
+== Neues Projekt ==
+Nutzer -> App : New
+App -> Store : newDevice()
+Store -> Dialogs : choose(Empty project, DS301 profile)
+alt Abbruch
+  Dialogs --> Store : null
+  Store --> App : nichts angelegt
+else Empty project
+  Dialogs --> Store : Empty project
+  Store -> Store : createEmptyDocument()
+else DS301 profile
+  Dialogs --> Store : DS301 profile
+  Store -> Browser : fetch(profiles/DS301_profile.xpd)
+  Browser --> Store : XML
+  Store -> Codec : parseXdd(xml)
+  Codec --> Store : DeviceDocument
+  Store -> Store : insertSelected(alle Objekte)
+end
+Store -> Store : countPdos()\ntrackHeartbeatConsumers()
+Store -> Store : devices += OpenDevice\ndirty = true
+note right of Store : Die Shell zeigt Device Info,\nsolange für das Gerät kein Tab gemerkt ist.
+
+== XDD öffnen ==
+Nutzer -> App : Open
+App -> Browser : Dateiauswahl
+alt Endung ist nicht .xdd
+  App -> Dialogs : error(Only XDD files are read...)
+else XDD
+  Browser --> App : Dateitext
+  App -> Store : openXml(name, xml)
+  Store -> Codec : parseXdd(xml)
+  alt kein XDD
+    Codec --> Store : XddFormatError
+    Store -> Dialogs : error(Meldung)
+  else gelesen
+    Codec --> Store : DeviceDocument
+    Store -> Store : ensureXddName()\ndirty = false
+  end
+end
+
+== Speichern ==
+Nutzer -> App : Save
+alt showSaveFilePicker vorhanden
+  App -> Browser : Speichern-Dialog
+  alt Abbruch
+    Browser --> App : AbortError
+    note right : Projekt bleibt dirty
+  else Datei gewählt
+    App -> Store : serialize(device, name)
+    Store -> Store : schemaVersion = 1.1\nÄnderungszeit setzen
+    Store -> Codec : writeXdd(document)
+    Codec --> App : XDD 1.1
+    App -> Browser : createWritable().write(xml)
+    alt Schreibfehler
+      App -> Dialogs : error
+    else geschrieben
+      App -> Store : markSaved(id, name)
+      note right : dirty = false, revision + 1
+    end
+  end
+else Browser ohne Dialog
+  App -> Store : serialize()
+  App -> Browser : Download
+  App -> Store : markSaved()
+  note right : Abbruch des Downloads\nist nicht erkennbar
+end
+
+== Schließen ==
+Nutzer -> App : ×
+alt dirty
+  App -> Dialogs : choose(Close without saving)
+  alt Cancel
+    Dialogs --> App : null
+  else Close without saving
+    App -> Store : close(id)
+  end
+else nicht geändert
+  App -> Store : close(id)
+end
+@enduml

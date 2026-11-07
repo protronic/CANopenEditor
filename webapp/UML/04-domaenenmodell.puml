@@ -1,0 +1,202 @@
+@startuml domaenenmodell
+!pragma layout smetana
+title Klassen – Domänenmodell (model/device.ts, state/project.store.ts)
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+class OpenDevice {
+  + id : string
+  + fileName : string
+  + dirty : boolean
+  + revision : int
+}
+
+class DeviceDocument {
+  + schemaVersion : SchemaVersion
+  + fileName : string
+  + fileVersion : string
+  + fileCreator : string
+  + fileCreationDate : string
+  + fileCreationTime : string
+  + fileModifiedBy : string
+  + fileModificationDate : string
+  + fileModificationTime : string
+  + description : string
+  + vendorName : string
+  + vendorId : string
+  + productName : string
+  + productId : string
+  + orderCode : string
+  + versionSw : string
+  + versionFw : string
+  + versionHw : string
+  + granularity : int
+  + nrOfRxPdo : int
+  + nrOfTxPdo : int
+  + bootUpSlave : boolean
+  + bootUpMaster : boolean
+  + lssSlave : boolean
+  + lssMaster : boolean
+  + ngSlave : boolean
+  + ngMaster : boolean
+  + nrOfNgMonitoredNodes : int
+  + groupMessaging : boolean
+  + dynamicChannels : boolean
+  + dummy : boolean[7]
+}
+
+class OdEntry {
+  + index : int
+  + subIndex : int
+  + name : string
+  + objectType : ObjectTypeName
+  + dataType : DataTypeName
+  + access : AccessType
+  + pdoMapping : PdoMapping
+  + defaultValue : string
+  + actualValue : string
+  + lowLimit : string
+  + highLimit : string
+  + description : string
+  + denotation : string
+  + disabled : boolean
+  + countLabel : string
+  + storageGroup : string
+  + flagsPdo : boolean
+  + accessSrdo : SrdoAccess
+  + stringLengthMin : int
+}
+
+class BaudRates {
+  + b10 : boolean
+  + b20 : boolean
+  + b50 : boolean
+  + b100 : boolean
+  + b125 : boolean
+  + b250 : boolean
+  + b500 : boolean
+  + b800 : boolean
+  + b1000 : boolean
+  + auto : boolean
+}
+
+enum SchemaVersion {
+  1.0
+  1.1
+}
+
+enum ObjectTypeName {
+  NULL
+  DOMAIN
+  DEFTYPE
+  DEFSTRUCT
+  VAR
+  ARRAY
+  RECORD
+}
+
+enum DataTypeName {
+  UNKNOWN
+  BOOLEAN
+  INTEGER8
+  INTEGER16
+  INTEGER24
+  INTEGER32
+  INTEGER40
+  INTEGER48
+  INTEGER56
+  INTEGER64
+  UNSIGNED8
+  UNSIGNED16
+  UNSIGNED24
+  UNSIGNED32
+  UNSIGNED40
+  UNSIGNED48
+  UNSIGNED56
+  UNSIGNED64
+  REAL32
+  REAL64
+  VISIBLE_STRING
+  OCTET_STRING
+  UNICODE_STRING
+  TIME_OF_DAY
+  TIME_DIFFERENCE
+  DOMAIN
+  PDO_COMMUNICATION_PARAMETER
+  PDO_MAPPING
+  SDO_PARAMETER
+  IDENTITY
+}
+
+enum AccessType {
+  const
+  read
+  write
+  readWrite
+  readWriteInput
+  readWriteOutput
+  noAccess
+  unknown
+}
+
+enum PdoMapping {
+  no
+  default
+  optional
+  TPDO
+  RPDO
+}
+
+enum SrdoAccess {
+  no
+  tx
+  rx
+  trx
+}
+
+enum ObjectGroupId {
+  communication
+  manufacturer
+  profile
+}
+
+class "device.ts" as DeviceModule <<module>> {
+  + {static} createEmptyDocument() : DeviceDocument
+  + {static} createEntry(partial) : OdEntry
+  + {static} dataTypeChoices(current) : DataTypeName[]
+  + {static} nextFreeIndex(objects, group, after) : int
+  + {static} addObject(document, entry) : string?
+  + {static} deleteObject(document, index) : void
+  + {static} addSubObject(document, index) : string?
+  + {static} deleteSubObject(document, index, sub) : void
+  + {static} bitLength(dataType) : int
+  + {static} ensureXddName(fileName, productName) : string
+}
+
+DeviceModule ..> DeviceDocument
+OpenDevice *-- "1" DeviceDocument : document
+DeviceDocument *-- "1" BaudRates : baudRates
+DeviceDocument *-- "0..*" OdEntry : objects
+OdEntry *-- "0..*" OdEntry : subObjects
+
+DeviceDocument --> SchemaVersion
+OdEntry --> ObjectTypeName
+OdEntry --> DataTypeName
+OdEntry --> AccessType
+OdEntry --> PdoMapping
+OdEntry --> SrdoAccess
+
+note bottom of OdEntry
+  Sub-Objekte gibt es nur bei ARRAY und RECORD.
+  Ein VAR mit Sub-Objekten wird beim Lesen zu RECORD.
+  Die angebotene Datentypliste ist kürzer als DataTypeName.
+  Ein fremder Typ einer geöffneten Datei bleibt
+  für dieses Objekt auswählbar.
+end note
+
+note right of ObjectGroupId
+  communication  0x1000–0x1FFF
+  manufacturer   0x2000–0x5FFF
+  profile        0x6000–0xFFFF
+end note
+@enduml

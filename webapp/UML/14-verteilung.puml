@@ -1,0 +1,30 @@
+@startuml verteilung
+title Verteilung – die App läuft vollständig im Browser
+skinparam shadowing false
+
+node "Rechner der Nutzerin oder des Nutzers" {
+  node "Browser" {
+    artifact "index.html\nmain.ts, Styles" as App
+    component "Angular-Anwendung\nSichten, Dienste, XDD-Codec" as Spa
+    artifact "public/demo_io.xdd" as Demo
+    artifact "public/profiles/*.xpd" as Profiles
+    component "File System Access API\nshowSaveFilePicker" as Fs <<Chromium>>
+    component "Download\na download" as Download <<Fallback>>
+  }
+}
+
+Spa --> Demo : Example\nfetch
+Spa --> Profiles : Insert Profile\nund DS301 bei New
+Spa --> Fs : Save, wenn vorhanden
+Spa --> Download : Save sonst
+
+note bottom of Spa
+  Kein Anwendungsserver und keine Datenbank.
+  Geöffnete Geräte liegen in ProjectStore
+  im Speicher. Ungespeicherte Entwürfe
+  liegen in den Sicht-Komponenten.
+  Der Bitwise-Mapping-Schalter und die
+  gemerkte Ansicht liegen in WeakMaps
+  und stehen nicht in der XDD-Datei.
+end note
+@enduml
