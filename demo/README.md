@@ -104,3 +104,8 @@ nicht initialisierbar (alle `OD_CNT_*` fehlen).
 - **CANboss** (`protronic/CANboss`, Terminal): lädt die Proto-JSONs aus
   `generated/json/` direkt (`--proto-file`/`--eds-dir`) oder aus CouchDB;
   `examples/demo-network.sample.json` beschreibt das Setup.
+
+## Anzeigetexte
+
+`meta/` enthält ein Meta-Projekt mit mehrsprachigen Anzeigetexten zu Demo-IO
+und ein Beispiel für LVGL 9, siehe [`meta/README.md`](meta/README.md).

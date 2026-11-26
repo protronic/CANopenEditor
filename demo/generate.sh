@@ -24,4 +24,8 @@ run --export-project --infile eds/demo_drive.eds     --outdir generated/demo_dri
 run --export-project --infile eds/demo_sensor.eds    --outdir generated/demo_sensor    --od demo_sensor    --json generated/json/Demo-Sensor.json
 run --export-project --infile eds/canboss_master.eds --outdir generated/canboss_master --od canboss_master --json generated/json/CANboss-Master.json
 
-echo "Fertig: generated/<knoten>/*.c/.h + generated/json/*.json"
+# Anzeigetexte (docs/meta-texts.md): Meta-Projekt zu Demo-IO -> meta.c/meta.h,
+# JSON mit allen Texten und die verwendeten Zeichen fuer LVGL-Schriften.
+run --export-project --infile meta/demo_io_meta.xdd  --outdir generated/demo_io_meta --glyphs generated/demo_io_meta/meta_glyphs.txt
+
+echo "Fertig: generated/<knoten>/*.c/.h + generated/json/*.json + generated/demo_io_meta/meta.c/.h"
