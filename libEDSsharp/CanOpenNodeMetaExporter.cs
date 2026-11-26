@@ -39,7 +39,7 @@ namespace libEDSsharp
         /// <summary>Default maximum lengths in characters, used for warnings only</summary>
         public static readonly IReadOnlyDictionary<string, uint> DefaultMaxLength = new Dictionary<string, uint>
         {
-            { MetaTexts.KindLabel, 16 },
+            { MetaTexts.KindLabel, 32 },
             { MetaTexts.KindTooltip, 128 },
             { MetaTexts.KindUnit, 8 },
             { "value", 16 }
@@ -349,22 +349,39 @@ namespace libEDSsharp
             return result;
         }
 
+        /// <summary>Meta entries left out because they are not shown on the display (CO_textExport "none")</summary>
+        private readonly HashSet<MetaAddress> notExported = new HashSet<MetaAddress>();
+
         private List<Entry> CollectEntries(EDSsharp meta, List<string> languages, string fillFrom)
         {
             var entries = new List<Entry>();
+            notExported.Clear();
             foreach (ODentry od in meta.ods.Values)
             {
                 if (od.prop.CO_disabled)
                     continue;
+                bool objectOff = MetaTexts.IsExportOff(od.prop);
                 if (od.objecttype == ObjectType.VAR || od.subobjects.Count == 0)
                 {
-                    entries.Add(MakeEntry(new MetaAddress(od.Index, 0), od.parameter_name, od.prop, languages, fillFrom, true));
+                    if (objectOff)
+                        notExported.Add(new MetaAddress(od.Index, 0));
+                    else
+                        entries.Add(MakeEntry(new MetaAddress(od.Index, 0), od.parameter_name, od.prop, languages, fillFrom, true));
                 }
                 else
                 {
-                    entries.Add(MakeEntry(new MetaAddress(od.Index, null), od.parameter_name, od.prop, languages, fillFrom, false));
+                    // "none" on the object leaves out the object and all its sub entries
+                    if (objectOff)
+                        notExported.Add(new MetaAddress(od.Index, null));
+                    else
+                        entries.Add(MakeEntry(new MetaAddress(od.Index, null), od.parameter_name, od.prop, languages, fillFrom, false));
                     foreach (var sub in od.subobjects)
-                        entries.Add(MakeEntry(new MetaAddress(od.Index, (byte)sub.Key), sub.Value.parameter_name, sub.Value.prop, languages, fillFrom, false));
+                    {
+                        if (objectOff || MetaTexts.IsExportOff(sub.Value.prop))
+                            notExported.Add(new MetaAddress(od.Index, (byte)sub.Key));
+                        else
+                            entries.Add(MakeEntry(new MetaAddress(od.Index, (byte)sub.Key), sub.Value.parameter_name, sub.Value.prop, languages, fillFrom, false));
+                    }
                 }
             }
             entries.Sort((a, b) => a.Address.CompareTo(b.Address));
@@ -477,7 +494,9 @@ namespace libEDSsharp
                 if (byAddress.TryGetValue(target, out Entry entry))
                     return entry;
                 if (!target.Equals(from))
-                    Warn($"{from}: meta address {target} does not exist");
+                    Warn(notExported.Contains(target)
+                        ? $"{from}: meta address {target} is not exported (CO_textExport none)"
+                        : $"{from}: meta address {target} does not exist");
                 return null;
             }
 

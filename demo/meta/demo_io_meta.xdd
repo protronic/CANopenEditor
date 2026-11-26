@@ -82,7 +82,7 @@
                 <label lang="en">CO_textMaxLength</label>
               </q1:characteristicName>
               <q1:characteristicContent>
-                <label lang="en">label=16</label>
+                <label lang="en">label=32</label>
               </q1:characteristicContent>
               <q1:characteristicContent>
                 <label lang="en">tooltip=128</label>

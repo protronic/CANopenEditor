@@ -22,7 +22,7 @@ Files without display texts are read and written exactly as before.
 
 | Kind | Use | Typical length | In `meta.c` |
 |---|---|---|---|
-| `label` | Name on touch displays and web pages | 16 | always |
+| `label` | Name on touch displays and web pages | 32 | always |
 | `tooltip` | Short help text | 128 | only where listed in `CO_textExport` |
 | `description` | Long help text for web pages | unlimited | only where listed in `CO_textExport` |
 | `unit` | Unit of the displayed value, e.g. `°C` | 8 | always |
@@ -48,7 +48,7 @@ on its single parameter.
 |---|---|
 | `CO_text:<kind>:<language>` | The text, e.g. `name="CO_text:label:de" value="Kesseltemp."` |
 | `CO_metaRef` | Meta address, e.g. `0x1400` or `0x1400:01` (hexadecimal) |
-| `CO_textExport` | Comma separated text kinds exported into firmware in addition, e.g. `tooltip` |
+| `CO_textExport` | Comma separated text kinds exported into firmware in addition, e.g. `tooltip`; `none`: the entry is not shown on the display (see below) |
 | `CO_multiplier` | Multiplier from the raw value to the displayed value, e.g. `0.1` (invariant culture) |
 
 ```xml
@@ -72,7 +72,7 @@ Project wide settings are characteristics in `DeviceFunction/capabilities`
 |---|---|
 | `CO_textLanguages` | One content per language, in display order, e.g. `de`, `en` |
 | `CO_textFallbackLanguage` | Language used where a text is missing, e.g. `de` |
-| `CO_textMaxLength` | One content `<kind>=<length>` per text kind, e.g. `label=16` (used for warnings) |
+| `CO_textMaxLength` | One content `<kind>=<length>` per text kind, e.g. `label=32` (used for warnings) |
 | `CO_metaProject` | `true` if the file is a meta project |
 | `CO_metaSource` | File name of the object dictionary of a meta project, relative to the meta project |
 
@@ -123,6 +123,21 @@ Example: object 0x1401 with `CO_metaRef = 0x1400` uses the texts of 0x1400:01,
 
 A reference to a VAR without sub-index means the VAR.
 
+## Entries not shown on the display
+
+A meta project usually starts as a copy of the object dictionary, but a display
+shows only some of the entries. `CO_textExport = none` marks an entry that is
+not shown: none of its texts are exported into firmware and editors may hide
+it. On an ARRAY or RECORD object `none` includes all its sub entries; on a sub
+entry it applies to that sub entry only. The texts stay in the file, so the
+entry can be shown again later. `none` may be combined with text kinds
+(`tooltip,none`); the kinds take effect again once `none` is removed.
+
+Objects with `CO_disabled = true` in the meta project are not exported either.
+An object dictionary entry whose meta address leads to such an entry has no
+texts (`meta_find` returns `META_ID_NONE`); an explicit `CO_metaRef` to it is
+reported as a warning.
+
 ## C export: `meta.c` / `meta.h`
 
 Exporter "CanOpenNode Meta" in libEDSsharp:
@@ -142,7 +157,9 @@ EDSSharp --infile device_meta.xdd --outfile out/meta.c --type CanOpenNodeMeta [-
 - `--langs` exports only some languages, `--glyphs` writes all characters of
   the exported texts into a file (for `lv_font_conv --symbols`; add digits and
   signs for numbers yourself).
-- Warnings: texts longer than the maximum length, unknown meta addresses.
+- Warnings: texts longer than the maximum length (`CO_textMaxLength`, by
+  default label 32, tooltip 128, unit 8, value texts 16 characters), unknown
+  meta addresses and meta addresses of entries that are not exported.
 
 The generated code is plain C99 without dependencies and all data is `const`
 (flash); the only variable is the selected language.

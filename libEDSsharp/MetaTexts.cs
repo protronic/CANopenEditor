@@ -154,6 +154,10 @@ namespace libEDSsharp
         /// <summary>Property with the multiplier from the raw value to the displayed value</summary>
         public const string MultiplierProperty = "CO_multiplier";
 
+        /// <summary>Entry of CO_textExport: the entry is not shown on the display, none of its texts are exported
+        /// into firmware; on an ARRAY or RECORD object this includes its sub entries</summary>
+        public const string ExportNone = "none";
+
         /// <summary>Text kind: short label for touch displays</summary>
         public const string KindLabel = "label";
         /// <summary>Text kind: tooltip</summary>
@@ -258,6 +262,14 @@ namespace libEDSsharp
         public static List<string> SplitList(string text)
         {
             return (text ?? "").Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+        }
+
+        /// <summary>
+        /// True if the texts of an object or sub entry are not exported into firmware (CO_textExport contains "none")
+        /// </summary>
+        public static bool IsExportOff(CustomProperties prop)
+        {
+            return prop != null && prop.CO_textExport.Contains(ExportNone);
         }
 
         /// <summary>

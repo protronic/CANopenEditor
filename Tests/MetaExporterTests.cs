@@ -125,6 +125,48 @@ namespace Tests
         }
 
         [Fact]
+        public void Export_LeavesOutEntriesNotShownOnTheDisplay()
+        {
+            // the whole array 0x2110: neither the object nor its sub entries are exported
+            EDSsharp meta = MetaProject();
+            meta.ods[0x2110].prop.CO_textExport.Add(MetaTexts.ExportNone);
+            var exporter = new CanOpenNodeMetaExporter { SourceOd = SourceOd() };
+            exporter.Export(Path.Combine(folder, "meta.c"), meta);
+            string h = File.ReadAllText(Path.Combine(folder, "meta.h"));
+            string c = File.ReadAllText(Path.Combine(folder, "meta.c"));
+            Assert.Contains("#define META_H2100 ", h);
+            Assert.DoesNotContain("META_H2110", h);
+            Assert.DoesNotContain("Analogeing", c);
+            Assert.DoesNotContain("Eingang 1", c);
+            // 0x2120 refers to 0x2110: reported, with the reason
+            Assert.Contains(exporter.Messages, m => m.Contains("0x2120") && m.Contains("0x2110") && m.Contains("not exported"));
+            Assert.DoesNotContain(exporter.Messages, m => m.Contains("does not exist"));
+
+            // one sub entry only
+            meta = MetaProject();
+            meta.ods[0x2110].subobjects[1].prop.CO_textExport.Add(MetaTexts.ExportNone);
+            exporter = new CanOpenNodeMetaExporter { SourceOd = SourceOd() };
+            exporter.Export(Path.Combine(folder, "meta.c"), meta);
+            h = File.ReadAllText(Path.Combine(folder, "meta.h"));
+            Assert.Contains("#define META_H2110 ", h);
+            Assert.DoesNotContain("META_H2110_01", h);
+            Assert.Contains("#define META_H2110_02 ", h);
+        }
+
+        [Fact]
+        public void Export_DefaultLabelLengthIs32()
+        {
+            EDSsharp meta = MetaProject();
+            meta.textInfo.MaxLength.Clear();
+            meta.ods[0x2100].prop.CO_texts["label:de"] = new string('a', 32);
+            meta.ods[0x2100].prop.CO_texts["label:en"] = new string('b', 33);
+            var exporter = new CanOpenNodeMetaExporter { SourceOd = SourceOd() };
+            exporter.Export(Path.Combine(folder, "meta"), meta);
+            Assert.Contains(exporter.Messages, m => m.Contains("label:en") && m.Contains("more than 32"));
+            Assert.DoesNotContain(exporter.Messages, m => m.Contains("label:de"));
+        }
+
+        [Fact]
         public void GeneratedCode_CompilesAndReturnsAllTexts()
         {
             string gcc = FindCompiler();
