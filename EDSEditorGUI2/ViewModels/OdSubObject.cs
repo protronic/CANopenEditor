@@ -37,4 +37,8 @@ public partial class OdSubObject : ObservableObject
 
     [ObservableProperty]
     private uint _stringLengthMin;
+
+    /// <summary>Display texts (see docs/meta-texts.md), kept so that saving does not lose them</summary>
+    [ObservableProperty]
+    private LibCanOpen.OdMetaTexts? _meta;
 }

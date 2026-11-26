@@ -192,6 +192,22 @@ namespace libEDSsharp
         /// Minimum length of a string that can be stored   
         /// </summary>
         public UInt32 CO_stringLengthMin = 0;
+        /// <summary>
+        /// Display texts, key "&lt;kind&gt;:&lt;language&gt;" (e.g. "label:de"), see docs/meta-texts.md
+        /// </summary>
+        public SortedDictionary<string, string> CO_texts = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        /// <summary>
+        /// Address of the meta entry whose texts apply here, e.g. "0x1400" or "0x1400:01"; empty for the own address
+        /// </summary>
+        public string CO_metaRef = "";
+        /// <summary>
+        /// Text kinds exported into firmware although not exported by default, e.g. "tooltip"
+        /// </summary>
+        public List<string> CO_textExport = new List<string>();
+        /// <summary>
+        /// Multiplier from the raw value to the displayed value, e.g. "0.1"; empty for 1
+        /// </summary>
+        public string CO_multiplier = "";
 
         /// <summary>
         /// Deep clone
@@ -206,7 +222,11 @@ namespace libEDSsharp
                 CO_storageGroup = CO_storageGroup,
                 CO_flagsPDO = CO_flagsPDO,
                 CO_accessSRDO = CO_accessSRDO,
-                CO_stringLengthMin = CO_stringLengthMin
+                CO_stringLengthMin = CO_stringLengthMin,
+                CO_texts = new SortedDictionary<string, string>(CO_texts, StringComparer.Ordinal),
+                CO_metaRef = CO_metaRef,
+                CO_textExport = new List<string>(CO_textExport),
+                CO_multiplier = CO_multiplier
             };
         }
         /// <summary>
@@ -233,9 +253,26 @@ namespace libEDSsharp
                             try { CO_stringLengthMin = Convert.ToUInt16(prop.value); }
                             catch (Exception) { CO_stringLengthMin = 0; }
                             break;
+                        case MetaTexts.MetaRefProperty: CO_metaRef = prop.value ?? ""; break;
+                        case MetaTexts.TextExportProperty: CO_textExport = MetaTexts.SplitList(prop.value); break;
+                        case MetaTexts.MultiplierProperty: CO_multiplier = prop.value ?? ""; break;
+                        default:
+                            string key = MetaTexts.TextKeyFromProperty(prop.name);
+                            if (key != null)
+                                CO_texts[key] = prop.value ?? "";
+                            break;
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Convert the display texts and their settings from EDS to XSD
+        /// </summary>
+        /// <returns>XSD properties ready to use</returns>
+        public property[] TextXdd()
+        {
+            return MetaTexts.ToProperties(CO_texts, CO_metaRef, CO_textExport, CO_multiplier);
         }
         /// <summary>
         /// Convert custom properties from EDS to XSD
@@ -1764,6 +1801,10 @@ namespace libEDSsharp
 
         public FileInfo fi;
         public DeviceInfo di;
+        /// <summary>
+        /// Project wide settings for the display texts (meta texts), see docs/meta-texts.md
+        /// </summary>
+        public MetaTextInfo textInfo = new MetaTextInfo();
         public MandatoryObjects md;
         public OptionalObjects oo;
         public ManufacturerObjects mo;

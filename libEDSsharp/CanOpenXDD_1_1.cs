@@ -627,7 +627,7 @@ namespace libEDSsharp
             }
         }
 
-        private void ConvertXddProperties(property[] properties, OdObject entry, OdSubObject subEntry)
+        private void ConvertXddProperties(property[] properties, OdObject entry, OdSubObject subEntry, bool subLevel)
         {
             if (properties != null)
             {
@@ -635,6 +635,17 @@ namespace libEDSsharp
                 {
                     switch (prop.name)
                     {
+                        case MetaTexts.MetaRefProperty:
+                            MetaOf(entry, subEntry, subLevel).MetaRef = prop.value ?? "";
+                            break;
+                        case MetaTexts.TextExportProperty:
+                            var export = MetaOf(entry, subEntry, subLevel).TextExport;
+                            export.Clear();
+                            export.AddRange(MetaTexts.SplitList(prop.value));
+                            break;
+                        case MetaTexts.MultiplierProperty:
+                            MetaOf(entry, subEntry, subLevel).Multiplier = prop.value ?? "";
+                            break;
                         case "CO_disabled": entry.Disabled = prop.value == "true"; break;
                         case "CO_countLabel": entry.CountLabel = prop.value ?? ""; break;
                         case "CO_storageGroup": entry.StorageGroup = prop.value ?? ""; break;
@@ -653,9 +664,22 @@ namespace libEDSsharp
                             try { subEntry.StringLengthMin = System.Convert.ToUInt16(prop.value); }
                             catch (Exception) { subEntry.StringLengthMin = 0; }
                             break;
+                        default:
+                            string key = MetaTexts.TextKeyFromProperty(prop.name);
+                            if (key != null)
+                                MetaOf(entry, subEntry, subLevel).Texts[key] = prop.value ?? "";
+                            break;
                     }
                 }
             }
+        }
+
+        // Display texts of the object or the sub entry, created on first use (see docs/meta-texts.md)
+        private static OdMetaTexts MetaOf(OdObject entry, OdSubObject subEntry, bool subLevel)
+        {
+            if (subLevel)
+                return subEntry.Meta ?? (subEntry.Meta = new OdMetaTexts());
+            return entry.Meta ?? (entry.Meta = new OdMetaTexts());
         }
 
         private property[] ConvertXddProperties(OdObject entry)
@@ -835,6 +859,7 @@ namespace libEDSsharp
                         devPar.property = new property[propOd.Length + propSub.Length];
                         propOd.CopyTo(devPar.property, 0);
                         propSub.CopyTo(devPar.property, propOd.Length);
+                        devPar.property = MetaTexts.Concat(devPar.property, od.prop.TextXdd());
                     }
 
                     WriteVar(devPar, od);
@@ -847,7 +872,7 @@ namespace libEDSsharp
                     netObj.subNumberSpecified = true;
 
                     if (!stripped)
-                        devPar.property = od.prop.OdeXdd();
+                        devPar.property = MetaTexts.Concat(od.prop.OdeXdd(), od.prop.TextXdd());
 
                     var netSubObjList = new List<CANopenObjectListCANopenObjectCANopenSubObject>();
                     var devStructSubList = new List<varDeclaration>();
@@ -883,7 +908,7 @@ namespace libEDSsharp
                             devSubPar.Items = new object[] { new vendorTextLabel { lang = "en", Value = subod.parameter_name } };
                         }
                         if (!stripped)
-                            devSubPar.property = subod.prop.SubOdeXdd();
+                            devSubPar.property = MetaTexts.Concat(subod.prop.SubOdeXdd(), subod.prop.TextXdd());
                         if (deviceCommissioning && subod.denotation != null && subod.denotation != "")
                         {
                             devPar.denotation = new denotation
@@ -1047,6 +1072,8 @@ namespace libEDSsharp
                     }
                 };
             }
+
+            MetaTexts.WriteTextInfo(body_device, eds.textInfo);
 
             // ApplicationProcess (insert object dictionary)
             if (body_device.ApplicationProcess == null)
@@ -1282,6 +1309,8 @@ namespace libEDSsharp
                     if (body_device.DeviceIdentity.productText != null)
                         eds.fi.Description = G_label_getDescription(body_device.DeviceIdentity.productText.Items);
                 }
+
+                eds.textInfo = MetaTexts.ReadTextInfo(body_device);
 
                 if (body_device.ApplicationProcess != null
                     && body_device.ApplicationProcess[0] != null
@@ -1651,6 +1680,8 @@ namespace libEDSsharp
                         dev.DeviceInfo.ProductName = body_device.DeviceIdentity.productName.Value ?? "";
                 }
 
+                dev.TextInfo = MetaTexts.ToProtobuf(MetaTexts.ReadTextInfo(body_device));
+
                 if (body_device.ApplicationProcess != null
                     && body_device.ApplicationProcess[0] != null
                     && body_device.ApplicationProcess[0].parameterList != null)
@@ -1818,7 +1849,7 @@ namespace libEDSsharp
                                     if (r.maxValue != null) subEntry0.HighLimit = r.maxValue.value ?? "";
                                 }
 
-                                ConvertXddProperties(devPar.property, entry, subEntry0);
+                                ConvertXddProperties(devPar.property, entry, subEntry0, false);
                             }
 
                             if (netObj.CANopenSubObject == null)
@@ -1906,7 +1937,7 @@ namespace libEDSsharp
                                             if (r.maxValue != null) subEntry.HighLimit = r.maxValue.value ?? "";
                                         }
 
-                                        ConvertXddProperties(devSubPar.property, entry, subEntry);
+                                        ConvertXddProperties(devSubPar.property, entry, subEntry, true);
                                     }
 
                                     if (!entry.SubObjects.ContainsKey(subIndex))
@@ -2050,6 +2081,9 @@ namespace libEDSsharp
                         devPar.property = new property[propOd.Length + propSub.Length];
                         propOd.CopyTo(devPar.property, 0);
                         propSub.CopyTo(devPar.property, propOd.Length);
+
+                        // texts of a VAR belong to the object; texts of its sub entry are merged in
+                        devPar.property = MetaTexts.Concat(devPar.property, MetaTexts.ToProperties(MetaTexts.Merge(entry.Meta, subEntry0.Meta)));
                     }
 
                     WriteVar(devPar, subEntry0);
@@ -2062,7 +2096,8 @@ namespace libEDSsharp
                     netObj.subNumberSpecified = true;
 
                     if (!stripped)
-                        devPar.property = ConvertXddProperties(entry);
+                        devPar.property = MetaTexts.Concat(ConvertXddProperties(entry),
+                            MetaTexts.ToProperties(entry.Meta));
 
                     var netSubObjList = new List<CANopenObjectListCANopenObjectCANopenSubObject>();
                     var devStructSubList = new List<varDeclaration>();
@@ -2108,7 +2143,8 @@ namespace libEDSsharp
                         devSubPar.Items = new object[] { new vendorTextLabel { lang = "en", Value = subEntry.Name } };
 
                         if (!stripped)
-                            devSubPar.property = ConvertXddProperties(subEntry);
+                            devSubPar.property = MetaTexts.Concat(ConvertXddProperties(subEntry),
+                                MetaTexts.ToProperties(subEntry.Meta));
 
                         if (deviceCommissioning && subEntry.Alias != null && subEntry.Alias != "")
                         {
@@ -2267,6 +2303,8 @@ namespace libEDSsharp
                     }
                 };
             }
+
+            MetaTexts.WriteTextInfo(body_device, MetaTexts.FromProtobuf(dev.TextInfo));
 
             // ApplicationProcess (insert object dictionary)
             if (body_device.ApplicationProcess == null)

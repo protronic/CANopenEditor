@@ -41,8 +41,10 @@ namespace EDSEditorGUI2.Mapper
             {
                 var config = new MapperConfiguration(cfg =>
                 {
-                    cfg.CreateMap<OdObject, ViewModels.OdObject>();
-                    cfg.CreateMap<OdSubObject, ViewModels.OdSubObject>();
+                    cfg.CreateMap<OdObject, ViewModels.OdObject>()
+                    .ForMember(dest => dest.Meta, opt => opt.MapFrom(src => src.Meta == null ? null : src.Meta.Clone()));
+                    cfg.CreateMap<OdSubObject, ViewModels.OdSubObject>()
+                    .ForMember(dest => dest.Meta, opt => opt.MapFrom(src => src.Meta == null ? null : src.Meta.Clone()));
                 }, LoggerFactory.Create(builder => { builder.AddDebug(); }));
                 config.AssertConfigurationIsValid();
                 var mapper = config.CreateMapper();
@@ -58,8 +60,10 @@ namespace EDSEditorGUI2.Mapper
             {
                 var config = new MapperConfiguration(cfg =>
                 {
-                    cfg.CreateMap<ViewModels.OdObject, OdObject>();
-                    cfg.CreateMap<ViewModels.OdSubObject, OdSubObject>();
+                    cfg.CreateMap<ViewModels.OdObject, OdObject>()
+                    .ForMember(dest => dest.Meta, opt => opt.MapFrom(src => src.Meta == null ? null : src.Meta.Clone()));
+                    cfg.CreateMap<ViewModels.OdSubObject, OdSubObject>()
+                    .ForMember(dest => dest.Meta, opt => opt.MapFrom(src => src.Meta == null ? null : src.Meta.Clone()));
                 }, LoggerFactory.Create(builder => { builder.AddDebug(); }));
                 config.AssertConfigurationIsValid();
                 var mapper = config.CreateMapper();

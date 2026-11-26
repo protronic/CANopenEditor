@@ -75,7 +75,8 @@ namespace libEDSsharp
                 .ForMember(dest => dest.fi, opt => opt.MapFrom(src => src.FileInfo))
                 .ForMember(dest => dest.di, opt => opt.MapFrom(src => src.DeviceInfo))
                 .ForMember(dest => dest.dc, opt => opt.MapFrom(src => src.DeviceCommissioning))
-                .ForMember(dest => dest.ods, opt => opt.MapFrom(src => src.Objects));
+                .ForMember(dest => dest.ods, opt => opt.MapFrom(src => src.Objects))
+                .ForMember(dest => dest.textInfo, opt => opt.Ignore()); // set below
                 cfg.CreateMap<CanOpen_FileInfo, FileInfo>()
                 .ForMember(dest => dest.FileName, opt => opt.Ignore())
                 .ForMember(dest => dest.LastEDS, opt => opt.Ignore())
@@ -127,7 +128,11 @@ namespace libEDSsharp
                 .ForMember(dest => dest.CO_disabled, opt => opt.MapFrom(src => src.Disabled))
                 .ForMember(dest => dest.CO_countLabel, opt => opt.MapFrom(src => src.CountLabel))
                 .ForMember(dest => dest.CO_storageGroup, opt => opt.MapFrom(src => src.StorageGroup))
-                .ForMember(dest => dest.CO_flagsPDO, opt => opt.MapFrom(src => src.FlagsPDO));
+                .ForMember(dest => dest.CO_flagsPDO, opt => opt.MapFrom(src => src.FlagsPDO))
+                .ForMember(dest => dest.CO_texts, opt => opt.Ignore()) // texts are set below
+                .ForMember(dest => dest.CO_metaRef, opt => opt.Ignore())
+                .ForMember(dest => dest.CO_textExport, opt => opt.Ignore())
+                .ForMember(dest => dest.CO_multiplier, opt => opt.Ignore());
                 cfg.CreateMap<OdObject.Types.ObjectType, ObjectType>().ConvertUsing<ODTypeResolver>();
                 cfg.CreateMap<OdObject, ODentry>()
                 .ForMember(dest => dest.Index, opt => opt.Ignore())
@@ -183,6 +188,20 @@ namespace libEDSsharp
                     subObj.Value.parent = obj.Value;
                 }
             }
+
+            //Post processing, display texts (see docs/meta-texts.md)
+            result.textInfo = MetaTexts.FromProtobuf(source.TextInfo);
+            foreach (var srcObj in source.Objects)
+            {
+                if (!TryParseKey(srcObj.Key, out ushort index) || !result.ods.TryGetValue(index, out ODentry od))
+                    continue;
+                MetaTexts.FromProtobuf(srcObj.Value.Meta, od.prop);
+                foreach (var srcSub in srcObj.Value.SubObjects)
+                {
+                    if (TryParseKey(srcSub.Key, out ushort subIndex) && od.subobjects.TryGetValue(subIndex, out ODentry sub))
+                        MetaTexts.FromProtobuf(srcSub.Value.Meta, sub.prop);
+                }
+            }
             return result;
         }
         /// <summary>
@@ -201,7 +220,8 @@ namespace libEDSsharp
                 .ForMember(dest => dest.FileInfo, opt => opt.MapFrom(src => src.fi))
                 .ForMember(dest => dest.DeviceInfo, opt => opt.MapFrom(src => src.di))
                 .ForMember(dest => dest.DeviceCommissioning, opt => opt.MapFrom(src => src.dc))
-                .ForMember(dest => dest.Objects, opt => opt.MapFrom(src => src.ods));
+                .ForMember(dest => dest.Objects, opt => opt.MapFrom(src => src.ods))
+                .ForMember(dest => dest.TextInfo, opt => opt.Ignore()); // set below
                 cfg.CreateMap<FileInfo, CanOpen_FileInfo>()
                 .ForMember(dest => dest.CreationTime, opt => opt.MapFrom(new EDSDateAndTimeResolver("creation")))
                 .ForMember(dest => dest.ModificationTime, opt => opt.MapFrom(new EDSDateAndTimeResolver("modification")));
@@ -225,7 +245,8 @@ namespace libEDSsharp
                 .ForMember(dest => dest.FlagsPDO, opt => opt.MapFrom(src => src.prop.CO_flagsPDO))
                 .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.parameter_name))
                 .ForMember(dest => dest.ObjectType, opt => opt.MapFrom(src => src.objecttype))
-                .ForMember(dest => dest.CountLabel, opt => opt.MapFrom(src => src.prop.CO_countLabel));
+                .ForMember(dest => dest.CountLabel, opt => opt.MapFrom(src => src.prop.CO_countLabel))
+                .ForMember(dest => dest.Meta, opt => opt.Ignore()); // texts are set below
                 cfg.CreateMap<ObjectType, OdObject.Types.ObjectType>().ConvertUsing<ODTypeResolver>();
                 cfg.CreateMap<EDSsharp.AccessType, OdSubObject.Types.AccessSDO>().ConvertUsing<ODAccessTypeResolver>();
                 cfg.CreateMap<EDSsharp.AccessType, OdSubObject.Types.AccessPDO>().ConvertUsing<ODAccessTypeResolver>();
@@ -236,12 +257,39 @@ namespace libEDSsharp
                 .ForMember(dest => dest.Sdo, opt => opt.MapFrom(src => src.accesstype))
                 .ForMember(dest => dest.Pdo, opt => opt.MapFrom(src => src.accesstype))
                 .ForMember(dest => dest.Srdo, opt => opt.MapFrom(src => src.prop.CO_accessSRDO))
-                .ForMember(dest => dest.StringLengthMin, opt => opt.MapFrom(src => src.prop.CO_stringLengthMin));
+                .ForMember(dest => dest.StringLengthMin, opt => opt.MapFrom(src => src.prop.CO_stringLengthMin))
+                .ForMember(dest => dest.Meta, opt => opt.Ignore()); // texts are set below
             }, LoggerFactory.Create(builder => { builder.AddDebug(); }));
 
             config.AssertConfigurationIsValid();
             var mapper = config.CreateMapper();
-            return mapper.Map<CanOpenDevice>(source);
+            var result = mapper.Map<CanOpenDevice>(source);
+
+            //Post processing, display texts (see docs/meta-texts.md)
+            result.TextInfo = MetaTexts.ToProtobuf(source.textInfo);
+            foreach (var dstObj in result.Objects)
+            {
+                if (!TryParseKey(dstObj.Key, out ushort index) || !source.ods.TryGetValue(index, out ODentry od))
+                    continue;
+                dstObj.Value.Meta = MetaTexts.ToProtobuf(od.prop);
+                foreach (var dstSub in dstObj.Value.SubObjects)
+                {
+                    if (TryParseKey(dstSub.Key, out ushort subIndex) && od.subobjects.TryGetValue(subIndex, out ODentry sub))
+                        dstSub.Value.Meta = MetaTexts.ToProtobuf(sub.prop);
+                }
+            }
+            return result;
+        }
+
+        // Same rule as ODStringToShortTypeResolver: "0x" prefix hexadecimal, otherwise decimal
+        private static bool TryParseKey(string key, out ushort value)
+        {
+            value = 0;
+            if (string.IsNullOrEmpty(key))
+                return false;
+            if (key.StartsWith("0x", StringComparison.Ordinal))
+                return ushort.TryParse(key.Substring(2), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out value);
+            return ushort.TryParse(key, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out value);
         }
     }
 

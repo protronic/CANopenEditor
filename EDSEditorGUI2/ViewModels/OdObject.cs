@@ -36,6 +36,10 @@ namespace EDSEditorGUI2.ViewModels
         [ObservableProperty]
         ObservableCollection<KeyValuePair<string, OdSubObject>> _subObjects = [];
 
+        /// <summary>Display texts (see docs/meta-texts.md), kept so that saving does not lose them</summary>
+        [ObservableProperty]
+        private LibCanOpen.OdMetaTexts? _meta;
+
         /// <summary>
         /// very based on ODentry.AddSubEntry
         /// </summary>

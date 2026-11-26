@@ -118,6 +118,7 @@ message OdSubObject
     string lowLimit = 9; // Low limit for the value.
     string highLimit = 10; // High limit for the value.
     uint32 stringLengthMin = 101; // CanOpenNode OD exporter V4: Minimum length of a string that can be stored.
+    OdMetaTexts meta = 300; // Display texts of the sub entry (optional, see docs/meta-texts.md).
 }
 
 /* Object Dictionary Entry on specific Index. Sorted dictionary of them is part of CanOpenDevice - CANopen Object Dictionary. */
@@ -157,6 +158,31 @@ message OdObject
     bool flagsPDO = 103;
     // Sorted dictionary of sub entries
     map<string, OdSubObject> subObjects = 200;
+    // Display texts of the object, for VAR of the variable (optional, see docs/meta-texts.md).
+    OdMetaTexts meta = 300;
+}
+
+/* Display texts (meta texts) of an object or sub entry and their settings. See docs/meta-texts.md. */
+message OdMetaTexts
+{
+    // Texts, key "<kind>:<language>", e.g. "label:de" or "value.1:en".
+    map<string, string> texts = 1;
+    // Address of the meta entry whose texts apply instead, e.g. "0x1400" or "0x1400:01". Empty: own address.
+    string metaRef = 2;
+    // Text kinds which are exported into firmware although not exported by default, e.g. "tooltip".
+    repeated string textExport = 3;
+    // Multiplier from the raw value to the displayed value, e.g. "0.1". Empty: 1.
+    string multiplier = 4;
+}
+
+/* Project wide settings for the display texts. See docs/meta-texts.md. */
+message CanOpen_TextInfo
+{
+    repeated string languages = 1; // Languages of the texts, e.g. "de", "en".
+    string fallbackLanguage = 2; // Language used where a text is missing in the selected language.
+    map<string, uint32> maxLength = 3; // Maximum length in characters per text kind, e.g. "label": 16.
+    bool metaProject = 4; // True, if this file is a meta project: it holds texts for another object dictionary.
+    string metaSource = 5; // File name of the object dictionary the meta project belongs to.
 }
 
 /* CANopen Device description object. */
@@ -166,4 +192,5 @@ message CanOpenDevice
     CanOpen_DeviceInfo deviceInfo = 2; //CANopen device information related properties.
     CanOpen_DeviceCommissioning deviceCommissioning = 3; // Parameters of the actual CANopen device.
     map<string, OdObject> objects = 200; // CANopen Object Dictionary as sorted dictionary.
+    CanOpen_TextInfo textInfo = 300; // Project wide settings for the display texts (optional).
 }
