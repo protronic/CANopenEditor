@@ -152,6 +152,8 @@ namespace libEDSsharp
             List<string> languages = meta.textInfo.Languages.Count > 0
                 ? meta.textInfo.Languages.ToList()
                 : CollectLanguages(meta);
+            // fallback language of the project; if it is not exported, its texts fill the gaps of the exported languages
+            string projectFallback = languages.Contains(meta.textInfo.FallbackLanguage) ? meta.textInfo.FallbackLanguage : languages.FirstOrDefault();
             if (Languages != null && Languages.Count > 0)
             {
                 foreach (string l in Languages.Where(l => !languages.Contains(l)))
@@ -161,9 +163,10 @@ namespace libEDSsharp
             if (languages.Count == 0)
                 languages.Add(string.IsNullOrEmpty(meta.textInfo.FallbackLanguage) ? "en" : meta.textInfo.FallbackLanguage);
             string fallback = languages.Contains(meta.textInfo.FallbackLanguage) ? meta.textInfo.FallbackLanguage : languages[0];
+            string fillFrom = projectFallback != null && !languages.Contains(projectFallback) ? projectFallback : null;
 
             // entries
-            List<Entry> entries = CollectEntries(meta, languages);
+            List<Entry> entries = CollectEntries(meta, languages, fillFrom);
             var byAddress = entries.ToDictionary(e => e.Address);
             entries = entries.Where(e => e.HasContent).ToList();
             for (int i = 0; i < entries.Count; i++)
@@ -263,6 +266,7 @@ namespace libEDSsharp
                 Meta = meta
             };
 
+            Directory.CreateDirectory(folder);
             File.WriteAllText(Path.Combine(folder, baseName + ".h"), GenerateHeader(ctx), new UTF8Encoding(false));
             File.WriteAllText(Path.Combine(folder, baseName + ".c"), GenerateSource(ctx), new UTF8Encoding(false));
 
@@ -345,7 +349,7 @@ namespace libEDSsharp
             return result;
         }
 
-        private List<Entry> CollectEntries(EDSsharp meta, List<string> languages)
+        private List<Entry> CollectEntries(EDSsharp meta, List<string> languages, string fillFrom)
         {
             var entries = new List<Entry>();
             foreach (ODentry od in meta.ods.Values)
@@ -354,23 +358,41 @@ namespace libEDSsharp
                     continue;
                 if (od.objecttype == ObjectType.VAR || od.subobjects.Count == 0)
                 {
-                    entries.Add(MakeEntry(new MetaAddress(od.Index, 0), od.parameter_name, od.prop, languages, true));
+                    entries.Add(MakeEntry(new MetaAddress(od.Index, 0), od.parameter_name, od.prop, languages, fillFrom, true));
                 }
                 else
                 {
-                    entries.Add(MakeEntry(new MetaAddress(od.Index, null), od.parameter_name, od.prop, languages, false));
+                    entries.Add(MakeEntry(new MetaAddress(od.Index, null), od.parameter_name, od.prop, languages, fillFrom, false));
                     foreach (var sub in od.subobjects)
-                        entries.Add(MakeEntry(new MetaAddress(od.Index, (byte)sub.Key), sub.Value.parameter_name, sub.Value.prop, languages, false));
+                        entries.Add(MakeEntry(new MetaAddress(od.Index, (byte)sub.Key), sub.Value.parameter_name, sub.Value.prop, languages, fillFrom, false));
                 }
             }
             entries.Sort((a, b) => a.Address.CompareTo(b.Address));
             return entries;
         }
 
-        private Entry MakeEntry(MetaAddress address, string name, CustomProperties prop, List<string> languages, bool isVar)
+        private Entry MakeEntry(MetaAddress address, string name, CustomProperties prop, List<string> languages, string fillFrom, bool isVar)
         {
             var entry = new Entry { Address = address, Name = name ?? "", IsVar = isVar };
-            foreach (var kvp in prop.CO_texts)
+            var texts = prop.CO_texts.AsEnumerable();
+            if (fillFrom != null)
+            {
+                // texts of a fallback language that is not exported stand in for missing texts
+                var filled = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var kvp in prop.CO_texts)
+                {
+                    if (string.IsNullOrEmpty(kvp.Value) || !MetaTexts.SplitKey(kvp.Key, out string k, out string l) || l != fillFrom)
+                        continue;
+                    foreach (string target in languages)
+                    {
+                        string key = MetaTexts.Key(k, target);
+                        if (!prop.CO_texts.TryGetValue(key, out string own) || string.IsNullOrEmpty(own))
+                            filled[key] = kvp.Value;
+                    }
+                }
+                texts = texts.Concat(filled);
+            }
+            foreach (var kvp in texts)
             {
                 if (string.IsNullOrEmpty(kvp.Value) || !MetaTexts.SplitKey(kvp.Key, out string kind, out string lang) || !languages.Contains(lang))
                     continue;
@@ -393,9 +415,9 @@ namespace libEDSsharp
                 }
                 if (!DefaultExportedKinds.Contains(kind) && !prop.CO_textExport.Contains(kind))
                     continue;
-                if (!entry.Texts.TryGetValue(kind, out var texts))
-                    entry.Texts[kind] = texts = new Dictionary<string, string>();
-                texts[lang] = kvp.Value;
+                if (!entry.Texts.TryGetValue(kind, out var byKind))
+                    entry.Texts[kind] = byKind = new Dictionary<string, string>();
+                byKind[lang] = kvp.Value;
             }
             string multiplier = (prop.CO_multiplier ?? "").Trim();
             if (multiplier != "" && multiplier != "1")

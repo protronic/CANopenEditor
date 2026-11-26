@@ -94,6 +94,24 @@ namespace Tests
         }
 
         [Fact]
+        public void Export_SomeLanguages_KeepsFallbackTexts()
+        {
+            // only English: German texts (the fallback) stand in where English is missing, e.g. the unit
+            var exporter = new CanOpenNodeMetaExporter { SourceOd = SourceOd(), Languages = new[] { "en" }, GlyphFile = Path.Combine(folder, "sub", "glyphs.txt") };
+            Directory.CreateDirectory(Path.Combine(folder, "sub"));
+            exporter.Export(Path.Combine(folder, "out", "meta.c"), MetaProject());
+
+            string h = File.ReadAllText(Path.Combine(folder, "out", "meta.h"));
+            string c = File.ReadAllText(Path.Combine(folder, "out", "meta.c"));
+            Assert.Contains("META_LANG_EN = 0", h);
+            Assert.DoesNotContain("META_LANG_DE", h);
+            Assert.Contains("Boiler temp.", c);       // own English label
+            Assert.Contains("\\302\\260C", c);        // unit "°C" only exists in German
+            Assert.Contains("Fehler", c);             // value text only in German
+            Assert.DoesNotContain("Kesseltemp.", c);  // German label not needed, English exists
+        }
+
+        [Fact]
         public void Export_WarnsAboutTooLongTextsAndMissingAddresses()
         {
             EDSsharp meta = MetaProject();

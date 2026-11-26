@@ -193,10 +193,21 @@ namespace EDSSharp
                 exporter.Prefix = "meta";
             if (argskvp.ContainsKey("--odfile"))
             {
-                exporter.SourceOd = LoadProject(Path.GetFullPath(argskvp["--odfile"]));
+                string odfile = Path.GetFullPath(argskvp["--odfile"]);
+                if (!File.Exists(odfile))
+                {
+                    Program.WriteError($"--odfile not found: {odfile}");
+                    Environment.Exit(1);
+                }
+                exporter.SourceOd = LoadProject(odfile);
                 if (exporter.SourceOd == null)
-                    throw new Exception("Invalid --odfile");
+                {
+                    Program.WriteError($"--odfile could not be read: {odfile}");
+                    Environment.Exit(1);
+                }
             }
+            if (argskvp.ContainsKey("--glyphs"))
+                Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(argskvp["--glyphs"])));
             if (argskvp.ContainsKey("--langs"))
                 exporter.Languages = argskvp["--langs"].Split(',').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
             if (argskvp.ContainsKey("--glyphs"))
