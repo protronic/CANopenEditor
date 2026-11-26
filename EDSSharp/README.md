@@ -59,3 +59,10 @@ stored as `;Key=Value` comment lines (also understood by this parser):
 
 A complete demo network (three device nodes plus a monitoring master) built
 with these extensions lives in [`../demo/`](../demo/).
+
+Display texts
+-------------
+
+Translatable display texts (labels, tooltips, units, value texts, multipliers)
+are stored as `CO_text:*` properties and exported to `meta.c`/`meta.h` with the
+exporter `CanOpenNodeMeta`, see [`../docs/meta-texts.md`](../docs/meta-texts.md).

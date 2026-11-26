@@ -37,7 +37,10 @@ namespace EDSSharp
                     eds = LoadProject(infile);
                     if (eds != null)
                     {
-                        Export(outfile, outtype);
+                        if (outtype == "CanOpenNodeMeta")
+                            ExportMeta(outfile, argskvp);
+                        else
+                            Export(outfile, outtype);
                         Console.WriteLine("Successful conversion");
                     }
                     else
@@ -142,6 +145,16 @@ namespace EDSSharp
 
             Warnings.warning_list.Clear();
 
+            if (eds.textInfo.MetaProject)
+            {
+                // Meta project: display texts as meta.c/meta.h instead of OD.c/OD.h
+                string metaBase = argskvp.ContainsKey("--od") ? argskvp["--od"] : "meta";
+                ExportMeta(Path.Combine(outdir, metaBase), argskvp);
+                Export(argskvp.ContainsKey("--json") ? jsonPath : Path.Combine(outdir, metaBase + ".json"), "CanOpenNodeProtobuf(json)");
+                Console.WriteLine("Successful export");
+                return;
+            }
+
             if (cnType == ExporterFactory.Exporter.CANOPENNODE_V4)
             {
                 // Symbolpraefix im generierten C/H-Code: standardmaessig "OD" wie
@@ -156,7 +169,44 @@ namespace EDSSharp
             }
             Export(jsonPath, "CanOpenNodeProtobuf(json)");
 
+            // Texts stored directly in the object dictionary: meta.c/meta.h in addition
+            if (HasTexts(eds))
+                ExportMeta(Path.Combine(outdir, "meta"), argskvp);
+
             Console.WriteLine("Successful export");
+        }
+
+        private static bool HasTexts(EDSsharp project)
+        {
+            return project.ods.Values.Any(od => od.prop.CO_texts.Count > 0 || od.subobjects.Values.Any(sub => sub.prop.CO_texts.Count > 0));
+        }
+
+        /// <summary>
+        /// Exports the display texts (meta texts) as C source, see docs/meta-texts.md
+        /// </summary>
+        private static void ExportMeta(string outpath, Dictionary<string, string> argskvp)
+        {
+            var exporter = new CanOpenNodeMetaExporter();
+            if (argskvp.ContainsKey("--odname"))
+                exporter.Prefix = argskvp["--odname"];
+            else if (argskvp.ContainsKey("--export-project"))
+                exporter.Prefix = "meta";
+            if (argskvp.ContainsKey("--odfile"))
+            {
+                exporter.SourceOd = LoadProject(Path.GetFullPath(argskvp["--odfile"]));
+                if (exporter.SourceOd == null)
+                    throw new Exception("Invalid --odfile");
+            }
+            if (argskvp.ContainsKey("--langs"))
+                exporter.Languages = argskvp["--langs"].Split(',').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
+            if (argskvp.ContainsKey("--glyphs"))
+                exporter.GlyphFile = Path.GetFullPath(argskvp["--glyphs"]);
+
+            exporter.Export(Path.GetFullPath(outpath), eds);
+
+            foreach (string message in exporter.Messages)
+                Console.WriteLine("WARNING :" + message);
+            Console.WriteLine(exporter.Summary);
         }
 
         private static EDSsharp LoadProject(string infile)
@@ -288,6 +338,7 @@ namespace EDSSharp
             string name = Path.GetFileNameWithoutExtension(Environment.GetCommandLineArgs()[0]);
             Console.WriteLine($"Usage: {name} --infile FILE1 --outfile FILE2 [--type EXPORTER]");
             Console.WriteLine($"       {name} --export-project --infile FILE --outdir DIR [--od BASENAME] [--odname PREFIX] [--json FILE.json] [--canopennode v4|legacy]");
+            Console.WriteLine($"       {name} --infile META.xdd --outfile meta.c --type CanOpenNodeMeta [--odfile OD.xdd] [--odname PREFIX] [--langs de,en] [--glyphs FILE.txt]");
             Console.WriteLine("Converts a given XDD or EDS file to many other available types.");
             Console.WriteLine($"Example: {name} --infile project.xdd --outfile map.md --type NetworkPDOReport");
             Console.WriteLine($"Example: {name} --export-project --infile project.xdd --outdir ./out");
@@ -320,7 +371,7 @@ namespace EDSSharp
         static void PrintExportProjectHelpText()
         {
             string name = Path.GetFileNameWithoutExtension(Environment.GetCommandLineArgs()[0]);
-            Console.WriteLine($"Usage: {name} --export-project --infile FILE --outdir DIR [--od BASENAME] [--odname PREFIX] [--json FILE.json] [--canopennode v4|legacy]");
+            Console.WriteLine($"Usage: {name} --export-project --infile FILE --outdir DIR [--od BASENAME] [--odname PREFIX] [--json FILE.json] [--canopennode v4|legacy] [--odfile OD.xdd] [--langs de,en] [--glyphs FILE.txt]");
             Console.WriteLine("Exports a project file to CanOpenNode .c/.h and CanOpenNode protobuf JSON.");
             Console.WriteLine($"Example: {name} --export-project --infile project.xdd --outdir ./out");
             Console.WriteLine("");
@@ -329,6 +380,14 @@ namespace EDSSharp
             Console.WriteLine("BASENAME is the base name for the generated .c and .h files (default: input file name without extension).");
             Console.WriteLine("FILE.json is the output JSON path (default: DIR/BASENAME.json).");
             Console.WriteLine("--canopennode defaults to v4.");
+            Console.WriteLine("");
+            Console.WriteLine("Display texts (docs/meta-texts.md): a meta project is exported to meta.c/meta.h");
+            Console.WriteLine("(BASENAME default 'meta') instead of the object dictionary; texts stored in an");
+            Console.WriteLine("object dictionary are exported to meta.c/meta.h in addition. Options:");
+            Console.WriteLine("  --odfile OD.xdd     object dictionary for the meta addresses (default: the file");
+            Console.WriteLine("                      named in the meta project, otherwise its own addresses)");
+            Console.WriteLine("  --langs de,en       export only these languages");
+            Console.WriteLine("  --glyphs FILE.txt   write all characters used in the texts (for LVGL fonts)");
         }
     }
 }
