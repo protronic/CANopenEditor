@@ -266,6 +266,13 @@ Contributors
                 </a>
             </td>
             <td align="center">
+                <a href="https://github.com/mistral-vibe">
+                    <img src="https://avatars.githubusercontent.com/u/220374863?v=4" width="100;" alt="mistral-vibe"/>
+                    <br />
+                    <sub><b>mistral-vibe</b></sub>
+                </a>
+            </td>
+            <td align="center">
                 <a href="https://github.com/rgruening">
                     <img src="https://avatars.githubusercontent.com/u/72022918?v=4" width="100;" alt="rgruening"/>
                     <br />
@@ -286,6 +293,15 @@ Contributors
                     <sub><b>rcolatobe</b></sub>
                 </a>
             </td>
+		</tr>
+		<tr>
+            <td align="center">
+                <a href="https://github.com/Frab012">
+                    <img src="https://avatars.githubusercontent.com/u/198879520?v=4" width="100;" alt="Frab012"/>
+                    <br />
+                    <sub><b>Frab012</b></sub>
+                </a>
+            </td>
             <td align="center">
                 <a href="https://github.com/kekiefer">
                     <img src="https://avatars.githubusercontent.com/u/48104?v=4" width="100;" alt="kekiefer"/>
@@ -293,8 +309,6 @@ Contributors
                     <sub><b>kekiefer</b></sub>
                 </a>
             </td>
-		</tr>
-		<tr>
             <td align="center">
                 <a href="https://github.com/zhanglongqi">
                     <img src="https://avatars.githubusercontent.com/u/956693?v=4" width="100;" alt="zhanglongqi"/>
@@ -317,19 +331,14 @@ Contributors
                 </a>
             </td>
             <td align="center">
-                <a href="https://github.com/mistral-vibe">
-                    <img src="https://avatars.githubusercontent.com/u/220374863?v=4" width="100;" alt="mistral-vibe"/>
-                    <br />
-                    <sub><b>mistral-vibe</b></sub>
-                </a>
-            </td>
-            <td align="center">
                 <a href="https://github.com/possibly-not">
                     <img src="https://avatars.githubusercontent.com/u/12588174?v=4" width="100;" alt="possibly-not"/>
                     <br />
                     <sub><b>possibly-not</b></sub>
                 </a>
             </td>
+		</tr>
+		<tr>
             <td align="center">
                 <a href="https://github.com/KwonTae-young">
                     <img src="https://avatars.githubusercontent.com/u/10510127?v=4" width="100;" alt="KwonTae-young"/>
