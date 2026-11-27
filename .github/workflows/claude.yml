@@ -40,9 +40,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 1
+          # Volle Historie inkl. Tags: libEDSsharp.csproj ruft beim Build
+          # "git describe --tags" fuer die Versionsnummer auf.
+          fetch-depth: 0
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "8.0.x"
 
