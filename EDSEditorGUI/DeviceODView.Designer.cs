@@ -71,6 +71,8 @@ namespace ODEditor
             this.textBox_actualValue = new System.Windows.Forms.TextBox();
             this.textBox_lowLimit = new System.Windows.Forms.TextBox();
             this.textBox_highLimit = new System.Windows.Forms.TextBox();
+            this.checkBox_exportMaxValToC = new System.Windows.Forms.CheckBox();
+            this.checkBox_exportMinValToC = new System.Windows.Forms.CheckBox();
             this.label18 = new System.Windows.Forms.Label();
             this.label17 = new System.Windows.Forms.Label();
             this.label14 = new System.Windows.Forms.Label();
@@ -475,6 +477,8 @@ namespace ODEditor
             this.groupBox1.Controls.Add(this.textBox_actualValue);
             this.groupBox1.Controls.Add(this.textBox_lowLimit);
             this.groupBox1.Controls.Add(this.textBox_highLimit);
+            this.groupBox1.Controls.Add(this.checkBox_exportMaxValToC);
+            this.groupBox1.Controls.Add(this.checkBox_exportMinValToC);
             this.groupBox1.Controls.Add(this.label18);
             this.groupBox1.Controls.Add(this.label17);
             this.groupBox1.Controls.Add(this.label14);
@@ -516,7 +520,7 @@ namespace ODEditor
             // 
             // textBox_stringLengthMin
             // 
-            this.textBox_stringLengthMin.Location = new System.Drawing.Point(340, 99);
+            this.textBox_stringLengthMin.Location = new System.Drawing.Point(340, 137);
             this.textBox_stringLengthMin.Name = "textBox_stringLengthMin";
             this.textBox_stringLengthMin.Size = new System.Drawing.Size(122, 20);
             this.textBox_stringLengthMin.TabIndex = 24;
@@ -525,7 +529,7 @@ namespace ODEditor
             // label22
             // 
             this.label22.AutoSize = true;
-            this.label22.Location = new System.Drawing.Point(248, 102);
+            this.label22.Location = new System.Drawing.Point(248, 140);
             this.label22.Name = "label22";
             this.label22.Size = new System.Drawing.Size(75, 13);
             this.label22.TabIndex = 39;
@@ -572,7 +576,7 @@ namespace ODEditor
             // textBox_actualValue
             // 
             this.textBox_actualValue.BackColor = System.Drawing.Color.PeachPuff;
-            this.textBox_actualValue.Location = new System.Drawing.Point(340, 72);
+            this.textBox_actualValue.Location = new System.Drawing.Point(340, 110);
             this.textBox_actualValue.Name = "textBox_actualValue";
             this.textBox_actualValue.Size = new System.Drawing.Size(122, 20);
             this.textBox_actualValue.TabIndex = 23;
@@ -580,11 +584,22 @@ namespace ODEditor
             // 
             // textBox_lowLimit
             // 
-            this.textBox_lowLimit.Location = new System.Drawing.Point(340, 45);
+            this.textBox_lowLimit.Location = new System.Drawing.Point(340, 64);
             this.textBox_lowLimit.Name = "textBox_lowLimit";
             this.textBox_lowLimit.Size = new System.Drawing.Size(122, 20);
             this.textBox_lowLimit.TabIndex = 22;
             this.textBox_lowLimit.TextChanged += new System.EventHandler(this.DataDirty);
+            // 
+            // checkBox_exportMinValToC
+            // 
+            this.checkBox_exportMinValToC.AutoSize = true;
+            this.checkBox_exportMinValToC.Location = new System.Drawing.Point(340, 87);
+            this.checkBox_exportMinValToC.Name = "checkBox_exportMinValToC";
+            this.checkBox_exportMinValToC.Size = new System.Drawing.Size(113, 17);
+            this.checkBox_exportMinValToC.TabIndex = 26;
+            this.checkBox_exportMinValToC.Text = "Export to C code";
+            this.checkBox_exportMinValToC.UseVisualStyleBackColor = true;
+            this.checkBox_exportMinValToC.CheckedChanged += new System.EventHandler(this.DataDirty);
             // 
             // textBox_highLimit
             // 
@@ -594,10 +609,21 @@ namespace ODEditor
             this.textBox_highLimit.TabIndex = 21;
             this.textBox_highLimit.TextChanged += new System.EventHandler(this.DataDirty);
             // 
+            // checkBox_exportMaxValToC
+            // 
+            this.checkBox_exportMaxValToC.AutoSize = true;
+            this.checkBox_exportMaxValToC.Location = new System.Drawing.Point(340, 41);
+            this.checkBox_exportMaxValToC.Name = "checkBox_exportMaxValToC";
+            this.checkBox_exportMaxValToC.Size = new System.Drawing.Size(113, 17);
+            this.checkBox_exportMaxValToC.TabIndex = 25;
+            this.checkBox_exportMaxValToC.Text = "Export to C code";
+            this.checkBox_exportMaxValToC.UseVisualStyleBackColor = true;
+            this.checkBox_exportMaxValToC.CheckedChanged += new System.EventHandler(this.DataDirty);
+            // 
             // label18
             // 
             this.label18.AutoSize = true;
-            this.label18.Location = new System.Drawing.Point(248, 75);
+            this.label18.Location = new System.Drawing.Point(248, 113);
             this.label18.Name = "label18";
             this.label18.Size = new System.Drawing.Size(67, 13);
             this.label18.TabIndex = 32;
@@ -606,7 +632,7 @@ namespace ODEditor
             // label17
             // 
             this.label17.AutoSize = true;
-            this.label17.Location = new System.Drawing.Point(248, 48);
+            this.label17.Location = new System.Drawing.Point(248, 67);
             this.label17.Name = "label17";
             this.label17.Size = new System.Drawing.Size(48, 13);
             this.label17.TabIndex = 31;
@@ -992,6 +1018,8 @@ namespace ODEditor
         private System.Windows.Forms.CheckBox checkBox_enabled;
         private System.Windows.Forms.Label label_pdoFlags;
         private System.Windows.Forms.CheckBox checkBox_pdoFlags;
+        private System.Windows.Forms.CheckBox checkBox_exportMaxValToC;
+        private System.Windows.Forms.CheckBox checkBox_exportMinValToC;
         private System.Windows.Forms.TextBox textBox_defaultValue;
         private System.Windows.Forms.Label label11;
         private System.Windows.Forms.ComboBox comboBox_accessPDO;

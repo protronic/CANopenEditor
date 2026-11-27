@@ -193,6 +193,16 @@ namespace libEDSsharp
         /// </summary>
         public UInt32 CO_stringLengthMin = 0;
         /// <summary>
+        /// If true, LowLimit is exported as a C constant by the CANopenNode exporters
+        /// (saved as XDD property "ExportMinValToC")
+        /// </summary>
+        public bool CO_exportMinValToC = false;
+        /// <summary>
+        /// If true, HighLimit is exported as a C constant by the CANopenNode exporters
+        /// (saved as XDD property "ExportMaxValToC")
+        /// </summary>
+        public bool CO_exportMaxValToC = false;
+        /// <summary>
         /// Display texts, key "&lt;kind&gt;:&lt;language&gt;" (e.g. "label:de"), see docs/meta-texts.md
         /// </summary>
         public SortedDictionary<string, string> CO_texts = new SortedDictionary<string, string>(StringComparer.Ordinal);
@@ -223,6 +233,8 @@ namespace libEDSsharp
                 CO_flagsPDO = CO_flagsPDO,
                 CO_accessSRDO = CO_accessSRDO,
                 CO_stringLengthMin = CO_stringLengthMin,
+                CO_exportMinValToC = CO_exportMinValToC,
+                CO_exportMaxValToC = CO_exportMaxValToC,
                 CO_texts = new SortedDictionary<string, string>(CO_texts, StringComparer.Ordinal),
                 CO_metaRef = CO_metaRef,
                 CO_textExport = new List<string>(CO_textExport),
@@ -253,6 +265,8 @@ namespace libEDSsharp
                             try { CO_stringLengthMin = Convert.ToUInt16(prop.value); }
                             catch (Exception) { CO_stringLengthMin = 0; }
                             break;
+                        case "ExportMinValToC": CO_exportMinValToC = prop.value == "true"; break;
+                        case "ExportMaxValToC": CO_exportMaxValToC = prop.value == "true"; break;
                         case MetaTexts.MetaRefProperty: CO_metaRef = prop.value ?? ""; break;
                         case MetaTexts.TextExportProperty: CO_textExport = MetaTexts.SplitList(prop.value); break;
                         case MetaTexts.MultiplierProperty: CO_multiplier = prop.value ?? ""; break;
@@ -302,6 +316,10 @@ namespace libEDSsharp
                 props.Add(new property { name = "CO_accessSRDO", value = CO_accessSRDO.ToString() });
             if (CO_stringLengthMin != 0)
                 props.Add(new property { name = "CO_stringLengthMin", value = CO_stringLengthMin.ToString() });
+            if (CO_exportMinValToC)
+                props.Add(new property { name = "ExportMinValToC", value = "true" });
+            if (CO_exportMaxValToC)
+                props.Add(new property { name = "ExportMaxValToC", value = "true" });
 
             return props.ToArray();
         }

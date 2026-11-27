@@ -166,6 +166,10 @@ namespace libEDSsharp
                 ODDefines.Add($"#define {odname}_ENTRY_H{indexH} &{odname}->list[{ODList.Count}]");
                 ODDefinesLong.Add($"#define {odname}_ENTRY_H{varName} &{odname}->list[{ODList.Count}]");
 
+                // limit constants exported to C code
+                if (od.objecttype == ObjectType.VAR)
+                    AddLimitDefines(od, indexH, varName, "");
+
                 // object dictionary
                 ODList.Add($"{{0x{indexH}, 0x{subEntriesCount:X2}, ODT_{odObjectType}, &{odname}Objs.o_{varName}, NULL}}");
 
@@ -282,6 +286,8 @@ namespace libEDSsharp
                 DataProperties data = Get_dataProperties(dataType, sub.defaultvalue, sub.prop.CO_stringLengthMin, indexH);
                 string attr = Get_attributes(sub, data.cTypeMultibyte, data.cTypeString);
 
+                AddLimitDefines(sub, indexH, varName, $"_{sub.Subindex:X2}");
+
                 if (sub.Subindex != i)
                     Warnings.AddWarning($"Error in 0x{indexH}: SubIndexes in ARRAY must be in sequence!", Warnings.warning_class.WARNING_BUILD);
 
@@ -379,6 +385,8 @@ namespace libEDSsharp
                 DataProperties data = Get_dataProperties(sub.datatype, sub.defaultvalue, sub.prop.CO_stringLengthMin, indexH);
                 string attr = Get_attributes(sub, data.cTypeMultibyte, data.cTypeString);
 
+                AddLimitDefines(sub, indexH, varName, $"_{sub.Subindex:X2}");
+
                 if (sub.Subindex == 0 && (data.cType != "uint8_t" || data.length != 1))
                     Warnings.AddWarning($"Error in 0x{indexH}: Data type in RECORD, subIndex 0 must be UNSIGNED8, not {sub.datatype}!", Warnings.warning_class.WARNING_BUILD);
 
@@ -410,6 +418,27 @@ namespace libEDSsharp
             }
 
             return subEntriesCount;
+        }
+
+        /// <summary>
+        /// Generate min/max limit constants for an entry, if their export to C code is requested
+        /// </summary>
+        /// <param name="od">entry (VAR object or sub entry) holding the limits</param>
+        /// <param name="indexH">index of the object as hex string</param>
+        /// <param name="varName">index and C name of the object</param>
+        /// <param name="suffix">sub index suffix for sub entries, empty for the object itself</param>
+        private void AddLimitDefines(ODentry od, string indexH, string varName, string suffix)
+        {
+            if (od.prop.CO_exportMinValToC && !string.IsNullOrEmpty(od.LowLimit))
+            {
+                ODDefines.Add($"#define {odname}_MIN_H{indexH}{suffix} {od.LowLimit}");
+                ODDefinesLong.Add($"#define {odname}_MIN_H{varName}{suffix} {od.LowLimit}");
+            }
+            if (od.prop.CO_exportMaxValToC && !string.IsNullOrEmpty(od.HighLimit))
+            {
+                ODDefines.Add($"#define {odname}_MAX_H{indexH}{suffix} {od.HighLimit}");
+                ODDefinesLong.Add($"#define {odname}_MAX_H{varName}{suffix} {od.HighLimit}");
+            }
         }
         #endregion
 
