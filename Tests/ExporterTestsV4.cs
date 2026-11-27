@@ -288,7 +288,7 @@ namespace Tests
             {
                 objecttype = ObjectType.VAR,
                 datatype = DataType.INTEGER32,
-                parameter_name = "test limits",
+                parameter_name = "X POSITION",
                 accesstype = EDSsharp.AccessType.rw,
                 Index = 0x2000,
                 LowLimit = "-1000",
@@ -314,10 +314,12 @@ namespace Tests
 
             GetExportResult(_eds, out var cfile, out var hfile, out var odname);
 
-            Assert.True(FindExpectedLines(hfile, new List<string> { $"#define {odname}_MIN_H2000 -1000" }));
-            Assert.True(FindExpectedLines(hfile, new List<string> { $"#define {odname}_MAX_H2000 1000" }));
-            Assert.True(FindExpectedLines(hfile, new List<string> { $"#define {odname}_MIN_H2000_testLimits -1000" }));
-            Assert.True(FindExpectedLines(hfile, new List<string> { $"#define {odname}_MAX_H2000_testLimits 1000" }));
+            Assert.True(FindExpectedLines(hfile, new List<string> { $"#define {odname}_MIN_H2000_X_POSITION -1000" }));
+            Assert.True(FindExpectedLines(hfile, new List<string> { $"#define {odname}_MAX_H2000_X_POSITION 1000" }));
+
+            // no index-only short form anymore
+            Assert.DoesNotContain(hfile, line => line == $"#define {odname}_MIN_H2000 -1000");
+            Assert.DoesNotContain(hfile, line => line == $"#define {odname}_MAX_H2000 1000");
 
             Assert.DoesNotContain(hfile, line => line.Contains($"{odname}_MIN_H2001"));
             Assert.DoesNotContain(hfile, line => line.Contains($"{odname}_MAX_H2001"));
