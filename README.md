@@ -164,17 +164,17 @@ Contributors
 		</tr>
 		<tr>
             <td align="center">
-                <a href="https://github.com/simon-fuchs-inmach">
-                    <img src="https://avatars.githubusercontent.com/u/57712038?v=4" width="100;" alt="simon-fuchs-inmach"/>
-                    <br />
-                    <sub><b>simon-fuchs-inmach</b></sub>
-                </a>
-            </td>
-            <td align="center">
                 <a href="https://github.com/KMK0815">
                     <img src="https://avatars.githubusercontent.com/u/42606060?v=4" width="100;" alt="KMK0815"/>
                     <br />
                     <sub><b>KMK0815</b></sub>
+                </a>
+            </td>
+            <td align="center">
+                <a href="https://github.com/simon-fuchs-inmach">
+                    <img src="https://avatars.githubusercontent.com/u/57712038?v=4" width="100;" alt="simon-fuchs-inmach"/>
+                    <br />
+                    <sub><b>simon-fuchs-inmach</b></sub>
                 </a>
             </td>
             <td align="center">
