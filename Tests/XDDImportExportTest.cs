@@ -184,6 +184,46 @@ namespace Tests
 
         }
 
+        [Fact]
+        public void TestImportExportXdd11ExportToCProperties()
+        {
+            eds = new EDSsharp
+            {
+                ods = new System.Collections.Generic.SortedDictionary<ushort, ODentry>()
+            };
+
+            ODentry od = new ODentry
+            {
+                objecttype = ObjectType.VAR,
+                datatype = DataType.INTEGER32,
+                parameter_name = "Test VAR",
+                accesstype = EDSsharp.AccessType.rw,
+                PDOtype = PDOMappingType.no,
+                Index = 0x2000,
+                LowLimit = "-1000",
+                HighLimit = "1000"
+            };
+            od.prop.CO_exportMinValToC = true;
+            od.prop.CO_exportMaxValToC = true;
+
+            eds.ods.Add(0x2000, od);
+
+            string tempfile = System.IO.Path.GetTempFileName();
+            new CanOpenXDD_1_1().WriteXML(tempfile, eds, false, false);
+
+            string xml = System.IO.File.ReadAllText(tempfile);
+            Assert.Contains("name=\"ExportMinValToC\" value=\"true\"", xml);
+            Assert.Contains("name=\"ExportMaxValToC\" value=\"true\"", xml);
+
+            EDSsharp loaded = XddLoader.Load(tempfile);
+            ODentry od2 = loaded.ods[0x2000];
+
+            Assert.True(od2.prop.CO_exportMinValToC, "ExportMinValToC lost in XDD 1.1 round trip");
+            Assert.True(od2.prop.CO_exportMaxValToC, "ExportMaxValToC lost in XDD 1.1 round trip");
+            Assert.Equal("-1000", od2.LowLimit);
+            Assert.Equal("1000", od2.HighLimit);
+        }
+
 
     }
 }

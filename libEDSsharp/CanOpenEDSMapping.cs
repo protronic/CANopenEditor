@@ -125,6 +125,8 @@ namespace libEDSsharp
                 cfg.CreateMap<OdObject, CustomProperties>()
                 .ForMember(dest => dest.CO_accessSRDO, opt => opt.Ignore())
                 .ForMember(dest => dest.CO_stringLengthMin, opt => opt.Ignore())
+                .ForMember(dest => dest.CO_exportMinValToC, opt => opt.Ignore())
+                .ForMember(dest => dest.CO_exportMaxValToC, opt => opt.Ignore())
                 .ForMember(dest => dest.CO_disabled, opt => opt.MapFrom(src => src.Disabled))
                 .ForMember(dest => dest.CO_countLabel, opt => opt.MapFrom(src => src.CountLabel))
                 .ForMember(dest => dest.CO_storageGroup, opt => opt.MapFrom(src => src.StorageGroup))

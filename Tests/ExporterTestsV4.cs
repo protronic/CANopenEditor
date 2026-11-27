@@ -280,5 +280,47 @@ namespace Tests
                 "    {0x0000, 0x00, 0, NULL, NULL}",
                 "};"}));
         }
+
+        [Fact]
+        public void TestLimitConstantsExportedToC()
+        {
+            ODentry od = new ODentry
+            {
+                objecttype = ObjectType.VAR,
+                datatype = DataType.INTEGER32,
+                parameter_name = "test limits",
+                accesstype = EDSsharp.AccessType.rw,
+                Index = 0x2000,
+                LowLimit = "-1000",
+                HighLimit = "1000"
+            };
+            od.prop.CO_exportMinValToC = true;
+            od.prop.CO_exportMaxValToC = true;
+
+            _eds.ods.Add(0x2000, od);
+
+            ODentry odNoExport = new ODentry
+            {
+                objecttype = ObjectType.VAR,
+                datatype = DataType.INTEGER32,
+                parameter_name = "no export",
+                accesstype = EDSsharp.AccessType.rw,
+                Index = 0x2001,
+                LowLimit = "-5",
+                HighLimit = "5"
+            };
+
+            _eds.ods.Add(0x2001, odNoExport);
+
+            GetExportResult(_eds, out var cfile, out var hfile, out var odname);
+
+            Assert.True(FindExpectedLines(hfile, new List<string> { $"#define {odname}_MIN_H2000 -1000" }));
+            Assert.True(FindExpectedLines(hfile, new List<string> { $"#define {odname}_MAX_H2000 1000" }));
+            Assert.True(FindExpectedLines(hfile, new List<string> { $"#define {odname}_MIN_H2000_testLimits -1000" }));
+            Assert.True(FindExpectedLines(hfile, new List<string> { $"#define {odname}_MAX_H2000_testLimits 1000" }));
+
+            Assert.DoesNotContain(hfile, line => line.Contains($"{odname}_MIN_H2001"));
+            Assert.DoesNotContain(hfile, line => line.Contains($"{odname}_MAX_H2001"));
+        }
     }
 }

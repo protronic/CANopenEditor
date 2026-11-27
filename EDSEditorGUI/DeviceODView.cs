@@ -370,6 +370,8 @@ namespace ODEditor
                 textBox_highLimit.Enabled = true;
                 textBox_lowLimit.Enabled = true;
                 textBox_stringLengthMin.Enabled = true;
+                checkBox_exportMaxValToC.Enabled = true;
+                checkBox_exportMinValToC.Enabled = true;
 
                 string dataType = (od.datatype == DataType.UNKNOWN && od.parent != null)
                                 ? od.parent.datatype.ToString()
@@ -393,6 +395,8 @@ namespace ODEditor
                 textBox_highLimit.Text = od.HighLimit;
                 textBox_lowLimit.Text = od.LowLimit;
                 textBox_stringLengthMin.Text = od.prop.CO_stringLengthMin.ToString();
+                checkBox_exportMaxValToC.Checked = od.prop.CO_exportMaxValToC;
+                checkBox_exportMinValToC.Checked = od.prop.CO_exportMinValToC;
             }
             else
             {
@@ -406,6 +410,8 @@ namespace ODEditor
                 textBox_highLimit.Text = "";
                 textBox_lowLimit.Text = "";
                 textBox_stringLengthMin.Text = "";
+                checkBox_exportMaxValToC.Checked = false;
+                checkBox_exportMinValToC.Checked = false;
 
                 comboBox_dataType.Enabled = false;
                 comboBox_accessSDO.Enabled = false;
@@ -417,6 +423,8 @@ namespace ODEditor
                 textBox_highLimit.Enabled = false;
                 textBox_lowLimit.Enabled = false;
                 textBox_stringLengthMin.Enabled = false;
+                checkBox_exportMaxValToC.Enabled = false;
+                checkBox_exportMinValToC.Enabled = false;
             }
 
             ODentry odBase;
@@ -596,6 +604,8 @@ namespace ODEditor
                 od.actualvalue = textBox_actualValue.Text;
                 od.HighLimit = textBox_highLimit.Text;
                 od.LowLimit = textBox_lowLimit.Text;
+                od.prop.CO_exportMaxValToC = checkBox_exportMaxValToC.Checked;
+                od.prop.CO_exportMinValToC = checkBox_exportMinValToC.Checked;
 
                 // CO_stringLengthMin
                 if (od.datatype == DataType.VISIBLE_STRING || od.datatype == DataType.UNICODE_STRING || od.datatype == DataType.OCTET_STRING)
