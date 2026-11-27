@@ -1,0 +1,65 @@
+name: Claude Code
+
+# Claude arbeitet Issues und PR-Kommentare ab, sobald jemand mit Schreibrechten
+# "@claude" schreibt (Kommentar, Review-Kommentar oder Titel/Text eines neuen Issues).
+# Ergebnis: Kommentar im Issue/PR, Code-Aenderungen auf einem eigenen Branch "claude/...".
+#
+# Laeuft auf Linux: libEDSsharp, EDSSharp (CLI), Tests und EDSEditorGUI2 (Avalonia)
+# lassen sich mit .NET 8 bauen. EDSEditorGUI (WinForms) braucht Windows/msbuild und
+# wird erst vom .NET-Workflow (dotnet.yml) am Pull Request geprueft.
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened]
+
+concurrency:
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Pakete wiederherstellen
+        run: |
+          dotnet restore Tests/Tests.csproj -p:BuildNet8=true
+          dotnet restore EDSEditorGUI2/EDSEditorGUI2.csproj -p:BuildNet8=true
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          # Workload Identity Federation (kein API-Key-Secret noetig). Die IDs sind
+          # Kennungen, keine Zugangsdaten; die Regel in der Claude Console prueft
+          # das GitHub-OIDC-Token (Org protronic).
+          anthropic_federation_rule_id: fdrl_011r9vzwchf5UWx4eYreoKWY
+          anthropic_organization_id: 47126995-4ba9-45e4-8754-e56f5d39cecd
+          anthropic_service_account_id: svac_01ERAEQwvkJruXFeVyMEL31Y
+          anthropic_workspace_id: wrkspc_01AeNgXznCv6sTFRiLQbgBLJ
+          claude_args: |
+            --max-turns 40
+            --allowedTools "Bash(dotnet restore *),Bash(dotnet build *),Bash(dotnet test *),Bash(dotnet format *)"
