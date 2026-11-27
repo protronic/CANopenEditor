@@ -222,17 +222,17 @@ Contributors
                 </a>
             </td>
             <td align="center">
-                <a href="https://github.com/Regelink">
-                    <img src="https://avatars.githubusercontent.com/u/1665817?v=4" width="100;" alt="Regelink"/>
+                <a href="https://github.com/wilkinsw">
+                    <img src="https://avatars.githubusercontent.com/u/10655771?v=4" width="100;" alt="wilkinsw"/>
                     <br />
-                    <sub><b>Regelink</b></sub>
+                    <sub><b>wilkinsw</b></sub>
                 </a>
             </td>
             <td align="center">
-                <a href="https://github.com/ckhardin">
-                    <img src="https://avatars.githubusercontent.com/u/1160137?v=4" width="100;" alt="ckhardin"/>
+                <a href="https://github.com/pettaa123">
+                    <img src="https://avatars.githubusercontent.com/u/31046837?v=4" width="100;" alt="pettaa123"/>
                     <br />
-                    <sub><b>ckhardin</b></sub>
+                    <sub><b>pettaa123</b></sub>
                 </a>
             </td>
             <td align="center">
@@ -243,19 +243,19 @@ Contributors
                 </a>
             </td>
             <td align="center">
-                <a href="https://github.com/pettaa123">
-                    <img src="https://avatars.githubusercontent.com/u/31046837?v=4" width="100;" alt="pettaa123"/>
+                <a href="https://github.com/ckhardin">
+                    <img src="https://avatars.githubusercontent.com/u/1160137?v=4" width="100;" alt="ckhardin"/>
                     <br />
-                    <sub><b>pettaa123</b></sub>
+                    <sub><b>ckhardin</b></sub>
                 </a>
             </td>
 		</tr>
 		<tr>
             <td align="center">
-                <a href="https://github.com/wilkinsw">
-                    <img src="https://avatars.githubusercontent.com/u/10655771?v=4" width="100;" alt="wilkinsw"/>
+                <a href="https://github.com/Regelink">
+                    <img src="https://avatars.githubusercontent.com/u/1665817?v=4" width="100;" alt="Regelink"/>
                     <br />
-                    <sub><b>wilkinsw</b></sub>
+                    <sub><b>Regelink</b></sub>
                 </a>
             </td>
             <td align="center">
@@ -314,6 +314,13 @@ Contributors
                     <img src="https://avatars.githubusercontent.com/u/4819887?v=4" width="100;" alt="StormOli"/>
                     <br />
                     <sub><b>StormOli</b></sub>
+                </a>
+            </td>
+            <td align="center">
+                <a href="https://github.com/mistral-vibe">
+                    <img src="https://avatars.githubusercontent.com/u/220374863?v=4" width="100;" alt="mistral-vibe"/>
+                    <br />
+                    <sub><b>mistral-vibe</b></sub>
                 </a>
             </td>
             <td align="center">
