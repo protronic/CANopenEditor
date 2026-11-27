@@ -15,7 +15,7 @@
         <ProfileTechnology>CANopen</ProfileTechnology>
       </ISO15745Reference>
     </ProfileHeader>
-    <ProfileBody xmlns:q1="http://www.canopen.org/xml/1.1" xsi:type="q1:ProfileBody_Device_CANopen" formatName="CANopen" formatVersion="1.0" fileName="demo_io_meta.xdd" fileCreator="Protronic" fileCreationDate="2026-07-14" fileCreationTime="12:00:00.0000000+00:00" fileModifiedBy="Protronic" fileModificationDate="2026-07-14" fileModificationTime="12:00:00.0000000+00:00" fileVersion="1" supportedLanguages="en" xmlns="">
+    <ProfileBody xmlns:q1="http://www.canopen.org/xml/1.1" xsi:type="q1:ProfileBody_Device_CANopen" formatName="CANopen" formatVersion="1.0" fileName="demo_io.xui" fileCreator="Protronic" fileCreationDate="2026-07-14" fileCreationTime="12:00:00.0000000+00:00" fileModifiedBy="Protronic" fileModificationDate="2026-07-14" fileModificationTime="12:00:00.0000000+00:00" fileVersion="1" supportedLanguages="en" xmlns="">
       <q1:DeviceIdentity>
         <q1:vendorName>Protronic</q1:vendorName>
         <q1:vendorID>0</q1:vendorID>
@@ -377,7 +377,7 @@
         <ProfileTechnology>CANopen</ProfileTechnology>
       </ISO15745Reference>
     </ProfileHeader>
-    <ProfileBody xmlns:q2="http://www.canopen.org/xml/1.1" xsi:type="q2:ProfileBody_CommunicationNetwork_CANopen" formatName="CANopen" formatVersion="1.0" fileName="demo_io_meta.xdd" fileCreator="Protronic" fileCreationDate="2026-07-14" fileCreationTime="12:00:00.0000000+00:00" fileModificationDate="2026-07-14" fileModificationTime="12:00:00.0000000+00:00" fileVersion="1" supportedLanguages="en" xmlns="">
+    <ProfileBody xmlns:q2="http://www.canopen.org/xml/1.1" xsi:type="q2:ProfileBody_CommunicationNetwork_CANopen" formatName="CANopen" formatVersion="1.0" fileName="demo_io.xui" fileCreator="Protronic" fileCreationDate="2026-07-14" fileCreationTime="12:00:00.0000000+00:00" fileModificationDate="2026-07-14" fileModificationTime="12:00:00.0000000+00:00" fileVersion="1" supportedLanguages="en" xmlns="">
       <ApplicationLayers>
         <q2:CANopenObjectList>
           <CANopenObject index="2000" name="Digitale Ausgaenge" objectType="8" uniqueIDRef="UID_OBJ_2000" subNumber="5">

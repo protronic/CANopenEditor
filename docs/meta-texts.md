@@ -15,7 +15,7 @@ Files without display texts are read and written exactly as before.
 |---|---|
 | Meta entry | The texts of one address: a VAR (`index`, sub-index 0), an ARRAY or RECORD object itself (`index`), or one of its sub entries (`index:sub`). |
 | Text kind | What a text is used for, e.g. `label` or `tooltip`. |
-| Meta project | A project file (usually a copy of the object dictionary, e.g. `device_meta.xdd`) that holds the texts for another object dictionary. Texts may also be stored directly in the object dictionary. |
+| Meta project | A project file (usually a copy of the object dictionary) that holds the texts for another object dictionary, called *user interface* in the editors. It is an XDD 1.1 file with the extension `.xui`, e.g. `device.xui` for `device.xdd`. Texts may also be stored directly in the object dictionary. |
 | Meta address | Optional reference from an object dictionary entry to the meta entry whose texts apply, so that several entries share one text (e.g. all RPDO communication parameters). |
 
 ## Text kinds
@@ -144,10 +144,10 @@ Exporter "CanOpenNode Meta" in libEDSsharp:
 
 ```bash
 # a meta project: meta.c/meta.h (instead of OD.c/OD.h) and the JSON export
-EDSSharp --export-project --infile device_meta.xdd --outdir ./out [--odfile device.xdd] [--langs de,en] [--glyphs glyphs.txt]
+EDSSharp --export-project --infile device.xui --outdir ./out [--odfile device.xdd] [--langs de,en] [--glyphs glyphs.txt]
 
 # explicitly
-EDSSharp --infile device_meta.xdd --outfile out/meta.c --type CanOpenNodeMeta [--odfile device.xdd] [--odname PREFIX]
+EDSSharp --infile device.xui --outfile out/meta.c --type CanOpenNodeMeta [--odfile device.xdd] [--odname PREFIX]
 ```
 
 - The object dictionary for the meta addresses is `--odfile`, otherwise the

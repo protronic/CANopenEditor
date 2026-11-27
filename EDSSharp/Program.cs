@@ -227,6 +227,7 @@ namespace EDSSharp
                 case ".xdd":
                 case ".xdc":
                 case ".xpd":
+                case ".xui": // user interface (meta project with display texts), XDD 1.1 content
                     return openXDDfile(infile);
 
                 case ".eds":
@@ -349,12 +350,12 @@ namespace EDSSharp
             string name = Path.GetFileNameWithoutExtension(Environment.GetCommandLineArgs()[0]);
             Console.WriteLine($"Usage: {name} --infile FILE1 --outfile FILE2 [--type EXPORTER]");
             Console.WriteLine($"       {name} --export-project --infile FILE --outdir DIR [--od BASENAME] [--odname PREFIX] [--json FILE.json] [--canopennode v4|legacy]");
-            Console.WriteLine($"       {name} --infile META.xdd --outfile meta.c --type CanOpenNodeMeta [--odfile OD.xdd] [--odname PREFIX] [--langs de,en] [--glyphs FILE.txt]");
+            Console.WriteLine($"       {name} --infile UI.xui --outfile meta.c --type CanOpenNodeMeta [--odfile OD.xdd] [--odname PREFIX] [--langs de,en] [--glyphs FILE.txt]");
             Console.WriteLine("Converts a given XDD or EDS file to many other available types.");
             Console.WriteLine($"Example: {name} --infile project.xdd --outfile map.md --type NetworkPDOReport");
             Console.WriteLine($"Example: {name} --export-project --infile project.xdd --outdir ./out");
             Console.WriteLine("");
-            Console.WriteLine("FILE1 shall be a .xdd, .eds, .json, or .binpb file.");
+            Console.WriteLine("FILE1 shall be a .xdd, .xui, .eds, .json, or .binpb file.");
             Console.WriteLine("FILE2 shall have the extension of one of the supported exporters below.");
             Console.WriteLine("EXPORTER shall be one of the listed exporters below IF AND ONLY IF multiple of them support your output file extension.");
             Console.WriteLine("");
@@ -386,13 +387,13 @@ namespace EDSSharp
             Console.WriteLine("Exports a project file to CanOpenNode .c/.h and CanOpenNode protobuf JSON.");
             Console.WriteLine($"Example: {name} --export-project --infile project.xdd --outdir ./out");
             Console.WriteLine("");
-            Console.WriteLine("FILE shall be a .xdd, .xdc, .xpd, .eds, .dcf, .json, or .binpb file.");
+            Console.WriteLine("FILE shall be a .xdd, .xdc, .xpd, .xui, .eds, .dcf, .json, or .binpb file.");
             Console.WriteLine("DIR is the output directory.");
             Console.WriteLine("BASENAME is the base name for the generated .c and .h files (default: input file name without extension).");
             Console.WriteLine("FILE.json is the output JSON path (default: DIR/BASENAME.json).");
             Console.WriteLine("--canopennode defaults to v4.");
             Console.WriteLine("");
-            Console.WriteLine("Display texts (docs/meta-texts.md): a meta project is exported to meta.c/meta.h");
+            Console.WriteLine("Display texts (docs/meta-texts.md): a meta project (user interface, .xui) is exported to meta.c/meta.h");
             Console.WriteLine("(BASENAME default 'meta') instead of the object dictionary; texts stored in an");
             Console.WriteLine("object dictionary are exported to meta.c/meta.h in addition. Options:");
             Console.WriteLine("  --odfile OD.xdd     object dictionary for the meta addresses (default: the file");

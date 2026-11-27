@@ -4,7 +4,7 @@ Beispiel für die Anzeigetexte aus [`docs/meta-texts.md`](../../docs/meta-texts.
 
 | Datei | Inhalt |
 |---|---|
-| `demo_io_meta.xdd` | Meta-Projekt: Kopie der Objekte ab 0x2000 von `../eds/demo_io.eds` mit Bezeichnungen, Einheiten, Wertetexten, Multiplikatoren und einem Tooltip auf Deutsch und Englisch (Rückfallsprache Deutsch) |
+| `demo_io.xui` | Meta-Projekt (User Interface, XDD 1.1 mit der Endung `.xui`): Kopie der Objekte ab 0x2000 von `../eds/demo_io.eds` mit Bezeichnungen, Einheiten, Wertetexten, Multiplikatoren und einem Tooltip auf Deutsch und Englisch (Rückfallsprache Deutsch) |
 | `meta_lvgl.h`, `meta_lvgl.c` | Beispiel für LVGL 9: Labels und Auswahllisten, die dem Sprachwechsel folgen, und Formatierung von Rohwerten (`215` → `21.5 %`) |
 
 `../generate.sh` erzeugt daraus `generated/demo_io_meta/meta.c` und `meta.h`,
@@ -13,7 +13,7 @@ verwendeten Zeichen (für `lv_font_conv`).
 
 ```bash
 dotnet ../EDSSharp/bin/Release/net8.0/EDSSharp.dll --export-project \
-    --infile meta/demo_io_meta.xdd --outdir generated/demo_io_meta \
+    --infile meta/demo_io.xui --outdir generated/demo_io_meta \
     --glyphs generated/demo_io_meta/meta_glyphs.txt
 ```
 
