@@ -6,6 +6,7 @@ Beispiel für die Anzeigetexte aus [`docs/meta-texts.md`](../../docs/meta-texts.
 |---|---|
 | `demo_io.xui` | Meta-Projekt (User Interface, XDD 1.1 mit der Endung `.xui`): Kopie der Objekte ab 0x2000 von `../eds/demo_io.eds` mit Bezeichnungen, Einheiten, Wertetexten, Multiplikatoren und einem Tooltip auf Deutsch und Englisch (Rückfallsprache Deutsch) |
 | `meta_lvgl.h`, `meta_lvgl.c` | Beispiel für LVGL 9: Labels und Auswahllisten, die dem Sprachwechsel folgen, und Formatierung von Rohwerten (`215` → `21.5 %`) |
+| `AGENTS.md` | Anweisung für Coding-Agenten (und Entwickler) in der Firmware: Regeln und Rezepte für `meta.c` / `meta.h` mit LVGL 9. Zusammen mit `meta_lvgl.*` in die Firmware kopieren |
 
 `../generate.sh` erzeugt daraus `generated/demo_io_meta/meta.c` und `meta.h`,
 das JSON mit allen Texten für die Weboberfläche und `meta_glyphs.txt` mit allen

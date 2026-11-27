@@ -196,9 +196,17 @@ Texts are constant, so `lv_label_set_text_static()` can be used without
 copying:
 
 ```c
-lv_label_set_text_static(label, meta_text(META_H2100, META_TEXT_LABEL));
+const char *text = meta_text(META_H2100, META_TEXT_LABEL);
+lv_label_set_text_static(label, text != NULL ? text : "");
 ```
 
-[`demo/meta/meta_lvgl.c`](../demo/meta/meta_lvgl.c) is an example for LVGL 9:
-labels and drop-down lists that follow language changes, and formatting of
-raw values with multiplier, decimal places, unit and value texts.
+Not for a label in the long mode `LV_LABEL_LONG_DOT`: LVGL writes the dots
+into the text buffer, which must not be the constant text. Such a label needs
+`lv_label_set_text()` (a copy).
+
+[`demo/meta/meta_lvgl.c`](../demo/meta/meta_lvgl.c) is a helper for LVGL 9
+that takes care of this: labels and drop-down lists that follow language
+changes, and formatting of raw values with multiplier, decimal places, unit
+and value texts. [`demo/meta/AGENTS.md`](../demo/meta/AGENTS.md) holds the
+rules and recipes for firmware code that uses the texts, written for coding
+agents; copy both into the firmware.

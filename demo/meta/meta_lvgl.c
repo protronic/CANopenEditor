@@ -24,7 +24,15 @@ static void meta_lvgl_init(void)
 static void label_update(lv_obj_t *label, meta_id_t id, meta_text_t text)
 {
     const char *s = meta_text(id, text);
-    lv_label_set_text_static(label, s != NULL ? s : "");
+    if (s == NULL) {
+        s = "";
+    }
+    if (lv_label_get_long_mode(label) == LV_LABEL_LONG_DOT) {
+        /* LVGL writes the dots into the text itself: it needs a copy in RAM, not the text in flash */
+        lv_label_set_text(label, s);
+    } else {
+        lv_label_set_text_static(label, s);
+    }
 }
 
 static void label_cb(lv_event_t *e)

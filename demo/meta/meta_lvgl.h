@@ -3,7 +3,9 @@
  *
  * Example for docs/meta-texts.md. Labels and drop-down lists bound with these
  * functions follow meta_lvgl_set_language() automatically. Texts are set with
- * lv_label_set_text_static(): they stay in flash and are not copied.
+ * lv_label_set_text_static(): they stay in flash and are not copied. Only a
+ * label in the long mode LV_LABEL_LONG_DOT gets a copy, because LVGL writes the
+ * dots into the text.
  *
  * Copy this file into the firmware and adapt it; it is not generated.
  */
@@ -21,6 +23,9 @@ extern "C" {
 /**
  * Shows a text of a meta entry in a label and keeps it up to date when the
  * language changes. Missing texts show as empty label.
+ *
+ * Set the long mode of the label (lv_label_set_long_mode()) before this call;
+ * to change it to or from LV_LABEL_LONG_DOT later, call this function again.
  *
  * @param label LVGL label.
  * @param id Meta entry, e.g. META_H2100 or meta_find(0x2100, 0).
