@@ -53,7 +53,13 @@ jobs:
 
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Workload Identity Federation (kein API-Key-Secret noetig). Die IDs sind
+          # Kennungen, keine Zugangsdaten; die Regel in der Claude Console prueft
+          # das GitHub-OIDC-Token (Org protronic).
+          anthropic_federation_rule_id: fdrl_011r9vzwchf5UWx4eYreoKWY
+          anthropic_organization_id: 47126995-4ba9-45e4-8754-e56f5d39cecd
+          anthropic_service_account_id: svac_01ERAEQwvkJruXFeVyMEL31Y
+          anthropic_workspace_id: wrkspc_01AeNgXznCv6sTFRiLQbgBLJ
           claude_args: |
             --max-turns 40
             --allowedTools "Bash(dotnet restore *),Bash(dotnet build *),Bash(dotnet test *),Bash(dotnet format *)"
